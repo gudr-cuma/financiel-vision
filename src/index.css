@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  /* Couleurs principales */
+  --color-fv-blue: #B1DCE2;
+  --color-fv-blue-light: #E3F2F5;
+
+  --color-fv-green: #31B700;
+  --color-fv-green-dark: #268E00;
+  --color-fv-green-light: #E8F5E0;
+
+  --color-fv-orange: #FF8200;
+  --color-fv-orange-dark: #E57300;
+  --color-fv-orange-light: #FFF3E0;
+
+  --color-fv-lime: #93C90E;
+  --color-fv-lime-light: #F0F7D4;
+
+  --color-fv-forest: #00965E;
+  --color-fv-red: #E53935;
+
+  /* Neutres */
+  --color-fv-bg: #FFFFFF;
+  --color-fv-bg-secondary: #F8FAFB;
+  --color-fv-border: #E2E8F0;
+  --color-fv-text: #1A202C;
+  --color-fv-text-secondary: #718096;
+
+  /* Police */
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+/* Variables CSS custom (pour usage dans les graphiques Recharts, etc.) */
+:root {
+  --color-blue-pastel: #B1DCE2;
+  --color-green-primary: #31B700;
+  --color-green-accessible: #268E00;
+  --color-orange-accent: #FF8200;
+  --color-green-lime: #93C90E;
+  --color-green-forest: #00965E;
+  --color-blue-light: #E3F2F5;
+  --color-green-light: #E8F5E0;
+  --color-orange-light: #FFF3E0;
+  --color-lime-light: #F0F7D4;
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #F8FAFB;
+  --color-border: #E2E8F0;
+  --color-text: #1A202C;
+  --color-text-secondary: #718096;
+  --color-red-error: #E53935;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #FFFFFF;
+  color: #1A202C;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Focus visible — anneau clavier uniquement ──────────────────────────── */
+*:focus-visible {
+  outline: 2px solid #FF8200;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Responsive — DetailPanel ───────────────────────────────────────────── */
+.fv-detail-panel {
+  width: 50vw;
+  min-width: 520px;
+  max-width: 90vw;
+}
+@media (max-width: 600px) {
+  .fv-detail-panel {
+    width: 100vw !important;
+    min-width: 0 !important;
+    max-width: 100vw !important;
+  }
+}
+
+/* ── Responsive — AppHeader filename ───────────────────────────────────── */
+.fv-header-filename {
+  max-width: 340px;
+}
+@media (max-width: 640px) {
+  .fv-header-filename {
+    max-width: 140px !important;
+  }
+}
+
+/* ── Responsive — SigTable scroll horizontal ────────────────────────────── */
+.fv-sig-scroll {
+  overflow-x: auto;
+}
+.fv-sig-scroll table {
+  min-width: 480px;
+}
+
+/* ── Responsive — bouton Confidentialité ────────────────────────────────── */
+@media (max-width: 480px) {
+  .fv-privacy-label {
+    display: none;
+  }
+}
