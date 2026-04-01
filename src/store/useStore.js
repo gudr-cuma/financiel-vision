@@ -4,6 +4,7 @@ import { computeSig } from '../engine/computeSig';
 import { computeTreasury } from '../engine/computeTreasury';
 import { computeCharges } from '../engine/computeCharges';
 import { computeBilan } from '../engine/computeBilan';
+import { computeAnalyseurFec } from '../engine/computeAnalyseurFec';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -11,7 +12,8 @@ function computeAll(parsedFec) {
   const treasuryData = computeTreasury(parsedFec);
   const chargesData = computeCharges(parsedFec);
   const bilanData = computeBilan(parsedFec);
-  return { sigResult, treasuryData, chargesData, bilanData };
+  const analyseurData = computeAnalyseurFec(parsedFec);
+  return { sigResult, treasuryData, chargesData, bilanData, analyseurData };
 }
 
 const useStore = create((set, get) => ({
@@ -24,6 +26,7 @@ const useStore = create((set, get) => ({
   treasuryData: null,
   chargesData: null,
   bilanData: null,
+  analyseurData: null,
   activeTab: 'sig',        // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analyse'
   activeSubTab: 'mensuel', // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
@@ -185,6 +188,7 @@ const useStore = create((set, get) => ({
     treasuryData: null,
     chargesData: null,
     bilanData: null,
+    analyseurData: null,
     activeTab: 'sig',
     activeSubTab: 'mensuel',
     detailPanel: null,

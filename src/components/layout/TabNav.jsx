@@ -8,6 +8,7 @@ const TABS = [
   { id: 'balance',      icon: '⚖️', label: 'Bilan' },
   { id: 'comparaison',  icon: '📊', label: 'Comparaison N/N-1' },
   { id: 'analytique',   icon: '🔬', label: 'Analytique' },
+  { id: 'analyseur',    icon: '🔎', label: 'Analyseur FEC' },
   { id: 'analyse',      icon: '🤖', label: 'Rapport IA' },
 ];
 

@@ -12,6 +12,7 @@ import BalanceTab from './components/balance/BalanceTab';
 import AnalyseTab from './components/analyse/AnalyseTab';
 import ComparaisonTab from './components/comparaison/ComparaisonTab';
 import AnalytiqueTab from './components/analytique/AnalytiqueTab';
+import AnalyseurTab from './components/analyseur/AnalyseurTab';
 
 export default function App() {
   const view = useStore(s => s.view);
@@ -55,6 +56,7 @@ export default function App() {
           {activeTab === 'balance' && <BalanceTab />}
           {activeTab === 'comparaison' && <ComparaisonTab />}
           {activeTab === 'analytique' && <AnalytiqueTab />}
+          {activeTab === 'analyseur' && <AnalyseurTab />}
           {activeTab === 'analyse' && <AnalyseTab />}
         </main>
       </div>
