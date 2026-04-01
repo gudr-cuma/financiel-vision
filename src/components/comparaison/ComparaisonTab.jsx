@@ -448,11 +448,16 @@ function UploadN2Zone() {
   const inputRef    = useRef(null);
 
   function handleFiles(files) { if (files?.length === 1) loadFecN2(files[0]); }
-  function handleDrop(e) { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); }
+  function handleDrop(e) { e.preventDefault(); e.stopPropagation(); handleFiles(Array.from(e.dataTransfer.files)); }
+  function handleDragOver(e) { e.preventDefault(); e.stopPropagation(); }
   function handleChange(e) { handleFiles(Array.from(e.target.files)); e.target.value = ''; }
 
   return (
-    <div style={{ backgroundColor: '#F8FAFB', borderRadius: '12px', border: '2px dashed #B1DCE2', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      style={{ backgroundColor: '#F8FAFB', borderRadius: '12px', border: '2px dashed #B1DCE2', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}
+    >
       <span style={{ fontSize: '24px' }}>📁</span>
       <div style={{ flex: 1, minWidth: '200px' }}>
         <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A202C' }}>Ajouter l'exercice N-2</div>
@@ -460,23 +465,25 @@ function UploadN2Zone() {
         {errorN2 && <div style={{ fontSize: '12px', color: '#E53935', marginTop: '4px' }}>⚠️ {errorN2}</div>}
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button onClick={() => inputRef.current?.click()} disabled={isLoadingN2}
-          style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #B1DCE2', background: '#fff', cursor: isLoadingN2 ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 500, color: '#2D3748' }}>
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={isLoadingN2}
+          style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #B1DCE2', background: '#fff', cursor: isLoadingN2 ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 500, color: '#2D3748' }}
+        >
           {isLoadingN2 ? '⏳ Chargement…' : '📂 Parcourir'}
         </button>
         {isDemo && (
-          <button onClick={loadDemoN2} disabled={isLoadingN2}
+          <button
+            onClick={loadDemoN2}
+            disabled={isLoadingN2}
             style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#FF8200', cursor: isLoadingN2 ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 600, color: '#fff' }}
             onMouseEnter={e => { if (!isLoadingN2) e.currentTarget.style.background = '#E57300'; }}
-            onMouseLeave={e => { if (!isLoadingN2) e.currentTarget.style.background = '#FF8200'; }}>
+            onMouseLeave={e => { if (!isLoadingN2) e.currentTarget.style.background = '#FF8200'; }}
+          >
             ⚡ Démo N-2
           </button>
         )}
       </div>
-      <div
-        onDragOver={e => e.preventDefault()} onDrop={handleDrop}
-        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-      />
       <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleChange} style={{ display: 'none' }} />
     </div>
   );

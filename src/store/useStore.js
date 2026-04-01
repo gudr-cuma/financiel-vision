@@ -91,7 +91,7 @@ const useStore = create((set, get) => ({
       const response = await fetch('/demo/demo_fec.csv');
       if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration.');
       const blob = await response.blob();
-      const file = new File([blob], '999000001FEC20241231.csv', { type: 'text/csv' });
+      const file = new File([blob], 'DEMOFEC20241231.csv', { type: 'text/csv' });
       const parsedFec = await parseFec(file, (percent) => {
         set({ loadProgress: percent });
       });
@@ -124,7 +124,7 @@ const useStore = create((set, get) => ({
       const response = await fetch('/demo/demo_fec_n1.csv');
       if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration N-1.');
       const blob = await response.blob();
-      const file = new File([blob], '333564508FEC20231231.csv', { type: 'text/csv' });
+      const file = new File([blob], 'DEMOFEC20231231.csv', { type: 'text/csv' });
       const parsedFecN1 = await parseFec(file, () => {});
       const sigResultN1 = computeSig(parsedFecN1);
       const treasuryDataN1 = computeTreasury(parsedFecN1);
@@ -158,7 +158,7 @@ const useStore = create((set, get) => ({
       const response = await fetch('/demo/demo_fec_n2.csv');
       if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration N-2.');
       const blob = await response.blob();
-      const file = new File([blob], '333564508FEC20221231.csv', { type: 'text/csv' });
+      const file = new File([blob], 'DEMOFEC20221231.csv', { type: 'text/csv' });
       const parsedFecN2 = await parseFec(file, () => {});
       const sigResultN2 = computeSig(parsedFecN2);
       const bilanDataN2 = computeBilan(parsedFecN2);
