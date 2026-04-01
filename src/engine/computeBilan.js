@@ -194,6 +194,18 @@ const BILAN_MAPPING = {
 };
 
 // ---------------------------------------------------------------------------
+// Export lookup id → ranges (pour affichage dans l'UI)
+// ---------------------------------------------------------------------------
+export const BILAN_RANGES_BY_ID = Object.fromEntries(
+  [...Object.values(BILAN_MAPPING.actif), ...Object.values(BILAN_MAPPING.passif)]
+    .flatMap(section => section.postes ?? [])
+    .map(p => [p.id, {
+      ranges: p.ranges.map(r => `${r}*`),
+      excludeRanges: (p.excludeRanges ?? []).map(r => `${r}*`),
+    }])
+);
+
+// ---------------------------------------------------------------------------
 // Calcul des soldes par range de comptes
 // ---------------------------------------------------------------------------
 

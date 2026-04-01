@@ -211,59 +211,59 @@ function AnnualChartsGrid({ annualData }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
 
         {/* 1 — CA */}
-        <SectionCard title="Chiffre d'affaires" subtitle="Total annuel">
+        <SectionCard title="Chiffre d'affaires" subtitle="Comptes 701* à 708* (ventes de biens et services, travaux agricoles)">
           <AnnualBarChart data={annualData} dataKey="ca" colors={colors} />
         </SectionCard>
 
         {/* 2 — EBE */}
-        <SectionCard title="EBE" subtitle="Excédent Brut d'Exploitation">
+        <SectionCard title="EBE — Excédent Brut d'Exploitation" subtitle="= Valeur Ajoutée − Charges de personnel (64*, 621*) − Impôts & taxes (63*)">
           <AnnualBarChart data={annualData} dataKey="ebe" colors={colors} />
         </SectionCard>
 
         {/* 3 — Résultats — occupe 2 colonnes */}
         <div style={{ gridColumn: '1 / -1' }}>
-          <SectionCard title="Résultats" subtitle="Courant · Exceptionnel · Net">
+          <SectionCard title="Résultats" subtitle="Courant (Rex + Résultat financier) · Exceptionnel (77* − 67*) · Net (après IS 69*)">
             <ResultatsChart data={annualData} years={years} colors={colors} />
           </SectionCard>
         </div>
 
         {/* 4 — Fonds de roulement */}
-        <SectionCard title="Fonds de roulement" subtitle="(Capitaux propres + Dettes MLT) − Actif immobilisé">
+        <SectionCard title="Fonds de roulement" subtitle="= (Capitaux propres 10*-13* + Dettes MLT 16*) − Actif immobilisé net (20*-28*)">
           <AnnualBarChart data={annualData} dataKey="fr" colors={colors} />
         </SectionCard>
 
         {/* 5 — FR / CA */}
-        <SectionCard title="Fonds de roulement / CA" subtitle="Ratio en %">
+        <SectionCard title="Fonds de roulement / CA" subtitle="Fonds de roulement ÷ Chiffre d'affaires × 100  —  mesure la couverture du cycle d'exploitation">
           <AnnualBarChart data={annualData} dataKey="frSurCa" colors={colors} isPct />
         </SectionCard>
 
         {/* 6 — Créances / CA */}
-        <SectionCard title="Créances / CA" subtitle="Ratio en %">
+        <SectionCard title="Créances / CA" subtitle="Créances adhérents (45*) + Créances exploitation (41*, 409*) ÷ CA × 100  —  délai client">
           <AnnualBarChart data={annualData} dataKey="creancesSurCa" colors={colors} isPct />
         </SectionCard>
 
         {/* 7 — Capital social / CA */}
-        <SectionCard title="Capital social / CA" subtitle="Ratio en %">
+        <SectionCard title="Capital social / CA" subtitle="Parts sociales (101*-104*) ÷ CA × 100  —  intensité capitalistique des adhérents">
           <AnnualBarChart data={annualData} dataKey="capitalSocialSurCa" colors={colors} isPct />
         </SectionCard>
 
         {/* 8 — Capital social / Valeur brute matériels */}
-        <SectionCard title="Capital social / Val. brute matériels" subtitle="Ratio en %">
+        <SectionCard title="Capital social / Val. brute matériels" subtitle="Parts sociales (101*-104*) ÷ Immob. corporelles brutes (21*, 22*, 23*) × 100">
           <AnnualBarChart data={annualData} dataKey="capitalSocialSurMateriels" colors={colors} isPct />
         </SectionCard>
 
         {/* 9 — Capital social / Capitaux propres */}
-        <SectionCard title="Capital social / Capitaux propres" subtitle="Ratio en %">
+        <SectionCard title="Capital social / Capitaux propres" subtitle="Parts sociales (101*-104*) ÷ Capitaux propres totaux × 100  —  part des membres dans les fonds propres">
           <AnnualBarChart data={annualData} dataKey="capitalSocialSurCp" colors={colors} isPct />
         </SectionCard>
 
         {/* 10 — Taux d'endettement */}
-        <SectionCard title="Taux d'endettement" subtitle="Dettes totales / Capitaux propres × 100">
+        <SectionCard title="Taux d'endettement" subtitle="Dettes totales (15*, 16*, 40*, 42*-47*) ÷ Capitaux propres × 100  —  levier financier">
           <AnnualBarChart data={annualData} dataKey="tauxEndettement" colors={colors} isPct />
         </SectionCard>
 
         {/* 11 — Capitaux propres / Passif */}
-        <SectionCard title="Capitaux propres / Passif" subtitle="Ratio en %">
+        <SectionCard title="Capitaux propres / Passif" subtitle="Capitaux propres ÷ Total passif × 100  —  autonomie financière (seuil CUMA : > 30 %)">
           <AnnualBarChart data={annualData} dataKey="cpSurPassif" colors={colors} isPct />
         </SectionCard>
 

@@ -9,7 +9,7 @@ import { formatAmountFull, formatPercent } from '../../engine/formatUtils';
  *   onClick    (fn)      — callback appelé avec line.id au clic
  */
 export function SigRow({ line, isSelected, onClick }) {
-  const { id, label, prefix, isTotal, amount, percentCa } = line;
+  const { id, label, prefix, isTotal, amount, percentCa, accountRanges } = line;
   const isNegative = typeof amount === 'number' && amount < 0;
   const isResultatNet = id === 'resultat_net';
 
@@ -86,6 +86,11 @@ export function SigRow({ line, isSelected, onClick }) {
             </span>
           )}
           <span>{label}</span>
+          {!isTotal && accountRanges?.length > 0 && (
+            <span style={{ fontSize: '11px', color: '#A0AEC0', fontWeight: 400, whiteSpace: 'nowrap' }}>
+              ({accountRanges.join(', ')})
+            </span>
+          )}
         </div>
       </td>
 

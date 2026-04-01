@@ -1,5 +1,6 @@
 import { formatAmountFull } from '../../engine/formatUtils';
 import BalanceRow from './BalanceRow';
+import { BILAN_RANGES_BY_ID } from '../../engine/computeBilan';
 
 /**
  * Extracts detail lines from a balance section object,
@@ -63,6 +64,7 @@ export default function AssetSection({ actifImmobilise, actifCirculant, totalAct
             indent
             isClickable={typeof onPostClick === 'function'}
             onClick={() => onPostClick && onPostClick(line.id)}
+            ranges={BILAN_RANGES_BY_ID[line.id]}
           />
         ))}
 
@@ -82,6 +84,7 @@ export default function AssetSection({ actifImmobilise, actifCirculant, totalAct
             indent
             isClickable={typeof onPostClick === 'function'}
             onClick={() => onPostClick && onPostClick(line.id)}
+            ranges={BILAN_RANGES_BY_ID[line.id]}
           />
         ))}
     </div>

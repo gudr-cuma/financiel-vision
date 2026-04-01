@@ -18,6 +18,7 @@ export default function BalanceRow({
   indent = false,
   isClickable = false,
   onClick,
+  ranges,
 }) {
   const amountColor =
     montant === 0 || montant === null || montant === undefined
@@ -73,7 +74,17 @@ export default function BalanceRow({
       onKeyDown={canClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       aria-label={canClick ? `Détail de ${label}` : undefined}
     >
-      <span style={{ flex: 1, color: '#1A202C' }}>{label}</span>
+      <span style={{ flex: 1, color: '#1A202C', display: 'flex', alignItems: 'baseline', gap: '5px', minWidth: 0 }}>
+        <span>{label}</span>
+        {!isHeader && ranges?.ranges?.length > 0 && (
+          <span style={{ fontSize: '11px', color: '#A0AEC0', whiteSpace: 'nowrap', fontWeight: 400 }}>
+            ({[
+              ...ranges.ranges,
+              ...(ranges.excludeRanges ?? []).map(r => `sauf ${r}`),
+            ].join(', ')})
+          </span>
+        )}
+      </span>
       <span style={{ color: amountColor, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
         {montant !== null && montant !== undefined ? formatAmountFull(montant) : '—'}
       </span>

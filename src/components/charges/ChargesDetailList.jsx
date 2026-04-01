@@ -1,4 +1,13 @@
 import { formatAmountFull, formatPercent } from '../../engine/formatUtils';
+import { CHARGE_CATEGORIES } from '../../engine/computeCharges';
+
+// Lookup ranges par id
+const RANGES_BY_ID = Object.fromEntries(
+  CHARGE_CATEGORIES.map(c => [c.id, {
+    ranges: c.ranges.map(r => `${r}*`),
+    excludeRanges: c.excludeRanges?.map(r => `${r}*`) ?? [],
+  }])
+);
 
 export default function ChargesDetailList({ categories, totalCharges, selectedCategoryId, onSelectCategory }) {
   const sorted = [...categories].sort((a, b) => b.montant - a.montant);
@@ -41,17 +50,25 @@ export default function ChargesDetailList({ categories, totalCharges, selectedCa
                   flexShrink: 0,
                 }}
               />
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: '#1A202C',
-                  fontWeight: isSelected ? 700 : 500,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {cat.label}
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: '5px', overflow: 'hidden' }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    color: '#1A202C',
+                    fontWeight: isSelected ? 700 : 500,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {cat.label}
+                </span>
+                {RANGES_BY_ID[cat.id] && (
+                  <span style={{ fontSize: '11px', color: '#A0AEC0', whiteSpace: 'nowrap' }}>
+                    ({[
+                      ...RANGES_BY_ID[cat.id].ranges,
+                      ...RANGES_BY_ID[cat.id].excludeRanges.map(r => `sauf ${r}`),
+                    ].join(', ')})
+                  </span>
+                )}
               </span>
             </div>
             <div
