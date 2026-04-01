@@ -43,8 +43,18 @@ const useStore = create((set, get) => ({
   sigResultN1: null,
   treasuryDataN1: null,
   chargesDataN1: null,
+  bilanDataN1: null,
   isLoadingN1: false,
   errorN1: null,
+
+  // -------------------------------------------------------------------------
+  // État — exercice N-2
+  // -------------------------------------------------------------------------
+  parsedFecN2: null,
+  sigResultN2: null,
+  bilanDataN2: null,
+  isLoadingN2: false,
+  errorN2: null,
 
   // -------------------------------------------------------------------------
   // Actions — exercice N
@@ -119,7 +129,8 @@ const useStore = create((set, get) => ({
       const sigResultN1 = computeSig(parsedFecN1);
       const treasuryDataN1 = computeTreasury(parsedFecN1);
       const chargesDataN1 = computeCharges(parsedFecN1);
-      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, isLoadingN1: false, activeTab: 'comparaison' });
+      const bilanDataN1 = computeBilan(parsedFecN1);
+      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, bilanDataN1, isLoadingN1: false, activeTab: 'comparaison' });
     } catch (err) {
       set({ isLoadingN1: false, errorN1: err.message });
     }
@@ -133,28 +144,55 @@ const useStore = create((set, get) => ({
       const sigResultN1 = computeSig(parsedFecN1);
       const treasuryDataN1 = computeTreasury(parsedFecN1);
       const chargesDataN1 = computeCharges(parsedFecN1);
-      set({
-        parsedFecN1,
-        sigResultN1,
-        treasuryDataN1,
-        chargesDataN1,
-        isLoadingN1: false,
-        // Naviguer vers l'onglet comparaison une fois chargé
-        activeTab: 'comparaison',
-      });
+      const bilanDataN1 = computeBilan(parsedFecN1);
+      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, bilanDataN1, isLoadingN1: false, activeTab: 'comparaison' });
     } catch (err) {
       set({ isLoadingN1: false, errorN1: err.message });
     }
   },
 
-  /** Supprime le FEC N-1 */
+  /** Charge le FEC N-2 de démonstration depuis public/demo/demo_fec_n2.csv */
+  loadDemoN2: async () => {
+    set({ isLoadingN2: true, errorN2: null });
+    try {
+      const response = await fetch('/demo/demo_fec_n2.csv');
+      if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration N-2.');
+      const blob = await response.blob();
+      const file = new File([blob], '333564508FEC20221231.csv', { type: 'text/csv' });
+      const parsedFecN2 = await parseFec(file, () => {});
+      const sigResultN2 = computeSig(parsedFecN2);
+      const bilanDataN2 = computeBilan(parsedFecN2);
+      set({ parsedFecN2, sigResultN2, bilanDataN2, isLoadingN2: false });
+    } catch (err) {
+      set({ isLoadingN2: false, errorN2: err.message });
+    }
+  },
+
+  /** Charge le FEC N-2 déposé par l'utilisateur */
+  loadFecN2: async (file) => {
+    set({ isLoadingN2: true, errorN2: null });
+    try {
+      const parsedFecN2 = await parseFec(file, () => {});
+      const sigResultN2 = computeSig(parsedFecN2);
+      const bilanDataN2 = computeBilan(parsedFecN2);
+      set({ parsedFecN2, sigResultN2, bilanDataN2, isLoadingN2: false });
+    } catch (err) {
+      set({ isLoadingN2: false, errorN2: err.message });
+    }
+  },
+
+  /** Supprime le FEC N-1 et N-2 */
   resetN1: () => set({
-    parsedFecN1: null,
-    sigResultN1: null,
-    treasuryDataN1: null,
-    chargesDataN1: null,
-    isLoadingN1: false,
-    errorN1: null,
+    parsedFecN1: null, sigResultN1: null, treasuryDataN1: null, chargesDataN1: null, bilanDataN1: null,
+    isLoadingN1: false, errorN1: null,
+    parsedFecN2: null, sigResultN2: null, bilanDataN2: null,
+    isLoadingN2: false, errorN2: null,
+  }),
+
+  /** Supprime uniquement le FEC N-2 */
+  resetN2: () => set({
+    parsedFecN2: null, sigResultN2: null, bilanDataN2: null,
+    isLoadingN2: false, errorN2: null,
   }),
 
   // -------------------------------------------------------------------------
@@ -197,13 +235,11 @@ const useStore = create((set, get) => ({
     error: null,
     parseWarnings: [],
     isDemo: false,
-    // Réinitialiser aussi le N-1
-    parsedFecN1: null,
-    sigResultN1: null,
-    treasuryDataN1: null,
-    chargesDataN1: null,
-    isLoadingN1: false,
-    errorN1: null,
+    // Réinitialiser aussi le N-1 et N-2
+    parsedFecN1: null, sigResultN1: null, treasuryDataN1: null, chargesDataN1: null, bilanDataN1: null,
+    isLoadingN1: false, errorN1: null,
+    parsedFecN2: null, sigResultN2: null, bilanDataN2: null,
+    isLoadingN2: false, errorN2: null,
   }),
 }));
 

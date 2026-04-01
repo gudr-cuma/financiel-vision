@@ -334,6 +334,11 @@ export function computeBilan(parsedFec) {
     },
   };
 
+  // Valeur brute des matériels (21x+22x+23x sans amortissements)
+  const valeurBruteMateriels = Math.round(
+    Math.max(0, sumRange(soldesParCompte, ['21', '22', '23'])) * 100
+  ) / 100;
+
   return {
     actifImmobilise,
     actifCirculant,
@@ -345,5 +350,6 @@ export function computeBilan(parsedFec) {
     bilanEquilibre,
     adherentsEnActif,
     ratios,
+    valeurBruteMateriels,
   };
 }
