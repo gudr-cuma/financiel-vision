@@ -27,6 +27,7 @@ const useStore = create((set, get) => ({
   chargesData: null,
   bilanData: null,
   analyseurData: null,
+  analytiqueData: null,  // { materiels, global } — chargé depuis AnalytiqueTab
   activeTab: 'sig',        // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analyse'
   activeSubTab: 'mensuel', // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
@@ -217,6 +218,8 @@ const useStore = create((set, get) => ({
 
   closeDetail: () => set({ detailPanel: null }),
 
+  setAnalytiqueData: (data) => set({ analytiqueData: data }),
+
   clearError: () => set({ error: null }),
 
   reset: () => set({
@@ -227,6 +230,7 @@ const useStore = create((set, get) => ({
     chargesData: null,
     bilanData: null,
     analyseurData: null,
+    analytiqueData: null,
     activeTab: 'sig',
     activeSubTab: 'mensuel',
     detailPanel: null,

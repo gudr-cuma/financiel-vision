@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal, CHARGE_CATEGORIES } from '../../engine/computeAnalytique';
 import { formatAmountFull } from '../../engine/formatUtils';
+import useStore from '../../store/useStore';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -254,6 +255,7 @@ function DetailPanel({ m, onClose }) {
 // Main — AnalytiqueTab
 // ---------------------------------------------------------------------------
 export function AnalytiqueTab() {
+  const setAnalytiqueData = useStore(s => s.setAnalytiqueData);
   const [materiels, setMateriels] = useState(null);
   const [global, setGlobal] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -275,7 +277,8 @@ export function AnalytiqueTab() {
     setMateriels(mats);
     setGlobal(glob);
     setIsLoading(false);
-  }, []);
+    setAnalytiqueData({ materiels: mats, global: glob });
+  }, [setAnalytiqueData]);
 
   const loadFile = useCallback((file) => {
     if (!file) return;
@@ -413,7 +416,7 @@ export function AnalytiqueTab() {
           Comptabilité analytique — {materiels.length} matériels
         </h2>
         <button
-          onClick={() => { setMateriels(null); setGlobal(null); setSelected(null); setError(null); }}
+          onClick={() => { setMateriels(null); setGlobal(null); setSelected(null); setError(null); setAnalytiqueData(null); }}
           style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: '13px', color: '#718096' }}
         >
           🔄 Changer de fichier

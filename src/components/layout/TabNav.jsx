@@ -9,6 +9,8 @@ const TABS = [
   { id: 'comparaison',  icon: '📊', label: 'Comparaison N/N-1' },
   { id: 'analytique',   icon: '🔬', label: 'Analytique' },
   { id: 'analyseur',    icon: '🔎', label: 'Analyseur FEC' },
+  { id: 'livres',       icon: '📒', label: 'Livres comptables' },
+  { id: 'export',       icon: '⬇️',  label: 'Export' },
   { id: 'analyse',      icon: '🤖', label: 'Rapport IA' },
 ];
 

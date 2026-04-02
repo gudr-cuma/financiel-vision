@@ -13,6 +13,8 @@ import AnalyseTab from './components/analyse/AnalyseTab';
 import ComparaisonTab from './components/comparaison/ComparaisonTab';
 import AnalytiqueTab from './components/analytique/AnalytiqueTab';
 import AnalyseurTab from './components/analyseur/AnalyseurTab';
+import LivresTab from './components/livres/LivresTab';
+import ExportTab from './components/export/ExportTab';
 
 export default function App() {
   const view = useStore(s => s.view);
@@ -57,7 +59,9 @@ export default function App() {
           {activeTab === 'comparaison' && <ComparaisonTab />}
           {activeTab === 'analytique' && <AnalytiqueTab />}
           {activeTab === 'analyseur' && <AnalyseurTab />}
-          {activeTab === 'analyse' && <AnalyseTab />}
+          {activeTab === 'livres'    && <LivresTab />}
+          {activeTab === 'export'    && <ExportTab />}
+          {activeTab === 'analyse'   && <AnalyseTab />}
         </main>
       </div>
       </div>
