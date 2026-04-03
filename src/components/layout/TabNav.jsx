@@ -1,27 +1,26 @@
 import useStore from '../../store/useStore';
 
 const TABS = [
-  { id: 'sig',          icon: '📋', label: 'SIG' },
-  { id: 'monthly',      icon: '📈', label: 'Analyses' },
-  { id: 'treasury',     icon: '💰', label: 'Trésorerie' },
-  { id: 'charges',      icon: '🥧', label: 'Charges' },
-  { id: 'balance',      icon: '⚖️', label: 'Bilan' },
-  { id: 'comparaison',  icon: '📊', label: 'Comparaison N/N-1' },
-  { id: 'analytique',   icon: '🔬', label: 'Analytique' },
-  { id: 'analyseur',    icon: '🔎', label: 'Analyseur FEC' },
-  { id: 'livres',       icon: '📒', label: 'Livres comptables' },
-  { id: 'export',       icon: '⬇️',  label: 'Export' },
-  { id: 'analyse',      icon: '🤖', label: 'Rapport IA' },
+  { id: 'sig',         icon: '📋', label: 'SIG' },
+  { id: 'monthly',     icon: '📈', label: 'Analyses' },
+  { id: 'treasury',    icon: '💰', label: 'Trésorerie' },
+  { id: 'charges',     icon: '🥧', label: 'Charges' },
+  { id: 'balance',     icon: '⚖️', label: 'Bilan' },
+  { id: 'comparaison', icon: '📊', label: 'Comparaison N/N-1' },
+  { id: 'analytique',  icon: '🔬', label: 'Analytique' },
 ];
 
 export function TabNav() {
-  const activeTab = useStore((s) => s.activeTab);
-  const setActiveTab = useStore((s) => s.setActiveTab);
+  const activeSection = useStore((s) => s.activeSection);
+  const activeTab     = useStore((s) => s.activeTab);
+  const setActiveTab  = useStore((s) => s.setActiveTab);
+
+  if (activeSection !== 'dashboard') return null;
 
   return (
     <nav
       role="tablist"
-      aria-label="Navigation principale"
+      aria-label="Tableaux de bord"
       style={{
         display: 'flex',
         alignItems: 'flex-end',
@@ -30,6 +29,7 @@ export function TabNav() {
         overflowX: 'auto',
         overflowY: 'visible',
         scrollbarWidth: 'none',
+        marginTop: '4px',
       }}
     >
       {TABS.map((tab) => {
@@ -42,8 +42,8 @@ export function TabNav() {
             tabIndex={isActive ? 0 : -1}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '12px 16px',
-              fontSize: '14px',
+              padding: '10px 16px',
+              fontSize: '13px',
               fontWeight: isActive ? 700 : 400,
               color: isActive ? '#1A202C' : '#718096',
               backgroundColor: 'transparent',
@@ -62,7 +62,7 @@ export function TabNav() {
               if (!isActive) e.currentTarget.style.color = '#718096';
             }}
           >
-            <span style={{ marginRight: '6px', fontSize: '15px' }}>{tab.icon}</span>{tab.label}
+            <span style={{ marginRight: '5px', fontSize: '14px' }}>{tab.icon}</span>{tab.label}
           </button>
         );
       })}

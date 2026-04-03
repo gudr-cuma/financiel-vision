@@ -28,8 +28,9 @@ const useStore = create((set, get) => ({
   bilanData: null,
   analyseurData: null,
   analytiqueData: null,  // { materiels, global } — chargé depuis AnalytiqueTab
-  activeTab: 'sig',        // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analyse'
-  activeSubTab: 'mensuel', // 'mensuel' | 'cumule' | 'tableau'
+  activeSection: 'dashboard', // 'analyseur' | 'dashboard' | 'editions' | 'export' | 'analyse'
+  activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
+  activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
   isLoading: false,
   loadProgress: 0,         // 0-100
@@ -73,6 +74,7 @@ const useStore = create((set, get) => ({
         parsedFec,
         ...computed,
         view: 'dashboard',
+        activeSection: 'dashboard',
         activeTab: 'sig',
         activeSubTab: 'mensuel',
         detailPanel: null,
@@ -101,6 +103,7 @@ const useStore = create((set, get) => ({
         parsedFec,
         ...computed,
         view: 'dashboard',
+        activeSection: 'dashboard',
         activeTab: 'sig',
         activeSubTab: 'mensuel',
         detailPanel: null,
@@ -131,7 +134,7 @@ const useStore = create((set, get) => ({
       const treasuryDataN1 = computeTreasury(parsedFecN1);
       const chargesDataN1 = computeCharges(parsedFecN1);
       const bilanDataN1 = computeBilan(parsedFecN1);
-      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, bilanDataN1, isLoadingN1: false, activeTab: 'comparaison' });
+      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, bilanDataN1, isLoadingN1: false, activeSection: 'dashboard', activeTab: 'comparaison' });
     } catch (err) {
       set({ isLoadingN1: false, errorN1: err.message });
     }
@@ -146,7 +149,7 @@ const useStore = create((set, get) => ({
       const treasuryDataN1 = computeTreasury(parsedFecN1);
       const chargesDataN1 = computeCharges(parsedFecN1);
       const bilanDataN1 = computeBilan(parsedFecN1);
-      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, bilanDataN1, isLoadingN1: false, activeTab: 'comparaison' });
+      set({ parsedFecN1, sigResultN1, treasuryDataN1, chargesDataN1, bilanDataN1, isLoadingN1: false, activeSection: 'dashboard', activeTab: 'comparaison' });
     } catch (err) {
       set({ isLoadingN1: false, errorN1: err.message });
     }
@@ -200,6 +203,8 @@ const useStore = create((set, get) => ({
   // Actions — navigation / UI
   // -------------------------------------------------------------------------
 
+  setActiveSection: (section) => set({ activeSection: section }),
+
   setActiveTab: (tab) => set({ activeTab: tab, detailPanel: null }),
 
   setActiveSubTab: (subTab) => set({ activeSubTab: subTab }),
@@ -231,6 +236,7 @@ const useStore = create((set, get) => ({
     bilanData: null,
     analyseurData: null,
     analytiqueData: null,
+    activeSection: 'dashboard',
     activeTab: 'sig',
     activeSubTab: 'mensuel',
     detailPanel: null,

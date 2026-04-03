@@ -2,6 +2,7 @@ import useStore from './store/useStore';
 import UploadPage from './components/upload/UploadPage';
 import AppHeader from './components/layout/AppHeader';
 import KpiBar from './components/layout/KpiBar';
+import MainNav from './components/layout/MainNav';
 import TabNav from './components/layout/TabNav';
 import SigTable from './components/sig/SigTable';
 import ErrorBanner from './components/shared/ErrorBanner';
@@ -17,10 +18,11 @@ import LivresTab from './components/livres/LivresTab';
 import ExportTab from './components/export/ExportTab';
 
 export default function App() {
-  const view = useStore(s => s.view);
-  const activeTab = useStore(s => s.activeTab);
-  const error = useStore(s => s.error);
-  const clearError = useStore(s => s.clearError);
+  const view          = useStore(s => s.view);
+  const activeSection = useStore(s => s.activeSection);
+  const activeTab     = useStore(s => s.activeTab);
+  const error         = useStore(s => s.error);
+  const clearError    = useStore(s => s.clearError);
   const parseWarnings = useStore(s => s.parseWarnings);
 
   if (view === 'upload') {
@@ -32,38 +34,50 @@ export default function App() {
       <AppHeader />
 
       <div style={{ paddingTop: '65px' }}>
-      {error && (
-        <div className="max-w-[1280px] mx-auto px-6 pt-4">
-          <ErrorBanner message={error} onClose={clearError} />
-        </div>
-      )}
+        {error && (
+          <div className="max-w-[1280px] mx-auto px-6 pt-4">
+            <ErrorBanner message={error} onClose={clearError} />
+          </div>
+        )}
 
-      {parseWarnings.length > 0 && (
-        <div className="max-w-[1280px] mx-auto px-6 pt-2">
-          <ErrorBanner
-            message={`${parseWarnings[0]}${parseWarnings.length > 1 ? ` (+${parseWarnings.length - 1} autre(s))` : ''}`}
-            type="warning"
-          />
-        </div>
-      )}
+        {parseWarnings.length > 0 && (
+          <div className="max-w-[1280px] mx-auto px-6 pt-2">
+            <ErrorBanner
+              message={`${parseWarnings[0]}${parseWarnings.length > 1 ? ` (+${parseWarnings.length - 1} autre(s))` : ''}`}
+              type="warning"
+            />
+          </div>
+        )}
 
-      <div className="max-w-[1280px] mx-auto px-6 pb-4">
-        <KpiBar />
-        <TabNav />
-        <main>
-          {activeTab === 'sig' && <SigTable />}
-          {activeTab === 'monthly' && <MonthlyTab />}
-          {activeTab === 'treasury' && <TreasuryTab />}
-          {activeTab === 'charges' && <ChargesTab />}
-          {activeTab === 'balance' && <BalanceTab />}
-          {activeTab === 'comparaison' && <ComparaisonTab />}
-          {activeTab === 'analytique' && <AnalytiqueTab />}
-          {activeTab === 'analyseur' && <AnalyseurTab />}
-          {activeTab === 'livres'    && <LivresTab />}
-          {activeTab === 'export'    && <ExportTab />}
-          {activeTab === 'analyse'   && <AnalyseTab />}
-        </main>
-      </div>
+        <div className="max-w-[1280px] mx-auto px-6 pb-4">
+          <MainNav />
+
+          {/* KpiBar uniquement dans la section Dashboard */}
+          {activeSection === 'dashboard' && <KpiBar />}
+
+          {/* Sous-navigation financière (uniquement dans Dashboard) */}
+          <TabNav />
+
+          <main>
+            {activeSection === 'analyseur' && <AnalyseurTab />}
+
+            {activeSection === 'dashboard' && (
+              <>
+                {activeTab === 'sig'        && <SigTable />}
+                {activeTab === 'monthly'    && <MonthlyTab />}
+                {activeTab === 'treasury'   && <TreasuryTab />}
+                {activeTab === 'charges'    && <ChargesTab />}
+                {activeTab === 'balance'    && <BalanceTab />}
+                {activeTab === 'comparaison'&& <ComparaisonTab />}
+                {activeTab === 'analytique' && <AnalytiqueTab />}
+              </>
+            )}
+
+            {activeSection === 'editions' && <LivresTab />}
+            {activeSection === 'export'   && <ExportTab />}
+            {activeSection === 'analyse'  && <AnalyseTab />}
+          </main>
+        </div>
       </div>
     </div>
   );
