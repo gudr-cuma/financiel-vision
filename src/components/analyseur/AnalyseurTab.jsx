@@ -1,4 +1,6 @@
 import useStore from '../../store/useStore';
+import { Dropzone } from '../upload/Dropzone';
+import { ProgressBar } from '../upload/ProgressBar';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -410,12 +412,66 @@ function AnomalieDocCard({ color, bg, border, title, items }) {
 // ---------------------------------------------------------------------------
 export function AnalyseurTab() {
   const analyseurData = useStore(s => s.analyseurData);
+  const loadFec       = useStore(s => s.loadFec);
+  const loadDemo      = useStore(s => s.loadDemo);
+  const isLoading     = useStore(s => s.isLoading);
+  const loadProgress  = useStore(s => s.loadProgress);
 
   if (!analyseurData) {
     return (
-      <div style={{ padding: '40px 24px', textAlign: 'center', color: '#A0AEC0' }}>
-        <div style={{ fontSize: '36px', marginBottom: '12px' }}>🔍</div>
-        <div style={{ fontSize: '14px' }}>Aucun FEC chargé</div>
+      <div style={{ paddingTop: '32px', maxWidth: '560px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <h2 style={{ margin: '0 0 10px', fontSize: '22px', fontWeight: 700, color: '#1A202C' }}>
+            Analyse financière FEC
+          </h2>
+          <p style={{ margin: 0, fontSize: '14px', color: '#718096', lineHeight: 1.6 }}>
+            Déposez votre fichier FEC pour obtenir vos SIG, analyses mensuelles
+            et drill-down jusqu'aux écritures.
+          </p>
+        </div>
+
+        <Dropzone onFile={file => loadFec(file)} disabled={isLoading} />
+
+        {isLoading && (
+          <div style={{ marginTop: '16px' }}>
+            <ProgressBar percent={loadProgress} />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#E2E8F0' }} />
+          <span style={{ fontSize: '13px', color: '#A0AEC0', fontWeight: 500 }}>ou</span>
+          <div style={{ flex: 1, height: '1px', backgroundColor: '#E2E8F0' }} />
+        </div>
+
+        <button
+          onClick={() => loadDemo()}
+          disabled={isLoading}
+          style={{
+            width: '100%',
+            padding: '12px 24px',
+            backgroundColor: isLoading ? '#FFC06A' : '#FF8200',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '15px',
+            fontWeight: 600,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            transition: 'background-color 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}
+          onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#E57300'; }}
+          onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FF8200'; }}
+        >
+          ⚡ Charger les données de démonstration
+        </button>
+
+        <p style={{ margin: '16px 0 0', fontSize: '12px', color: '#A0AEC0', textAlign: 'center', lineHeight: 1.5 }}>
+          🔒 Vos données restent dans votre navigateur et ne sont jamais envoyées sur nos serveurs.
+        </p>
       </div>
     );
   }

@@ -1,5 +1,4 @@
 import useStore from './store/useStore';
-import UploadPage from './components/upload/UploadPage';
 import AppHeader from './components/layout/AppHeader';
 import KpiBar from './components/layout/KpiBar';
 import MainNav from './components/layout/MainNav';
@@ -15,19 +14,15 @@ import ComparaisonTab from './components/comparaison/ComparaisonTab';
 import AnalytiqueTab from './components/analytique/AnalytiqueTab';
 import AnalyseurTab from './components/analyseur/AnalyseurTab';
 import LivresTab from './components/livres/LivresTab';
+import DossierTab from './components/dossier/DossierTab';
 import ExportTab from './components/export/ExportTab';
 
 export default function App() {
-  const view          = useStore(s => s.view);
   const activeSection = useStore(s => s.activeSection);
   const activeTab     = useStore(s => s.activeTab);
   const error         = useStore(s => s.error);
   const clearError    = useStore(s => s.clearError);
   const parseWarnings = useStore(s => s.parseWarnings);
-
-  if (view === 'upload') {
-    return <UploadPage />;
-  }
 
   return (
     <div className="min-h-screen bg-fv-bg-secondary">
@@ -73,6 +68,7 @@ export default function App() {
               </>
             )}
 
+            {activeSection === 'dossier'  && <DossierTab />}
             {activeSection === 'editions' && <LivresTab />}
             {activeSection === 'export'   && <ExportTab />}
             {activeSection === 'analyse'  && <AnalyseTab />}

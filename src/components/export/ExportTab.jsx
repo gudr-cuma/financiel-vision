@@ -4,6 +4,7 @@ import { generateExport, DOC_LABELS } from '../../engine/generatePdf';
 
 // Tous les documents disponibles, dans l'ordre d'export
 const ALL_DOCS = [
+  { id: 'dossier_gestion',   label: DOC_LABELS.dossier_gestion, requiresDossier: true },
   { id: 'sig',               label: DOC_LABELS.sig },
   { id: 'bilan',             label: DOC_LABELS.bilan },
   { id: 'balance',           label: DOC_LABELS.balance },
@@ -24,6 +25,7 @@ export function ExportTab() {
   const treasuryData   = useStore(s => s.treasuryData);
   const chargesData    = useStore(s => s.chargesData);
   const analytiqueData = useStore(s => s.analytiqueData);
+  const dossierData    = useStore(s => s.dossierData);
 
   const [selected, setSelected] = useState(DEFAULT_SELECTED);
   const [mode, setMode]         = useState('global');
@@ -38,7 +40,11 @@ export function ExportTab() {
     );
   }
 
-  const docs = ALL_DOCS.filter(d => !d.requiresAnalytique || analytiqueData);
+  const docs = ALL_DOCS.filter(d => {
+    if (d.requiresAnalytique && !analytiqueData) return false;
+    if (d.requiresDossier && !dossierData) return false;
+    return true;
+  });
 
   const toggleDoc = (id) => {
     setSelected(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
@@ -49,7 +55,7 @@ export function ExportTab() {
     setError(null);
     setProgress({ pct: 0, label: 'Initialisation…' });
 
-    const storeData = { sigResult, bilanData, treasuryData, chargesData, analytiqueData };
+    const storeData = { sigResult, bilanData, treasuryData, chargesData, analytiqueData, dossierData };
 
     try {
       await generateExport(

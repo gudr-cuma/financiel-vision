@@ -16,6 +16,7 @@ import { formatDate } from './formatUtils';
 // Libellés des documents
 // ─────────────────────────────────────────────────────────────
 export const DOC_LABELS = {
+  dossier_gestion:   'Dossier de gestion',
   sig:               'Soldes Intermédiaires de Gestion',
   bilan:             'Bilan simplifié',
   balance:           'Balance générale',
@@ -810,6 +811,201 @@ function buildPodiumSvg(top3) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Dossier de gestion
+// ─────────────────────────────────────────────────────────────
+
+function dossierVal(variables, overrides, key) {
+  const v = overrides?.[key] !== undefined ? overrides[key] : (variables?.[key] ?? '');
+  return v !== '' ? String(v) : '—';
+}
+
+function dossierSection(title, text, rows, variables, overrides) {
+  const tableBody = [
+    [
+      { text: 'Libellé', style: 'tableHeader', alignment: 'left' },
+      { text: 'N', style: 'tableHeader', alignment: 'right' },
+      { text: 'N-1', style: 'tableHeader', alignment: 'right' },
+      { text: 'N-2', style: 'tableHeader', alignment: 'right' },
+      { text: 'Moy. Groupe', style: 'tableHeader', alignment: 'right' },
+    ],
+    ...rows.map(r => {
+      const [kN, kN1, kN2] = r.keys || [];
+      const suf = r.suffix || '';
+      const fmt = v => v !== '—' ? `${v} ${suf}`.trim() : '—';
+      const avgKey = `avg_${kN || r.label}`;
+      return [
+        { text: r.label, fontSize: 9, color: r.isTotal ? COLORS.green : COLORS.text },
+        { text: kN  ? fmt(dossierVal(variables, overrides, kN))  : '—', fontSize: 9, alignment: 'right', color: r.isTotal ? COLORS.green : COLORS.text, bold: !!r.isTotal },
+        { text: kN1 ? fmt(dossierVal(variables, overrides, kN1)) : '—', fontSize: 9, alignment: 'right', color: r.isTotal ? COLORS.green : COLORS.text, bold: !!r.isTotal },
+        { text: kN2 ? fmt(dossierVal(variables, overrides, kN2)) : '—', fontSize: 9, alignment: 'right', color: r.isTotal ? COLORS.green : COLORS.text, bold: !!r.isTotal },
+        { text: dossierVal({}, overrides, avgKey), fontSize: 9, alignment: 'right', color: '#718096' },
+      ];
+    }),
+  ];
+
+  const blocks = [];
+  if (title) blocks.push({ text: title, fontSize: 10, bold: true, color: COLORS.orange, margin: [0, 8, 0, 4] });
+  if (text)  blocks.push({ text, fontSize: 9, color: '#718096', italics: true, margin: [0, 0, 0, 6] });
+  blocks.push({
+    table: {
+      headerRows: 1,
+      widths: ['*', 70, 70, 70, 80],
+      body: tableBody,
+    },
+    layout: {
+      hLineWidth: (i) => (i === 0 || i === 1) ? 1 : 0.5,
+      vLineWidth: () => 0,
+      hLineColor: (i) => (i === 0 || i === 1) ? '#E2E8F0' : '#F0F0F0',
+      fillColor: (row) => row === 0 ? '#F8FAFB' : null,
+    },
+    margin: [0, 0, 0, 12],
+  });
+  return blocks;
+}
+
+function buildDossierContent(dossierData) {
+  if (!dossierData) return [{ text: 'Données dossier non disponibles.', color: '#A0AEC0' }];
+
+  const { variables = {}, overrides = {}, comments = {}, cumaList = [] } = dossierData;
+  const content = [];
+
+  // Page de garde
+  content.push(
+    { text: 'ANALYSE DE GESTION', fontSize: 20, bold: true, color: COLORS.text, margin: [0, 0, 0, 8] },
+    { text: `CUMA ${variables.nom_cuma || ''}`, fontSize: 16, color: COLORS.orange, margin: [0, 0, 0, 4] },
+    { text: `Exercice comptable du ${variables.debut_periode || '—'} au ${variables.fin_periode || '—'}`, fontSize: 12, color: '#718096', margin: [0, 0, 0, 24] },
+    {
+      table: {
+        widths: ['auto', '*'],
+        body: [
+          [{ text: 'N° agrément :', fontSize: 10, color: '#718096' }, { text: variables.num_agrement || '—', fontSize: 10 }],
+          [{ text: 'Commune :', fontSize: 10, color: '#718096' }, { text: variables.commune || '—', fontSize: 10 }],
+          [{ text: 'Comptable :', fontSize: 10, color: '#718096' }, { text: variables.comptable_nom || '—', fontSize: 10 }],
+          [{ text: 'Nb adhérents :', fontSize: 10, color: '#718096' }, { text: String(variables.nb_adherent || '—'), fontSize: 10 }],
+        ],
+      },
+      layout: 'noBorders',
+      margin: [0, 0, 0, 20],
+    },
+    { text: '', pageBreak: 'after' },
+  );
+
+  // Page 2 — Résultats
+  content.push(
+    makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Différents niveaux de résultats', 'dossier_resultats'),
+    ...dossierSection(null, null, [
+      { label: "Chiffres d'affaires", keys: ['ca', 'ca_n1', 'ca_n2'], suffix: '€' },
+      { label: "Excédent brut d'exploitation", keys: ['ebe', 'ebe_n1', 'ebe_n2'], suffix: '€' },
+      { label: "Résultat courant (hors plu/moins value)", keys: ['res_courant_plu_val_n', 'res_courant_plu_val_n1', 'res_courant_plu_val_n2'], suffix: '€' },
+      { label: "Plu / moins value", keys: ['plu_moins_value_n', 'plu_moins_value_n1', 'plu_moins_value_n2'], suffix: '€' },
+      { label: "Résultat courant", keys: ['rc', 'rc_n1', 'rc_n2'], suffix: '€', isTotal: true },
+      { label: "Résultat exceptionnel", keys: ['rex', 'rex_n1', 'rex_n2'], suffix: '€' },
+      { label: "Résultat Net comptable", keys: ['rnc', 'rnc_n1', 'rnc_n2'], suffix: '€', isTotal: true },
+    ], variables, overrides),
+    { text: "E.B.E. = CA − Achats − Services extérieurs − Impôts et Taxes − Charges Salariales + Subventions d'exploitation", fontSize: 8, color: '#718096', italics: true, margin: [0, 0, 0, 8] },
+  );
+  if (comments.resultats) content.push({ text: comments.resultats, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  content.push({ text: '', pageBreak: 'after' });
+
+  // Page 3 — Charges
+  content.push(
+    makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Analyse des charges', 'dossier_charges'),
+    { text: "Note : Ces ratios sont calculés par rapport à un chiffre d'affaires corrigé des prestations réalisées par d'autres CUMA.", fontSize: 8, italics: true, color: '#718096', margin: [0, 0, 0, 8] },
+    ...dossierSection("Frais d'entretien et taux de vétusté", null, [
+      { label: 'Charges entretien réparation corrigé', keys: ['entretien', 'entretien_n1', 'entretien_n2'], suffix: '€' },
+      { label: 'Entretien & réparation / CA corrigé', keys: ['entretien_ca', 'entretien_ca_n1', 'entretien_ca_n2'], suffix: '%' },
+      { label: 'Amortissement / CA corrigé', keys: ['amort_ca', 'amort_ca_n1', 'amort_ca_n2'], suffix: '%' },
+      { label: 'Taux de vétusté', keys: ['tx_vetuste', 'tx_vetuste_n1', 'tx_vetuste_n2'], suffix: '%' },
+    ], variables, overrides),
+    ...dossierSection("Autres charges", null, [
+      { label: 'Charges salariales', keys: ['chgsal', 'chgsal_n1', 'chgsal_n2'], suffix: '€' },
+      { label: 'Charges salariales / CA corrigé', keys: ['chgsal_ca', 'chgsal_ca_n1', 'chgsal_ca_n2'], suffix: '%' },
+      { label: 'Carburant', keys: ['carburant', 'carburant_n1', 'carburant_n2'], suffix: '€' },
+      { label: 'Frais financiers / CA corrigé', keys: ['ffinancier_ca', 'ffinancier_ca_n1', 'ffinancier_ca_n2'], suffix: '%' },
+    ], variables, overrides),
+  );
+  if (comments.charges) content.push({ text: comments.charges, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  content.push({ text: '', pageBreak: 'after' });
+
+  // Page 4 — Financement
+  content.push(
+    makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Financement de l\'exercice', 'dossier_financement'),
+    {
+      table: {
+        headerRows: 1,
+        widths: ['*', 100, 100],
+        body: [
+          [{ text: 'Libellé', style: 'tableHeader', alignment: 'left' }, { text: 'N', style: 'tableHeader', alignment: 'right' }, { text: 'N-1', style: 'tableHeader', alignment: 'right' }],
+          [{ text: "Résultat (hors vente de matériel)", fontSize: 9 }, { text: dossierVal(variables, overrides, 'res_hors_revente'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "+ Amortissements + Provisions − Reprises", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'dot_amort_reprise_prov'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "= Capacité d'Autofinancement Nette", fontSize: 9, bold: true, color: COLORS.green }, { text: dossierVal(variables, overrides, 'CAF'), fontSize: 9, alignment: 'right', bold: true, color: COLORS.green }, { text: dossierVal(variables, overrides, 'CAF_n1'), fontSize: 9, alignment: 'right', bold: true, color: COLORS.green }],
+          [{ text: "− Remboursement capital emprunts LMT", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'remb_emprunt'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "Achat d'immobilisation", fontSize: 9 }, { text: dossierVal(variables, overrides, 'achat_immo'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "+ Augmentation P.S. CRCA et autres", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'augment_PSCRCA'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "+ Remboursement emprunt par anticipation", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'Emprunt_anticipation'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "− Réalisations d'emprunt LMT", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'emprunt_LMT'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "− Revente d'immobilisations", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'revente_immo'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "+/− Besoin / Dégagement", fontSize: 9, bold: true, color: COLORS.green }, { text: dossierVal(variables, overrides, 'besoin_autofin'), fontSize: 9, alignment: 'right', bold: true, color: COLORS.green }, { text: dossierVal(variables, overrides, 'besoin_autofin_n1'), fontSize: 9, alignment: 'right', bold: true, color: COLORS.green }],
+          [{ text: "+/− Variation du capital social", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'variation_KS'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "− Subvention d'investissement", fontSize: 9, color: '#718096' }, { text: dossierVal(variables, overrides, 'subvention'), fontSize: 9, alignment: 'right' }, { text: '—', fontSize: 9, alignment: 'right' }],
+          [{ text: "= Variation du Fonds de Roulement", fontSize: 9, bold: true, color: COLORS.green }, { text: dossierVal(variables, overrides, 'var_FdR'), fontSize: 9, alignment: 'right', bold: true, color: COLORS.green }, { text: dossierVal(variables, overrides, 'var_FdR_n1'), fontSize: 9, alignment: 'right', bold: true, color: COLORS.green }],
+        ],
+      },
+      layout: { hLineWidth: (i) => i <= 1 ? 1 : 0.5, vLineWidth: () => 0, hLineColor: () => '#E2E8F0', fillColor: (r) => r === 0 ? '#F8FAFB' : null },
+      margin: [0, 0, 0, 8],
+    },
+    { text: `Pour info, montant d'emprunt à réaliser : ${dossierVal(variables, overrides, 'Emprunt_recevoir')}`, fontSize: 9, color: '#718096', margin: [0, 0, 0, 8] },
+  );
+  if (comments.financement) content.push({ text: comments.financement, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  content.push({ text: '', pageBreak: 'after' });
+
+  // Page 5 — Fonds de roulement
+  content.push(
+    makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Fonds de roulement et disponibilité', 'dossier_fdr'),
+    ...dossierSection("Fonds de roulement", null, [
+      { label: 'Fonds de roulement', keys: ['fd_roulement', 'fd_roulement_n1', 'fd_roulement_n2'], suffix: '€' },
+      { label: 'Fonds de roulement / CA', keys: ['fd_roulement_ca', 'fd_roulement_ca_n1', 'fd_roulement_ca_n2'], suffix: '%' },
+    ], variables, overrides),
+    ...dossierSection("Créances et trésorerie", null, [
+      { label: 'Créances / CA', keys: ['creance_ca', 'creance_ca_n1', 'creance_ca_n2'], suffix: '%' },
+      { label: 'Trésorerie Nette Globale', keys: ['treso_net', 'treso_net_n1', 'treso_net_n2'], suffix: '€' },
+    ], variables, overrides),
+  );
+  if (comments.fonds_roulement) content.push({ text: comments.fonds_roulement, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  content.push({ text: '', pageBreak: 'after' });
+
+  // Page 6 — Capital social
+  content.push(
+    makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Capital social. Recours à l\'emprunt', 'dossier_capital'),
+    ...dossierSection("Capital social", null, [
+      { label: 'Capital Social / CA', keys: ['CS_CA', 'CS_CA_n1', 'CS_CA_n2'], suffix: '%' },
+      { label: 'Capital Social / valeur brute du matériel', keys: ['CS_val_brute_mat', 'CS_val_brute_mat_n1', 'CS_val_brute_mat_n2'], suffix: '%' },
+      { label: 'Capital Social / capitaux propres', keys: ['CS_k_propres', 'CS_k_propres_n1', 'CS_k_propres_n2'], suffix: '%' },
+    ], variables, overrides),
+    ...dossierSection("Endettement et autonomie", null, [
+      { label: "Taux d'endettement MT et LT", keys: ['tx_endette', 'tx_endette_n1', 'tx_endette_n2'], suffix: '%' },
+      { label: 'Capitaux Propres / passif (autonomie financière)', keys: ['k_propres_passif', 'k_propres_passif_n1', 'k_propres_passif_n2'], suffix: '%' },
+      { label: 'Capitaux Propres / Capitaux permanents', keys: ['Capitaux_Permanent', 'Capitaux_Permanent_n1', 'Capitaux_Permanent_n2'], suffix: '%' },
+    ], variables, overrides),
+  );
+  if (comments.capital_social) content.push({ text: comments.capital_social, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+
+  // Page 7 — Synthèse
+  if (comments.synthese) {
+    content.push(
+      { text: '', pageBreak: 'after' },
+      makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Synthèse générale', 'dossier_synthese'),
+      { text: comments.synthese, fontSize: 10, color: '#1A202C', lineHeight: 1.6 },
+    );
+  }
+
+  // Saut de page final — séparation avec le document suivant
+  content.push({ text: '', pageBreak: 'after' });
+
+  return content;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Point d'entrée principal
 // ─────────────────────────────────────────────────────────────
 
@@ -832,6 +1028,7 @@ export async function generateExport(
   pdfMake.vfs = pdfFonts.pdfMake?.vfs ?? pdfFonts.vfs ?? pdfFonts;
 
   const BUILDERS = {
+    dossier_gestion:   () => buildDossierContent(storeData.dossierData),
     sig:               () => buildSigContent(storeData.sigResult),
     bilan:             () => buildBilanContent(storeData.bilanData),
     balance:           () => buildBalanceContent(parsedFec),
@@ -873,14 +1070,20 @@ export async function generateExport(
       URL.revokeObjectURL(url);
     }
   } else {
+    // Dossier de gestion toujours en premier s'il est sélectionné
+    const orderedDocs = [
+      ...selectedDocs.filter(id => id === 'dossier_gestion'),
+      ...selectedDocs.filter(id => id !== 'dossier_gestion'),
+    ];
+
     const contentBlocks = [
-      ...makeCoverPage(parsedFec, selectedDocs, DOC_LABELS),
+      ...makeCoverPage(parsedFec, orderedDocs, DOC_LABELS),
       ...makeSommaire(),
     ];
 
-    for (let i = 0; i < selectedDocs.length; i++) {
-      const id = selectedDocs[i];
-      onProgress(10 + (i / selectedDocs.length) * 75, `Génération : ${DOC_LABELS[id]}…`);
+    for (let i = 0; i < orderedDocs.length; i++) {
+      const id = orderedDocs[i];
+      onProgress(10 + (i / orderedDocs.length) * 75, `Génération : ${DOC_LABELS[id]}…`);
       const builder = BUILDERS[id];
       if (!builder) continue;
       contentBlocks.push(...builder());
@@ -901,7 +1104,7 @@ export async function generateExport(
       styles: defaultStyles,
       info: {
         title:   `Export comptable — ${siren}`,
-        author:  'Financiel Vision',
+        author:  'Clario',
         subject: 'Export comptable',
       },
     };

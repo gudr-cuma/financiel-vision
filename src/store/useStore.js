@@ -5,6 +5,7 @@ import { computeTreasury } from '../engine/computeTreasury';
 import { computeCharges } from '../engine/computeCharges';
 import { computeBilan } from '../engine/computeBilan';
 import { computeAnalyseurFec } from '../engine/computeAnalyseurFec';
+import { parseDossierGestion } from '../engine/parseDossierGestion';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -20,7 +21,7 @@ const useStore = create((set, get) => ({
   // -------------------------------------------------------------------------
   // État — exercice N
   // -------------------------------------------------------------------------
-  view: 'upload',          // 'upload' | 'dashboard'
+  view: 'dashboard',       // 'dashboard' (conservé pour compatibilité)
   parsedFec: null,
   sigResult: null,         // { lines, monthly, caTotal }
   treasuryData: null,
@@ -28,7 +29,8 @@ const useStore = create((set, get) => ({
   bilanData: null,
   analyseurData: null,
   analytiqueData: null,  // { materiels, global } — chargé depuis AnalytiqueTab
-  activeSection: 'dashboard', // 'analyseur' | 'dashboard' | 'editions' | 'export' | 'analyse'
+  dossierData: null,     // { cumaList, selectedCumaIndex, variables, overrides, comments }
+  activeSection: 'analyseur', // 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
@@ -74,7 +76,7 @@ const useStore = create((set, get) => ({
         parsedFec,
         ...computed,
         view: 'dashboard',
-        activeSection: 'dashboard',
+        activeSection: 'analyseur',
         activeTab: 'sig',
         activeSubTab: 'mensuel',
         detailPanel: null,
@@ -103,7 +105,7 @@ const useStore = create((set, get) => ({
         parsedFec,
         ...computed,
         view: 'dashboard',
-        activeSection: 'dashboard',
+        activeSection: 'analyseur',
         activeTab: 'sig',
         activeSubTab: 'mensuel',
         detailPanel: null,
@@ -225,10 +227,77 @@ const useStore = create((set, get) => ({
 
   setAnalytiqueData: (data) => set({ analytiqueData: data }),
 
+  // -------------------------------------------------------------------------
+  // Actions — Dossier de gestion
+  // -------------------------------------------------------------------------
+
+  setDossierData: (data) => set({ dossierData: data }),
+
+  /** Sélectionne une CUMA par index dans la liste */
+  selectDossierCuma: (index) => set(state => {
+    if (!state.dossierData) return {};
+    return {
+      dossierData: {
+        ...state.dossierData,
+        selectedCumaIndex: index,
+        variables: state.dossierData.cumaList[index],
+        overrides: {},
+      },
+    };
+  }),
+
+  /** Met à jour la valeur d'une cellule (override utilisateur) */
+  updateDossierOverride: (key, value) => set(state => {
+    if (!state.dossierData) return {};
+    return {
+      dossierData: {
+        ...state.dossierData,
+        overrides: { ...state.dossierData.overrides, [key]: value },
+      },
+    };
+  }),
+
+  /** Met à jour le commentaire d'un sous-onglet */
+  updateDossierComment: (tab, text) => set(state => {
+    if (!state.dossierData) return {};
+    return {
+      dossierData: {
+        ...state.dossierData,
+        comments: { ...state.dossierData.comments, [tab]: text },
+      },
+    };
+  }),
+
+  /** Charge le fichier de démonstration dossier de gestion */
+  loadDemoGestion: async () => {
+    try {
+      const response = await fetch('/demo/demo_dossier_gestion.xlsx');
+      if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration.');
+      const blob = await response.blob();
+      const file = new File([blob], 'demo_dossier_gestion.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const dossierData = await parseDossierGestion(file);
+      set({ dossierData, activeSection: 'dossier' });
+    } catch (err) {
+      set({ error: err.message });
+    }
+  },
+
+  /** Charge un fichier Excel dossier de gestion déposé par l'utilisateur */
+  loadFecGestion: async (file) => {
+    try {
+      const dossierData = await parseDossierGestion(file);
+      set({ dossierData, activeSection: 'dossier' });
+    } catch (err) {
+      set({ error: err.message });
+    }
+  },
+
   clearError: () => set({ error: null }),
 
   reset: () => set({
-    view: 'upload',
+    view: 'dashboard',
     parsedFec: null,
     sigResult: null,
     treasuryData: null,
@@ -236,7 +305,8 @@ const useStore = create((set, get) => ({
     bilanData: null,
     analyseurData: null,
     analytiqueData: null,
-    activeSection: 'dashboard',
+    dossierData: null,
+    activeSection: 'analyseur',
     activeTab: 'sig',
     activeSubTab: 'mensuel',
     detailPanel: null,
