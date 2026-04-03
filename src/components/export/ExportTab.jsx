@@ -29,6 +29,7 @@ export function ExportTab() {
 
   const [selected, setSelected] = useState(DEFAULT_SELECTED);
   const [mode, setMode]         = useState('global');
+  const [annexes, setAnnexes]   = useState([]);
   const [progress, setProgress] = useState(null);
   const [error, setError]       = useState(null);
 
@@ -64,6 +65,7 @@ export function ExportTab() {
         { mode },
         (pct, label) => setProgress({ pct, label }),
         storeData,
+        mode === 'global' ? annexes : [],
       );
     } catch (err) {
       console.error('Export PDF error:', err);
@@ -161,6 +163,72 @@ export function ExportTab() {
           })}
         </div>
       </section>
+
+      {/* ── Annexes PDF (mode global uniquement) ── */}
+      {mode === 'global' && (
+        <section style={{ marginBottom: '28px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1A202C', marginBottom: '4px' }}>
+            Annexes PDF
+          </h2>
+          <p style={{ fontSize: '12px', color: '#718096', margin: '0 0 12px' }}>
+            Ces PDFs seront fusionnés à la fin du document global, après une page séparatrice "Annexes".
+          </p>
+
+          {/* Zone de dépôt */}
+          <label
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '12px 16px', borderRadius: '10px',
+              border: '2px dashed #CBD5E0', background: '#FAFAFA',
+              cursor: 'pointer', fontSize: '13px', color: '#718096',
+            }}
+            onDragOver={e => { e.preventDefault(); }}
+            onDrop={e => {
+              e.preventDefault();
+              const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+              if (files.length) setAnnexes(prev => [...prev, ...files]);
+            }}
+          >
+            <input
+              type="file"
+              accept="application/pdf"
+              multiple
+              style={{ display: 'none' }}
+              onChange={e => {
+                const files = Array.from(e.target.files);
+                if (files.length) setAnnexes(prev => [...prev, ...files]);
+                e.target.value = '';
+              }}
+            />
+            <span style={{ fontSize: '18px' }}>📎</span>
+            <span>Déposer des PDFs ici ou <strong style={{ color: '#FF8200' }}>parcourir</strong></span>
+          </label>
+
+          {/* Liste des annexes ajoutées */}
+          {annexes.length > 0 && (
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {annexes.map((f, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', borderRadius: '8px',
+                  background: '#F0F7D4', border: '1px solid #C6E38A',
+                  fontSize: '13px', color: '#1A202C',
+                }}>
+                  <span>📄 {f.name}</span>
+                  <button
+                    onClick={() => setAnnexes(prev => prev.filter((_, j) => j !== i))}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: '#E53935', fontSize: '16px', lineHeight: 1, padding: '0 4px',
+                    }}
+                    title="Supprimer"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Bouton Générer ── */}
       <button

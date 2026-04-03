@@ -7,7 +7,7 @@ import { computeBalance, computeBalanceAuxiliaire, computeGrandLivre } from './c
 import {
   COLORS,
   makeFooter, makeHeader,
-  makeCoverPage, makeSommaire, makeSectionTitle,
+  makeCoverPage, makeSommaire, makeSectionTitle, makeAnnexesSeparator,
   pdfFmt,
 } from './pdfLayouts';
 import { formatDate } from './formatUtils';
@@ -1015,10 +1015,11 @@ function buildDossierContent(dossierData) {
  * @param {{ mode: 'separate' | 'global' }} options
  * @param {(progress: number, label: string) => void} onProgress
  * @param {{ sigResult, bilanData, treasuryData, chargesData, analytiqueData }} storeData
+ * @param {File[]}   annexes       PDFs externes à fusionner (mode global uniquement)
  */
 export async function generateExport(
   parsedFec, selectedDocs, options = { mode: 'global' }, onProgress = () => {},
-  storeData = {}
+  storeData = {}, annexes = []
 ) {
   onProgress(5, 'Chargement du moteur PDF…');
   const pdfMakeModule  = await import('pdfmake/build/pdfmake');
@@ -1076,20 +1077,26 @@ export async function generateExport(
       ...selectedDocs.filter(id => id !== 'dossier_gestion'),
     ];
 
+    const annexeNames = annexes.map(f => f.name);
+
     const contentBlocks = [
-      ...makeCoverPage(parsedFec, orderedDocs, DOC_LABELS),
+      ...makeCoverPage(parsedFec, orderedDocs, DOC_LABELS, annexeNames),
       ...makeSommaire(),
     ];
 
     for (let i = 0; i < orderedDocs.length; i++) {
       const id = orderedDocs[i];
-      onProgress(10 + (i / orderedDocs.length) * 75, `Génération : ${DOC_LABELS[id]}…`);
+      onProgress(10 + (i / orderedDocs.length) * 70, `Génération : ${DOC_LABELS[id]}…`);
       const builder = BUILDERS[id];
       if (!builder) continue;
       contentBlocks.push(...builder());
     }
 
-    onProgress(90, 'Assemblage du PDF…');
+    if (annexeNames.length > 0) {
+      contentBlocks.push(...makeAnnexesSeparator(annexeNames));
+    }
+
+    onProgress(85, 'Assemblage du PDF…');
 
     const siren    = parsedFec?.siren ?? 'export';
     const today    = formatDate(new Date()).replace(/\//g, '-');
@@ -1109,7 +1116,29 @@ export async function generateExport(
       },
     };
 
-    await pdfMake.createPdf(docDef).download(fileName);
+    if (annexeNames.length > 0) {
+      onProgress(90, 'Fusion des annexes PDF…');
+      const { PDFDocument } = await import('pdf-lib');
+      const clarioBlob = await pdfMake.createPdf(docDef).getBlob();
+      const clarioBuffer = await clarioBlob.arrayBuffer();
+      const merged = await PDFDocument.load(clarioBuffer);
+      for (let i = 0; i < annexes.length; i++) {
+        onProgress(90 + ((i + 1) / annexes.length) * 8, `Annexe ${i + 1} / ${annexes.length}…`);
+        const annexeBuffer = await annexes[i].arrayBuffer();
+        const annexePdf = await PDFDocument.load(annexeBuffer);
+        const pages = await merged.copyPages(annexePdf, annexePdf.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+      const mergedBytes = await merged.save();
+      const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      await pdfMake.createPdf(docDef).download(fileName);
+    }
   }
 
   onProgress(100, 'Terminé');

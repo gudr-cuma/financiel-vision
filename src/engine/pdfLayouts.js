@@ -103,7 +103,7 @@ export function makeHeader(parsedFec, sectionTitle) {
 // ─────────────────────────────────────────────────────────────
 // Page de garde
 // ─────────────────────────────────────────────────────────────
-export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS) {
+export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames = []) {
   const period = parsedFec?.exerciceStart && parsedFec?.exerciceEnd
     ? `${formatDate(parsedFec.exerciceStart)} — ${formatDate(parsedFec.exerciceEnd)}`
     : '';
@@ -137,6 +137,48 @@ export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS) {
           fontSize: 10,
           color: COLORS.secondary,
           margin: [8, 2, 0, 0],
+        })),
+        ...(annexeNames && annexeNames.length > 0 ? [
+          { text: 'Annexes :', fontSize: 10, bold: true, color: COLORS.text, margin: [0, 10, 0, 6] },
+          ...annexeNames.map(name => ({
+            text: `• ${name}`,
+            fontSize: 10,
+            color: COLORS.secondary,
+            margin: [8, 2, 0, 0],
+          })),
+        ] : []),
+      ],
+      pageBreak: 'after',
+    },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Page séparatrice Annexes (insérée à la fin du PDF pdfmake)
+// ─────────────────────────────────────────────────────────────
+export function makeAnnexesSeparator(annexeNames) {
+  return [
+    {
+      stack: [
+        {
+          text: 'Annexes',
+          id: 'section_annexes',
+          fontSize: 14,
+          bold: true,
+          color: COLORS.text,
+          margin: [0, 0, 0, 4],
+          tocItem: 'mainToc',
+          tocStyle: { fontSize: 11, color: COLORS.text },
+          tocNumberStyle: { fontSize: 11, bold: true, color: COLORS.secondary },
+          tocMargin: [0, 4, 0, 4],
+        },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: COLORS.blue }] },
+        { text: ' ', fontSize: 6 },
+        ...annexeNames.map((name, i) => ({
+          text: `${i + 1}. ${name}`,
+          fontSize: 10,
+          color: COLORS.secondary,
+          margin: [0, 4, 0, 0],
         })),
       ],
       pageBreak: 'after',
