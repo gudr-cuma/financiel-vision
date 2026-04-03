@@ -1125,7 +1125,7 @@ export async function generateExport(
       for (let i = 0; i < annexes.length; i++) {
         onProgress(90 + ((i + 1) / annexes.length) * 8, `Annexe ${i + 1} / ${annexes.length}…`);
         const annexeBuffer = await annexes[i].arrayBuffer();
-        const annexePdf = await PDFDocument.load(annexeBuffer);
+        const annexePdf = await PDFDocument.load(annexeBuffer, { ignoreEncryption: true });
         const pages = await merged.copyPages(annexePdf, annexePdf.getPageIndices());
         pages.forEach(p => merged.addPage(p));
       }
