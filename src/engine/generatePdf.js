@@ -4,6 +4,7 @@
  */
 
 import { computeBalance, computeBalanceAuxiliaire, computeGrandLivre } from './computeLivres';
+import { htmlToPdfmake } from './htmlToPdfmake';
 import {
   COLORS,
   makeFooter, makeHeader,
@@ -904,7 +905,7 @@ function buildDossierContent(dossierData) {
     ], variables, overrides),
     { text: "E.B.E. = CA − Achats − Services extérieurs − Impôts et Taxes − Charges Salariales + Subventions d'exploitation", fontSize: 8, color: '#718096', italics: true, margin: [0, 0, 0, 8] },
   );
-  if (comments.resultats) content.push({ text: comments.resultats, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  { const c = htmlToPdfmake(comments.resultats); if (c) content.push({ ...c, margin: [0, 4, 0, 0] }); }
   content.push({ text: '', pageBreak: 'after' });
 
   // Page 3 — Charges
@@ -924,7 +925,7 @@ function buildDossierContent(dossierData) {
       { label: 'Frais financiers / CA corrigé', keys: ['ffinancier_ca', 'ffinancier_ca_n1', 'ffinancier_ca_n2'], suffix: '%' },
     ], variables, overrides),
   );
-  if (comments.charges) content.push({ text: comments.charges, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  { const c = htmlToPdfmake(comments.charges); if (c) content.push({ ...c, margin: [0, 4, 0, 0] }); }
   content.push({ text: '', pageBreak: 'after' });
 
   // Page 4 — Financement
@@ -956,7 +957,7 @@ function buildDossierContent(dossierData) {
     },
     { text: `Pour info, montant d'emprunt à réaliser : ${dossierVal(variables, overrides, 'Emprunt_recevoir')}`, fontSize: 9, color: '#718096', margin: [0, 0, 0, 8] },
   );
-  if (comments.financement) content.push({ text: comments.financement, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  { const c = htmlToPdfmake(comments.financement); if (c) content.push({ ...c, margin: [0, 4, 0, 0] }); }
   content.push({ text: '', pageBreak: 'after' });
 
   // Page 5 — Fonds de roulement
@@ -971,7 +972,7 @@ function buildDossierContent(dossierData) {
       { label: 'Trésorerie Nette Globale', keys: ['treso_net', 'treso_net_n1', 'treso_net_n2'], suffix: '€' },
     ], variables, overrides),
   );
-  if (comments.fonds_roulement) content.push({ text: comments.fonds_roulement, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  { const c = htmlToPdfmake(comments.fonds_roulement); if (c) content.push({ ...c, margin: [0, 4, 0, 0] }); }
   content.push({ text: '', pageBreak: 'after' });
 
   // Page 6 — Capital social
@@ -988,14 +989,14 @@ function buildDossierContent(dossierData) {
       { label: 'Capitaux Propres / Capitaux permanents', keys: ['Capitaux_Permanent', 'Capitaux_Permanent_n1', 'Capitaux_Permanent_n2'], suffix: '%' },
     ], variables, overrides),
   );
-  if (comments.capital_social) content.push({ text: comments.capital_social, fontSize: 9, italics: true, color: '#4A5568', margin: [0, 4, 0, 0] });
+  { const c = htmlToPdfmake(comments.capital_social); if (c) content.push({ ...c, margin: [0, 4, 0, 0] }); }
 
   // Page 7 — Synthèse
-  if (comments.synthese) {
+  if (htmlToPdfmake(comments.synthese)) {
     content.push(
       { text: '', pageBreak: 'after' },
       makeSectionTitle(DOC_LABELS.dossier_gestion + ' — Synthèse générale', 'dossier_synthese'),
-      { text: comments.synthese, fontSize: 10, color: '#1A202C', lineHeight: 1.6 },
+      htmlToPdfmake(comments.synthese, { fontSize: 10, color: '#1A202C', lineHeight: 1.6 }) ?? { text: '' },
     );
   }
 

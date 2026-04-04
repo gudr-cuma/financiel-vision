@@ -186,36 +186,6 @@ export function InfoBox({ title, children }) {
   );
 }
 
-export function CommentZone({ tab, comments, onCommentChange }) {
-  return (
-    <div style={{ marginTop: '16px', marginBottom: '8px' }}>
-      <div style={{
-        fontSize: '12px', fontWeight: 700, color: '#718096',
-        textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px',
-      }}>
-        Commentaires
-      </div>
-      <textarea
-        value={comments[tab] || ''}
-        onChange={e => onCommentChange(tab, e.target.value)}
-        placeholder="Saisir vos commentaires..."
-        rows={4}
-        style={{
-          width: '100%',
-          padding: '10px 12px',
-          fontSize: '13px',
-          color: '#1A202C',
-          border: '1px solid #E2E8F0',
-          borderRadius: '8px',
-          resize: 'vertical',
-          outline: 'none',
-          fontFamily: 'inherit',
-          lineHeight: '1.5',
-          boxSizing: 'border-box',
-        }}
-      />
-    </div>
-  );
-}
+export { RichCommentZone as CommentZone } from './RichCommentZone';
 
 export default DossierTable;

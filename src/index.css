@@ -111,3 +111,27 @@ body {
     display: none;
   }
 }
+
+/* ── TipTap — zone de commentaires riche ────────────────────────────────── */
+.rich-comment-editor .tiptap {
+  padding: 10px 12px;
+  min-height: 80px;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1A202C;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.rich-comment-editor .tiptap p {
+  margin: 0 0 4px;
+}
+.rich-comment-editor .tiptap p:last-child {
+  margin-bottom: 0;
+}
+.rich-comment-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #A0AEC0;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
