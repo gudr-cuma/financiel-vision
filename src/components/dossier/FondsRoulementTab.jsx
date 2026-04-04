@@ -42,16 +42,15 @@ export function FondsRoulementTab({ variables, overrides, comments, onEdit, onCo
       />
 
       <div style={{
-        marginBottom: '12px',
-        padding: '10px 14px',
-        background: '#F8FAFB',
-        border: '1px solid #E2E8F0',
+        marginBottom: '16px',
+        padding: '12px 14px',
+        background: '#E3F2F5',
+        border: '1px solid #B1DCE2',
         borderRadius: '8px',
-        fontSize: '12px',
-        color: '#718096',
-        fontStyle: 'italic',
+        fontSize: '13px',
+        color: '#1A202C',
       }}>
-        <div style={{ marginBottom: '4px', fontWeight: 600 }}>Créances et politique des encaissements</div>
+        <div style={{ fontWeight: 700, marginBottom: '8px' }}>Créances et politique des encaissements</div>
         Les créances correspondent au montant total des factures de travaux (TTC) non encaissées à la date de clôture.
         La trésorerie Nette Globale est le solde entre d'une part les disponibilités et les valeurs mobilières de placement
         et d'autre part les dettes financières à court terme et découverts bancaires.
