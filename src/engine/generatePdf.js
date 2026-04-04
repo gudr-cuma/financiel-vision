@@ -1047,6 +1047,9 @@ export async function generateExport(
     label:       { fontSize: 7, color: COLORS.secondary },
   };
 
+  const pageOrientation = options.orientation ?? 'landscape';
+  const pageMargins     = pageOrientation === 'portrait' ? [40, 50, 40, 40] : [30, 50, 30, 40];
+
   if (options.mode === 'separate') {
     for (let i = 0; i < selectedDocs.length; i++) {
       const id = selectedDocs[i];
@@ -1055,7 +1058,7 @@ export async function generateExport(
       if (!builder) continue;
       const content = builder();
       const docDef = {
-        pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [30, 50, 30, 40],
+        pageSize: 'A4', pageOrientation, pageMargins,
         header: makeHeader(parsedFec, DOC_LABELS[id]),
         footer: makeFooter,
         content,
@@ -1104,7 +1107,7 @@ export async function generateExport(
     const fileName = `Export_comptable_${siren}_${today}.pdf`;
 
     const docDef = {
-      pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [30, 50, 30, 40],
+      pageSize: 'A4', pageOrientation, pageMargins,
       header: makeHeader(parsedFec, 'Export comptable'),
       footer: makeFooter,
       content: contentBlocks,
@@ -1112,7 +1115,7 @@ export async function generateExport(
       styles: defaultStyles,
       info: {
         title:   `Export comptable — ${siren}`,
-        author:  'Clario',
+        author:  'Clario Vision',
         subject: 'Export comptable',
       },
     };

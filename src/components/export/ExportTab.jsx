@@ -27,9 +27,10 @@ export function ExportTab() {
   const analytiqueData = useStore(s => s.analytiqueData);
   const dossierData    = useStore(s => s.dossierData);
 
-  const [selected, setSelected] = useState(DEFAULT_SELECTED);
-  const [mode, setMode]         = useState('global');
-  const [annexes, setAnnexes]   = useState([]);
+  const [selected, setSelected]       = useState(DEFAULT_SELECTED);
+  const [mode, setMode]               = useState('global');
+  const [orientation, setOrientation] = useState('landscape');
+  const [annexes, setAnnexes]         = useState([]);
   const [progress, setProgress] = useState(null);
   const [error, setError]       = useState(null);
 
@@ -62,7 +63,7 @@ export function ExportTab() {
       await generateExport(
         parsedFec,
         selected,
-        { mode },
+        { mode, orientation },
         (pct, label) => setProgress({ pct, label }),
         storeData,
         mode === 'global' ? annexes : [],
@@ -156,6 +157,40 @@ export function ExportTab() {
               >
                 <div style={{ fontSize: '14px', fontWeight: 700, color: active ? '#E57300' : '#1A202C', marginBottom: '4px' }}>
                   {opt.label}
+                </div>
+                <div style={{ fontSize: '12px', color: '#718096' }}>{opt.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Orientation ── */}
+      <section style={{ marginBottom: '28px' }}>
+        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1A202C', marginBottom: '14px' }}>
+          Orientation des pages
+        </h2>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {[
+            { value: 'landscape', label: 'Paysage', desc: 'Format horizontal A4 — recommandé pour les tableaux', icon: '🖼' },
+            { value: 'portrait',  label: 'Portrait', desc: 'Format vertical A4 — adapté aux textes longs',       icon: '📄' },
+          ].map(opt => {
+            const active = orientation === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setOrientation(opt.value)}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: '10px',
+                  border: active ? '2px solid #FF8200' : '2px solid #E2E8F0',
+                  background: active ? '#FFF3E0' : '#FAFAFA',
+                  cursor: 'pointer', textAlign: 'left',
+                  transition: 'border-color 150ms, background 150ms',
+                }}
+              >
+                <div style={{ fontSize: '14px', fontWeight: 700, color: active ? '#E57300' : '#1A202C', marginBottom: '4px' }}>
+                  {opt.icon} {opt.label}
                 </div>
                 <div style={{ fontSize: '12px', color: '#718096' }}>{opt.desc}</div>
               </button>

@@ -51,7 +51,7 @@ export function DossierTab() {
   // ── État : pas de données chargées ──
   if (!dossierData) {
     return (
-      <div style={{ paddingTop: '32px', maxWidth: '600px' }}>
+      <div style={{ paddingTop: '32px', maxWidth: '600px', margin: '0 auto' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1A202C', marginBottom: '6px' }}>
           Dossier de gestion
         </h2>
@@ -183,7 +183,7 @@ export function DossierTab() {
 
       <DossierSubNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div style={{ paddingTop: '20px', maxWidth: '900px' }}>
+      <div style={{ paddingTop: '20px', maxWidth: '900px', margin: '0 auto' }}>
         {activeTab === 'resultats'       && <ResultatsTab       {...tabProps} />}
         {activeTab === 'charges'         && <ChargesTab         {...tabProps} />}
         {activeTab === 'financement'     && <FinancementTab     {...tabProps} />}

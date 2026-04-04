@@ -164,7 +164,7 @@ function PrivacyModal({ onClose }) {
               </span>
             </div>
             <p style={{ margin: 0, fontSize: '13px', color: '#4A5568', lineHeight: 1.65 }}>
-              Clario ne dépose <strong>aucun cookie analytique</strong>, n'utilise aucun
+              Clario Vision ne dépose <strong>aucun cookie analytique</strong>, n'utilise aucun
               outil de tracking (Google Analytics, etc.) et ne collecte aucune donnée sur votre
               utilisation de l'application.
             </p>
@@ -245,7 +245,7 @@ export function AppHeader() {
             flexShrink: 0,
           }}
         >
-          Clario
+          Clario Vision
         </div>
 
         {/* Right side: file info + demo button */}
