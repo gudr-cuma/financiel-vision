@@ -1,4 +1,4 @@
-import { DossierTable, CommentZone } from './DossierTable';
+import { DossierTable, CommentZone, InfoBox } from './DossierTable';
 
 const ROWS_FDR = [
   { label: 'Fonds de roulement', keys: ['fd_roulement', 'fd_roulement_n1', 'fd_roulement_n2'], suffix: '€' },
@@ -13,16 +13,7 @@ const ROWS_CREANCES = [
 export function FondsRoulementTab({ variables, overrides, comments, onEdit, onCommentChange }) {
   return (
     <div>
-      <div style={{
-        marginBottom: '16px',
-        padding: '12px 14px',
-        background: '#E3F2F5',
-        border: '1px solid #B1DCE2',
-        borderRadius: '8px',
-        fontSize: '13px',
-        color: '#1A202C',
-      }}>
-        <div style={{ fontWeight: 700, marginBottom: '8px' }}>Fonds de roulement</div>
+      <InfoBox title="Fonds de roulement">
         <div style={{ color: '#4A5568', lineHeight: '1.6' }}>
           Le fonds de roulement constitue la marge de sécurité financière dont la Cuma a besoin pour :
         </div>
@@ -31,38 +22,17 @@ export function FondsRoulementTab({ variables, overrides, comments, onEdit, onCo
           <li>couvrir les risques (adhérents défaillants, charges imprévues, baisse d'activité…)</li>
           <li>renforcer la confiance des banques et des prêteurs à court terme.</li>
         </ul>
-      </div>
+      </InfoBox>
 
-      <DossierTable
-        title="Fonds de roulement"
-        rows={ROWS_FDR}
-        variables={variables}
-        overrides={overrides}
-        onEdit={onEdit}
-      />
+      <DossierTable title="Fonds de roulement" rows={ROWS_FDR} variables={variables} overrides={overrides} onEdit={onEdit} />
 
-      <div style={{
-        marginBottom: '16px',
-        padding: '12px 14px',
-        background: '#E3F2F5',
-        border: '1px solid #B1DCE2',
-        borderRadius: '8px',
-        fontSize: '13px',
-        color: '#1A202C',
-      }}>
-        <div style={{ fontWeight: 700, marginBottom: '8px' }}>Créances et politique des encaissements</div>
+      <InfoBox title="Créances et politique des encaissements">
         Les créances correspondent au montant total des factures de travaux (TTC) non encaissées à la date de clôture.
         La trésorerie Nette Globale est le solde entre d'une part les disponibilités et les valeurs mobilières de placement
         et d'autre part les dettes financières à court terme et découverts bancaires.
-      </div>
+      </InfoBox>
 
-      <DossierTable
-        title="Créances et trésorerie"
-        rows={ROWS_CREANCES}
-        variables={variables}
-        overrides={overrides}
-        onEdit={onEdit}
-      />
+      <DossierTable title="Créances et trésorerie" rows={ROWS_CREANCES} variables={variables} overrides={overrides} onEdit={onEdit} />
 
       <CommentZone tab="fonds_roulement" comments={comments} onCommentChange={onCommentChange} />
     </div>

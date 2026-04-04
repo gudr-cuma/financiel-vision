@@ -8,26 +8,30 @@
  * ]
  */
 
-import useStore from '../../store/useStore';
+/** Résout la valeur affichée : override prioritaire sur variable Excel */
+export function getVal(key, variables, overrides) {
+  return overrides[key] !== undefined ? overrides[key] : (variables[key] ?? '');
+}
 
-function EditableCell({ varKey, variables, overrides, onEdit }) {
-  const raw = overrides[varKey] !== undefined ? overrides[varKey] : (variables[varKey] ?? '');
-  const display = raw !== '' ? raw : '';
+export function EditableCell({ varKey, variables, overrides, onEdit, bold = false, width = '100%', underline = false }) {
   return (
     <input
       type="text"
-      value={display}
+      value={getVal(varKey, variables, overrides)}
       onChange={e => onEdit(varKey, e.target.value)}
       placeholder="—"
       style={{
-        width: '100%',
+        width,
         border: 'none',
+        borderBottom: underline ? '1px solid #E2E8F0' : 'none',
         background: 'transparent',
         textAlign: 'right',
         fontSize: '13px',
+        fontWeight: bold ? 700 : 400,
         color: '#1A202C',
         outline: 'none',
         padding: '2px 4px',
+        boxSizing: 'border-box',
       }}
     />
   );
@@ -160,6 +164,24 @@ export function DossierTable({ title, rows, variables, overrides, onEdit }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Encadré informatif bleu clair — utilisé en intro de section */
+export function InfoBox({ title, children }) {
+  return (
+    <div style={{
+      marginBottom: '16px',
+      padding: '12px 14px',
+      background: '#E3F2F5',
+      border: '1px solid #B1DCE2',
+      borderRadius: '8px',
+      fontSize: '13px',
+      color: '#1A202C',
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: '8px' }}>{title}</div>
+      {children}
     </div>
   );
 }
