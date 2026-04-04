@@ -104,7 +104,7 @@ function buildSigContent(sigResult) {
 // ─────────────────────────────────────────────────────────────
 // Bilan simplifié → contenu pdfmake
 // ─────────────────────────────────────────────────────────────
-function buildBilanContent(bilanData) {
+function buildBilanContent(bilanData, chartW = 781) {
   if (!bilanData) return [];
 
   const { actifImmobilise, actifCirculant, capitauxPropres, dettes,
@@ -131,7 +131,7 @@ function buildBilanContent(bilanData) {
   });
 
   // — Bilan overview SVG (actif vs passif stacked bars) —
-  const overviewSvg = buildBilanOverviewSvg(bilanData);
+  const overviewSvg = buildBilanOverviewSvg(bilanData, chartW);
 
   // — Section table helper —
   function sectionTable(section, halfW) {
@@ -186,7 +186,7 @@ function buildBilanContent(bilanData) {
       margin: [0, 0, 0, 14],
     },
     // Overview SVG
-    overviewSvg ? { svg: overviewSvg, width: 720, margin: [0, 0, 0, 14] } : {},
+    overviewSvg ? { svg: overviewSvg, width: chartW, margin: [0, 0, 0, 14] } : {},
     // 2 columns: Actif | Passif
     {
       columns: [
@@ -228,9 +228,9 @@ function buildBilanContent(bilanData) {
   return blocks;
 }
 
-function buildBilanOverviewSvg({ actifImmobilise, actifCirculant, capitauxPropres, dettes, totalActif, totalPassif }) {
+function buildBilanOverviewSvg({ actifImmobilise, actifCirculant, capitauxPropres, dettes, totalActif, totalPassif }, chartW = 781) {
   if (!totalActif || !totalPassif) return null;
-  const W = 720, barH = 30, padL = 60, padR = 20;
+  const W = chartW, barH = 30, padL = 60, padR = 20;
   const barW = W - padL - padR;
   const H = 110;
 
@@ -458,7 +458,7 @@ function buildGrandLivreContent(parsedFec) {
 // ─────────────────────────────────────────────────────────────
 // Trésorerie — courbe de solde → contenu pdfmake
 // ─────────────────────────────────────────────────────────────
-function buildTreasuryCurve(treasuryData) {
+function buildTreasuryCurve(treasuryData, chartW = 781) {
   if (!treasuryData) return [];
 
   const { soldeActuel, soldeMini, soldeMaxi, totalEntrees, totalSorties, soldeMoyen, dailyCurve } = treasuryData;
@@ -480,7 +480,7 @@ function buildTreasuryCurve(treasuryData) {
     margin: [6, 6, 6, 6],
   }));
 
-  const svgStr = buildTreasurySvg(dailyCurve);
+  const svgStr = buildTreasurySvg(dailyCurve, chartW);
 
   return [
     makeSectionTitle(DOC_LABELS.treasury_curve, 'treasury_curve'),
@@ -494,13 +494,13 @@ function buildTreasuryCurve(treasuryData) {
       },
       margin: [0, 0, 0, 14],
     },
-    { svg: svgStr, width: 720, margin: [0, 0, 0, 0] },
+    { svg: svgStr, width: chartW, margin: [0, 0, 0, 0] },
     { text: ' ', pageBreak: 'after' },
   ];
 }
 
-function buildTreasurySvg(dailyCurve) {
-  const W = 720, H = 170;
+function buildTreasurySvg(dailyCurve, svgW = 781) {
+  const W = svgW, H = 170;
   const padL = 65, padR = 20, padT = 15, padB = 32;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
@@ -574,12 +574,14 @@ function buildTreasurySvg(dailyCurve) {
 // ─────────────────────────────────────────────────────────────
 // Structure des charges → contenu pdfmake
 // ─────────────────────────────────────────────────────────────
-function buildChargesCharts(chargesData) {
+function buildChargesCharts(chargesData, chartW = 781) {
   if (!chargesData?.categories?.length) return [];
 
-  const sorted = [...chargesData.categories].sort((a, b) => b.montant - a.montant);
+  const sorted  = [...chargesData.categories].sort((a, b) => b.montant - a.montant);
+  // La colonne donut est fixe à 200pt ; les barres prennent le reste
+  const barsW   = Math.max(180, chartW - 200 - 20);
   const donutSvg = buildChargesDonutSvg(sorted);
-  const barSvg   = buildChargesBarsSvg(sorted);
+  const barSvg   = buildChargesBarsSvg(sorted, barsW);
 
   // Legend table next to bars
   const legendBody = sorted.map(c => [
@@ -610,7 +612,7 @@ function buildChargesCharts(chargesData) {
           width: '*',
           stack: [
             { text: 'Détail par nature', fontSize: 9, bold: true, color: COLORS.secondary, margin: [0, 0, 0, 6] },
-            { svg: barSvg, width: 460, margin: [0, 0, 0, 12] },
+            { svg: barSvg, width: barsW, margin: [0, 0, 0, 12] },
             {
               table: {
                 widths: [14, '*', 80, 55],
@@ -666,9 +668,9 @@ function buildChargesDonutSvg(categories) {
   </svg>`;
 }
 
-function buildChargesBarsSvg(categories) {
+function buildChargesBarsSvg(categories, barsW = 561) {
   const padL = 10, padR = 10, padT = 8, rowH = 28;
-  const W = 460;
+  const W = barsW;
   const H = padT + categories.length * rowH + 4;
   const barAreaW = W - padL - padR;
   const maxVal = Math.max(...categories.map(c => c.montant), 1);
@@ -744,7 +746,7 @@ function buildAnalytiqueTable(analytiqueData) {
 // ─────────────────────────────────────────────────────────────
 // Analytique — Podium Top 3
 // ─────────────────────────────────────────────────────────────
-function buildAnalytiquePodium(analytiqueData) {
+function buildAnalytiquePodium(analytiqueData, chartW = 781) {
   if (!analytiqueData?.materiels) return [];
 
   const top3 = analytiqueData.materiels
@@ -753,18 +755,20 @@ function buildAnalytiquePodium(analytiqueData) {
 
   if (top3.length < 2) return [];
 
-  const svgStr = buildPodiumSvg(top3);
+  const podiumW  = Math.min(500, chartW - 40);
+  const podiumMx = Math.max(10, Math.floor((chartW - podiumW) / 2));
+  const svgStr   = buildPodiumSvg(top3, podiumW);
 
   return [
     makeSectionTitle(DOC_LABELS.analytique_podium, 'analytique_podium'),
-    { svg: svgStr, width: 500, margin: [80, 0, 0, 0] },
+    { svg: svgStr, width: podiumW, margin: [podiumMx, 0, 0, 0] },
     { text: ' ', pageBreak: 'after' },
   ];
 }
 
-function buildPodiumSvg(top3) {
+function buildPodiumSvg(top3, podiumW = 500) {
   // Display order: 2nd (left), 1st (center), 3rd (right)
-  const W = 500, H = 240;
+  const W = podiumW, H = 240;
   const barW = 130, gap = 25;
   const padL = (W - (3 * barW + 2 * gap)) / 2;
   const maxBarH = 140, padB = 60;
@@ -1032,14 +1036,14 @@ export async function generateExport(
   const BUILDERS = {
     dossier_gestion:   () => buildDossierContent(storeData.dossierData),
     sig:               () => buildSigContent(storeData.sigResult),
-    bilan:             () => buildBilanContent(storeData.bilanData),
+    bilan:             () => buildBilanContent(storeData.bilanData, chartW),
     balance:           () => buildBalanceContent(parsedFec),
     balance_aux:       () => buildBalanceAuxContent(parsedFec),
     grand_livre:       () => buildGrandLivreContent(parsedFec),
-    treasury_curve:    () => buildTreasuryCurve(storeData.treasuryData),
-    charges_charts:    () => buildChargesCharts(storeData.chargesData),
+    treasury_curve:    () => buildTreasuryCurve(storeData.treasuryData, chartW),
+    charges_charts:    () => buildChargesCharts(storeData.chargesData, chartW),
     analytique_table:  () => buildAnalytiqueTable(storeData.analytiqueData),
-    analytique_podium: () => buildAnalytiquePodium(storeData.analytiqueData),
+    analytique_podium: () => buildAnalytiquePodium(storeData.analytiqueData, chartW),
   };
 
   const defaultStyles = {
@@ -1049,6 +1053,8 @@ export async function generateExport(
 
   const pageOrientation = options.orientation ?? 'landscape';
   const pageMargins     = pageOrientation === 'portrait' ? [40, 50, 40, 40] : [30, 50, 30, 40];
+  // Largeur utile du contenu selon l'orientation (A4 en points, marges comprises)
+  const chartW = pageOrientation === 'portrait' ? 515 : 781;
 
   if (options.mode === 'separate') {
     for (let i = 0; i < selectedDocs.length; i++) {
