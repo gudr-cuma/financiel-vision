@@ -6,6 +6,7 @@ import { computeCharges } from '../engine/computeCharges';
 import { computeBilan } from '../engine/computeBilan';
 import { computeAnalyseurFec } from '../engine/computeAnalyseurFec';
 import { parseDossierGestion } from '../engine/parseDossierGestion';
+import { parseBilanCR } from '../engine/parseBilanCR';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -30,6 +31,7 @@ const useStore = create((set, get) => ({
   analyseurData: null,
   analytiqueData: null,  // { materiels, global } — chargé depuis AnalytiqueTab
   dossierData: null,     // { cumaList, selectedCumaIndex, variables, overrides, comments }
+  bilanCRData: null,     // { nomCuma, dateDebut, dateFin, actif[], passif[], resultat[] }
   activeSection: 'analyseur', // 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
@@ -294,6 +296,38 @@ const useStore = create((set, get) => ({
     }
   },
 
+  // -------------------------------------------------------------------------
+  // Actions — Bilan & CR
+  // -------------------------------------------------------------------------
+
+  setBilanCRData: (data) => set({ bilanCRData: data }),
+
+  /** Charge le fichier de démonstration BilanCR */
+  loadDemoBilanCR: async () => {
+    try {
+      const response = await fetch('/demo/demo_bilanCR.xlsx');
+      if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration BilanCR.');
+      const blob = await response.blob();
+      const file = new File([blob], 'demo_bilanCR.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const bilanCRData = await parseBilanCR(file);
+      set({ bilanCRData, activeSection: 'bilanCR' });
+    } catch (err) {
+      set({ error: err.message });
+    }
+  },
+
+  /** Charge un fichier BilanCR déposé par l'utilisateur */
+  loadFileBilanCR: async (file) => {
+    try {
+      const bilanCRData = await parseBilanCR(file);
+      set({ bilanCRData, activeSection: 'bilanCR' });
+    } catch (err) {
+      set({ error: err.message });
+    }
+  },
+
   clearError: () => set({ error: null }),
 
   reset: () => set({
@@ -306,6 +340,7 @@ const useStore = create((set, get) => ({
     analyseurData: null,
     analytiqueData: null,
     dossierData: null,
+    bilanCRData: null,
     activeSection: 'analyseur',
     activeTab: 'sig',
     activeSubTab: 'mensuel',

@@ -4,6 +4,7 @@ const SECTIONS = [
   { id: 'analyseur', icon: '🔎', label: 'Analyseur FEC' },
   { id: 'dashboard', icon: '📊', label: 'Tableaux de bord' },
   { id: 'dossier',   icon: '📋', label: 'Dossier de gestion' },
+  { id: 'bilanCR',   icon: '📈', label: 'Bilan & CR' },
   { id: 'editions',  icon: '📒', label: 'Éditions' },
   { id: 'export',    icon: '⬇️',  label: 'Export' },
   { id: 'analyse',   icon: '🤖', label: 'Rapport IA' },

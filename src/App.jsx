@@ -15,6 +15,7 @@ import AnalytiqueTab from './components/analytique/AnalytiqueTab';
 import AnalyseurTab from './components/analyseur/AnalyseurTab';
 import LivresTab from './components/livres/LivresTab';
 import DossierTab from './components/dossier/DossierTab';
+import BilanCRTab from './components/bilanCR/BilanCRTab';
 import ExportTab from './components/export/ExportTab';
 
 export default function App() {
@@ -69,6 +70,7 @@ export default function App() {
             )}
 
             {activeSection === 'dossier'  && <DossierTab />}
+            {activeSection === 'bilanCR'  && <BilanCRTab />}
             {activeSection === 'editions' && <LivresTab />}
             {activeSection === 'export'   && <ExportTab />}
             {activeSection === 'analyse'  && <AnalyseTab />}
