@@ -2,21 +2,49 @@ import { useState } from 'react';
 import useStore from '../../store/useStore';
 import { generateExport, DOC_LABELS } from '../../engine/generatePdf';
 
-// Tous les documents disponibles, dans l'ordre d'export
+// ── Catalogue complet des documents ──────────────────────────────────────────
+// requiresFec        → nécessite un FEC chargé
+// requiresDossier    → nécessite dossierData
+// requiresAnalytique → nécessite analytiqueData
+// requiresBilanCR    → nécessite bilanCRData
 const ALL_DOCS = [
-  { id: 'dossier_gestion',   label: DOC_LABELS.dossier_gestion, requiresDossier: true },
-  { id: 'sig',               label: DOC_LABELS.sig },
-  { id: 'bilan',             label: DOC_LABELS.bilan },
-  { id: 'balance',           label: DOC_LABELS.balance },
-  { id: 'balance_aux',       label: DOC_LABELS.balance_aux },
-  { id: 'grand_livre',       label: DOC_LABELS.grand_livre, warn: true },
-  { id: 'treasury_curve',    label: DOC_LABELS.treasury_curve },
-  { id: 'charges_charts',    label: DOC_LABELS.charges_charts },
-  { id: 'analytique_table',  label: DOC_LABELS.analytique_table, requiresAnalytique: true },
-  { id: 'analytique_podium', label: DOC_LABELS.analytique_podium, requiresAnalytique: true },
+  { id: 'dossier_gestion',   requiresDossier: true },
+  { id: 'sig',               requiresFec: true },
+  { id: 'bilan',             requiresFec: true },
+  { id: 'bilan_cr',          requiresBilanCR: true },
+  { id: 'balance',           requiresFec: true },
+  { id: 'balance_aux',       requiresFec: true },
+  { id: 'grand_livre',       requiresFec: true, warn: true },
+  { id: 'treasury_curve',    requiresFec: true },
+  { id: 'charges_charts',    requiresFec: true },
+  { id: 'analytique_table',  requiresAnalytique: true },
+  { id: 'analytique_podium', requiresAnalytique: true },
 ];
 
 const DEFAULT_SELECTED = ['sig', 'bilan', 'balance', 'balance_aux', 'treasury_curve', 'charges_charts'];
+
+// ── Bouton ↑ / ↓ ──────────────────────────────────────────────────────────────
+function ArrowBtn({ dir, disabled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={dir === 'up' ? 'Monter' : 'Descendre'}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '22px', height: '22px',
+        border: '1px solid #E2E8F0', borderRadius: '4px',
+        background: disabled ? 'transparent' : '#F8FAFB',
+        color: disabled ? '#CBD5E0' : '#718096',
+        cursor: disabled ? 'default' : 'pointer',
+        fontSize: '11px', lineHeight: 1, padding: 0,
+        transition: 'background 100ms',
+      }}
+    >
+      {dir === 'up' ? '▲' : '▼'}
+    </button>
+  );
+}
 
 export function ExportTab() {
   const parsedFec      = useStore(s => s.parsedFec);
@@ -26,43 +54,80 @@ export function ExportTab() {
   const chargesData    = useStore(s => s.chargesData);
   const analytiqueData = useStore(s => s.analytiqueData);
   const dossierData    = useStore(s => s.dossierData);
+  const bilanCRData    = useStore(s => s.bilanCRData);
 
-  const [selected, setSelected]       = useState(DEFAULT_SELECTED);
+  // orderedSelection = tableau ordonné des IDs cochés (ordre = ordre d'export)
+  const [orderedSelection, setOrderedSelection] = useState(
+    DEFAULT_SELECTED.filter(id => {
+      // ne pré-cocher que ce qui est disponible
+      const doc = ALL_DOCS.find(d => d.id === id);
+      if (!doc) return false;
+      if (doc.requiresFec        && !parsedFec)      return false;
+      if (doc.requiresDossier    && !dossierData)    return false;
+      if (doc.requiresBilanCR    && !bilanCRData)    return false;
+      if (doc.requiresAnalytique && !analytiqueData) return false;
+      return true;
+    })
+  );
   const [mode, setMode]               = useState('global');
   const [orientation, setOrientation] = useState('landscape');
   const [annexes, setAnnexes]         = useState([]);
-  const [progress, setProgress] = useState(null);
-  const [error, setError]       = useState(null);
+  const [progress, setProgress]       = useState(null);
+  const [error, setError]             = useState(null);
 
-  if (!parsedFec) {
-    return (
-      <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>
-        Aucun FEC chargé
-      </div>
-    );
-  }
-
-  const docs = ALL_DOCS.filter(d => {
+  // Docs disponibles selon les données chargées
+  const availableDocs = ALL_DOCS.filter(d => {
+    if (d.requiresFec        && !parsedFec)      return false;
+    if (d.requiresDossier    && !dossierData)    return false;
+    if (d.requiresBilanCR    && !bilanCRData)    return false;
     if (d.requiresAnalytique && !analytiqueData) return false;
-    if (d.requiresDossier && !dossierData) return false;
     return true;
   });
 
-  const toggleDoc = (id) => {
-    setSelected(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
+  const nothingLoaded = availableDocs.length === 0;
+
+  // ── Helpers de sélection / réordonnancement ────────────────────────────────
+  const isSelected  = id => orderedSelection.includes(id);
+  const rankOf      = id => orderedSelection.indexOf(id) + 1; // 1-based
+
+  const toggle = (id) => {
+    setOrderedSelection(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
+  const moveUp = (id) => {
+    setOrderedSelection(prev => {
+      const idx = prev.indexOf(id);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return next;
+    });
+  };
+
+  const moveDown = (id) => {
+    setOrderedSelection(prev => {
+      const idx = prev.indexOf(id);
+      if (idx < 0 || idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
+  };
+
+  // ── Génération ─────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
-    if (!selected.length) return;
+    if (!orderedSelection.length) return;
     setError(null);
     setProgress({ pct: 0, label: 'Initialisation…' });
 
-    const storeData = { sigResult, bilanData, treasuryData, chargesData, analytiqueData, dossierData };
+    const storeData = { sigResult, bilanData, bilanCRData, treasuryData, chargesData, analytiqueData, dossierData };
 
     try {
       await generateExport(
         parsedFec,
-        selected,
+        orderedSelection,
         { mode, orientation },
         (pct, label) => setProgress({ pct, label }),
         storeData,
@@ -77,59 +142,113 @@ export function ExportTab() {
     setTimeout(() => setProgress(null), 1500);
   };
 
-  const grandLivreChecked = selected.includes('grand_livre');
+  const grandLivreChecked = orderedSelection.includes('grand_livre');
 
+  // ── Rendu ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ paddingTop: '24px', maxWidth: '700px' }}>
 
-      {/* ── Documents ── */}
-      <section style={{ marginBottom: '28px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1A202C', marginBottom: '14px' }}>
-          Documents à exporter
-        </h2>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {docs.map(doc => (
-            <label
-              key={doc.id}
-              style={{
-                display: 'flex', alignItems: 'flex-start', gap: '10px',
-                cursor: 'pointer', fontSize: '14px', color: '#1A202C',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(doc.id)}
-                onChange={() => toggleDoc(doc.id)}
-                style={{ width: '16px', height: '16px', marginTop: '1px', cursor: 'pointer', accentColor: '#FF8200' }}
-              />
-              <span>{doc.label}</span>
-            </label>
-          ))}
+      {/* ── Message si rien n'est chargé ── */}
+      {nothingLoaded && (
+        <div style={{
+          padding: '16px 20px', background: '#FFF3E0', border: '1px solid #FFB74D',
+          borderRadius: '10px', fontSize: '14px', color: '#7C4D00', marginBottom: '28px',
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: '4px' }}>Aucune donnée disponible</div>
+          Chargez un FEC, un dossier de gestion ou un fichier BilanCR pour activer l'export.
         </div>
+      )}
 
-        {!analytiqueData && (
-          <div style={{ marginTop: '10px', fontSize: '12px', color: '#A0AEC0', fontStyle: 'italic' }}>
-            Les documents analytiques sont disponibles après chargement d'une balance analytique (onglet Analytique).
-          </div>
-        )}
+      {/* ── Documents à exporter ── */}
+      {!nothingLoaded && (
+        <section style={{ marginBottom: '28px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1A202C', marginBottom: '6px' }}>
+            Documents à exporter
+          </h2>
+          <p style={{ fontSize: '12px', color: '#718096', margin: '0 0 14px' }}>
+            Cochez les documents souhaités, puis réordonnez-les avec les flèches ▲▼.
+          </p>
 
-        {/* Avertissement Grand Livre */}
-        {grandLivreChecked && (
-          <div style={{
-            marginTop: '12px', padding: '10px 14px',
-            background: '#FFF3E0', border: '1px solid #FFB74D', borderRadius: '8px',
-            fontSize: '13px', color: '#7C4D00', display: 'flex', gap: '8px', alignItems: 'flex-start',
-          }}>
-            <span style={{ fontSize: '16px', lineHeight: '1.2' }}>⚠️</span>
-            <span>
-              Le Grand Livre peut contenir plusieurs milliers de lignes.
-              La génération peut prendre jusqu'à 30 secondes.
-              Recommandé : exporter séparément.
-            </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {availableDocs.map(doc => {
+              const checked = isSelected(doc.id);
+              const rank    = checked ? rankOf(doc.id) : null;
+              const isFirst = checked && orderedSelection[0] === doc.id;
+              const isLast  = checked && orderedSelection[orderedSelection.length - 1] === doc.id;
+
+              return (
+                <div
+                  key={doc.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '7px 10px', borderRadius: '8px',
+                    background: checked ? '#F8FAFB' : 'transparent',
+                    border: checked ? '1px solid #E2E8F0' : '1px solid transparent',
+                    transition: 'background 100ms, border-color 100ms',
+                  }}
+                >
+                  {/* Rang */}
+                  <div style={{
+                    width: '20px', textAlign: 'center',
+                    fontSize: '11px', fontWeight: 700,
+                    color: checked ? '#FF8200' : 'transparent',
+                    flexShrink: 0,
+                  }}>
+                    {checked ? rank : '·'}
+                  </div>
+
+                  {/* Checkbox + label */}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, cursor: 'pointer', fontSize: '14px', color: '#1A202C' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(doc.id)}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#FF8200' }}
+                    />
+                    <span>{DOC_LABELS[doc.id]}</span>
+                    {doc.warn && checked && (
+                      <span style={{ fontSize: '11px', color: '#E57300', fontWeight: 600 }}>⚠️ volumineux</span>
+                    )}
+                  </label>
+
+                  {/* Boutons ↑ ↓ (uniquement si coché) */}
+                  {checked ? (
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                      <ArrowBtn dir="up"   disabled={isFirst} onClick={() => moveUp(doc.id)} />
+                      <ArrowBtn dir="down" disabled={isLast}  onClick={() => moveDown(doc.id)} />
+                    </div>
+                  ) : (
+                    <div style={{ width: '48px', flexShrink: 0 }} />
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-      </section>
+
+          {/* Avertissement analytique */}
+          {!analytiqueData && (
+            <div style={{ marginTop: '10px', fontSize: '12px', color: '#A0AEC0', fontStyle: 'italic' }}>
+              Les documents analytiques sont disponibles après chargement d'une balance analytique (onglet Analytique).
+            </div>
+          )}
+
+          {/* Avertissement Grand Livre */}
+          {grandLivreChecked && (
+            <div style={{
+              marginTop: '12px', padding: '10px 14px',
+              background: '#FFF3E0', border: '1px solid #FFB74D', borderRadius: '8px',
+              fontSize: '13px', color: '#7C4D00', display: 'flex', gap: '8px', alignItems: 'flex-start',
+            }}>
+              <span style={{ fontSize: '16px', lineHeight: '1.2' }}>⚠️</span>
+              <span>
+                Le Grand Livre peut contenir plusieurs milliers de lignes.
+                La génération peut prendre jusqu'à 30 secondes.
+                Recommandé : exporter séparément.
+              </span>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Mode export ── */}
       <section style={{ marginBottom: '28px' }}>
@@ -209,7 +328,6 @@ export function ExportTab() {
             Ces PDFs seront fusionnés à la fin du document global, après une page séparatrice "Annexes".
           </p>
 
-          {/* Zone de dépôt */}
           <label
             style={{
               display: 'flex', alignItems: 'center', gap: '10px',
@@ -239,7 +357,6 @@ export function ExportTab() {
             <span>Déposer des PDFs ici ou <strong style={{ color: '#FF8200' }}>parcourir</strong></span>
           </label>
 
-          {/* Liste des annexes ajoutées */}
           {annexes.length > 0 && (
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {annexes.map((f, i) => (
@@ -252,10 +369,7 @@ export function ExportTab() {
                   <span>📄 {f.name}</span>
                   <button
                     onClick={() => setAnnexes(prev => prev.filter((_, j) => j !== i))}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: '#E53935', fontSize: '16px', lineHeight: 1, padding: '0 4px',
-                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E53935', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}
                     title="Supprimer"
                   >×</button>
                 </div>
@@ -268,13 +382,13 @@ export function ExportTab() {
       {/* ── Bouton Générer ── */}
       <button
         onClick={handleGenerate}
-        disabled={!selected.length || progress !== null}
+        disabled={!orderedSelection.length || progress !== null}
         style={{
           padding: '12px 28px', fontSize: '15px', fontWeight: 700,
           color: '#FFFFFF',
-          background: (!selected.length || progress !== null) ? '#CBD5E0' : '#FF8200',
+          background: (!orderedSelection.length || progress !== null) ? '#CBD5E0' : '#FF8200',
           border: 'none', borderRadius: '10px',
-          cursor: (!selected.length || progress !== null) ? 'not-allowed' : 'pointer',
+          cursor: (!orderedSelection.length || progress !== null) ? 'not-allowed' : 'pointer',
           transition: 'background 150ms',
           display: 'flex', alignItems: 'center', gap: '8px',
         }}

@@ -304,28 +304,20 @@ const useStore = create((set, get) => ({
 
   /** Charge le fichier de démonstration BilanCR */
   loadDemoBilanCR: async () => {
-    try {
-      const response = await fetch('/demo/demo_bilanCR.xlsx');
-      if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration BilanCR.');
-      const blob = await response.blob();
-      const file = new File([blob], 'demo_bilanCR.xlsx', {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      const bilanCRData = await parseBilanCR(file);
-      set({ bilanCRData, activeSection: 'bilanCR' });
-    } catch (err) {
-      set({ error: err.message });
-    }
+    const response = await fetch('/demo/demo_bilanCR.xlsx');
+    if (!response.ok) throw new Error('Impossible de charger le fichier de démonstration BilanCR.');
+    const blob = await response.blob();
+    const file = new File([blob], 'demo_bilanCR.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const bilanCRData = await parseBilanCR(file);
+    set({ bilanCRData, activeSection: 'bilanCR' });
   },
 
   /** Charge un fichier BilanCR déposé par l'utilisateur */
   loadFileBilanCR: async (file) => {
-    try {
-      const bilanCRData = await parseBilanCR(file);
-      set({ bilanCRData, activeSection: 'bilanCR' });
-    } catch (err) {
-      set({ error: err.message });
-    }
+    const bilanCRData = await parseBilanCR(file);
+    set({ bilanCRData, activeSection: 'bilanCR' });
   },
 
   clearError: () => set({ error: null }),

@@ -112,6 +112,12 @@ body {
   }
 }
 
+/* ── Animation spin ─────────────────────────────────────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ── TipTap — zone de commentaires riche ────────────────────────────────── */
 .rich-comment-editor .tiptap {
   padding: 10px 12px;

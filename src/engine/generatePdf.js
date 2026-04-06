@@ -19,7 +19,8 @@ import { formatDate } from './formatUtils';
 export const DOC_LABELS = {
   dossier_gestion:   'Dossier de gestion',
   sig:               'Soldes Intermédiaires de Gestion',
-  bilan:             'Bilan simplifié',
+  bilan:             'Bilan simplifié (FEC)',
+  bilan_cr:          'Bilan & CR (Divalto)',
   balance:           'Balance générale',
   balance_aux:       'Balance auxiliaire',
   grand_livre:       'Grand Livre général',
@@ -99,6 +100,175 @@ function buildSigContent(sigResult) {
     },
     { text: ' ', pageBreak: 'after' },
   ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Bilan & CR Divalto → contenu pdfmake
+// ─────────────────────────────────────────────────────────────
+function buildBilanCRContent(bilanCRData) {
+  if (!bilanCRData) return [];
+  const { nomCuma, dateDebut, dateFin, actif, passif, resultat } = bilanCRData;
+
+  function fmtB(v) {
+    if (v === null || v === undefined || v === 0) return '—';
+    return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  }
+  function fmtVar(v) {
+    if (v === null || v === undefined) return '—';
+    return `${v >= 0 ? '+' : ''}${v.toFixed(1)} %`;
+  }
+
+  const out = [
+    makeSectionTitle(DOC_LABELS.bilan_cr, 'bilan_cr'),
+  ];
+
+  if (nomCuma || dateDebut || dateFin) {
+    out.push({
+      text: [
+        { text: nomCuma ?? '', bold: true, fontSize: 9 },
+        (dateDebut || dateFin)
+          ? { text: `   ${dateDebut && dateFin ? `Du ${dateDebut} au ${dateFin}` : dateDebut || dateFin}`, color: COLORS.secondary, fontSize: 7 }
+          : '',
+      ],
+      margin: [0, 0, 0, 10],
+    });
+  }
+
+  // ── ACTIF ─────────────────────────────────────────────────────
+  if (actif?.length) {
+    out.push({ text: 'ACTIF', fontSize: 8, bold: true, color: COLORS.secondary, margin: [0, 4, 0, 4] });
+    const body = [[
+      { text: 'Libellé',      style: 'tableHeader', fillColor: '#F7FAFC' },
+      { text: 'Brut',         style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+      { text: 'Amort./Prov.', style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+      { text: 'Net N',        style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+      { text: 'Net N-1',      style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+    ]];
+    for (const item of actif) {
+      if (item.type === 'section') {
+        body.push([{ text: item.label, fontSize: 7, bold: true, colSpan: 5, fillColor: '#B1DCE2' }, {}, {}, {}, {}]);
+      } else if (item.type === 'subsection') {
+        body.push([{ text: item.label, fontSize: 7, bold: true, italics: true, colSpan: 5, fillColor: '#E3F2F5', color: '#4A5568' }, {}, {}, {}, {}]);
+      } else if (item.type === 'grandtotal') {
+        body.push([
+          { text: item.label, fontSize: 7, bold: true, fillColor: '#1A202C', color: '#FFFFFF' },
+          { text: fmtB(item.brutN),  fontSize: 7, bold: true, alignment: 'right', fillColor: '#1A202C', color: '#FFFFFF' },
+          { text: fmtB(item.amortN), fontSize: 7, bold: true, alignment: 'right', fillColor: '#1A202C', color: '#FFFFFF' },
+          { text: fmtB(item.netN),   fontSize: 7, bold: true, alignment: 'right', fillColor: '#1A202C', color: '#31B700' },
+          { text: fmtB(item.netN1),  fontSize: 7, bold: true, alignment: 'right', fillColor: '#1A202C', color: '#B1DCE2' },
+        ]);
+      } else if (item.type === 'total') {
+        body.push([
+          { text: item.label,        fontSize: 7, bold: true, fillColor: '#E8F5E0' },
+          { text: fmtB(item.brutN),  fontSize: 7, bold: true, alignment: 'right', fillColor: '#E8F5E0' },
+          { text: fmtB(item.amortN), fontSize: 7, bold: true, alignment: 'right', fillColor: '#E8F5E0' },
+          { text: fmtB(item.netN),   fontSize: 7, bold: true, alignment: 'right', fillColor: '#E8F5E0', color: '#268E00' },
+          { text: fmtB(item.netN1),  fontSize: 7, bold: true, alignment: 'right', fillColor: '#E8F5E0', color: '#718096' },
+        ]);
+      } else if (item.type === 'footnote') {
+        body.push([{ text: item.label || '', fontSize: 6, italics: true, colSpan: 5, color: '#A0AEC0' }, {}, {}, {}, {}]);
+      } else {
+        body.push([
+          { text: item.code ? [{ text: item.code + '  ', fontSize: 6, color: '#CBD5E0' }, item.label || ''] : (item.label || ''), fontSize: 7 },
+          { text: fmtB(item.brutN),  fontSize: 7, alignment: 'right', color: '#4A5568' },
+          { text: fmtB(item.amortN), fontSize: 7, alignment: 'right', color: '#4A5568' },
+          { text: fmtB(item.netN),   fontSize: 7, alignment: 'right' },
+          { text: fmtB(item.netN1),  fontSize: 7, alignment: 'right', color: '#718096' },
+        ]);
+      }
+    }
+    out.push({ table: { headerRows: 1, widths: ['*', 70, 70, 70, 70], body }, layout: tableLayout(), margin: [0, 0, 0, 14] });
+  }
+
+  // ── PASSIF ────────────────────────────────────────────────────
+  if (passif?.length) {
+    out.push({ text: 'PASSIF', fontSize: 8, bold: true, color: COLORS.secondary, margin: [0, 4, 0, 4] });
+    const body = [[
+      { text: 'Libellé', style: 'tableHeader', fillColor: '#F7FAFC' },
+      { text: 'Net N',   style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+      { text: 'Net N-1', style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+    ]];
+    for (const item of passif) {
+      if (item.type === 'section') {
+        body.push([{ text: item.label, fontSize: 7, bold: true, colSpan: 3, fillColor: '#B1DCE2' }, {}, {}]);
+      } else if (item.type === 'subsection') {
+        body.push([{ text: item.label, fontSize: 7, bold: true, italics: true, colSpan: 3, fillColor: '#E3F2F5', color: '#4A5568' }, {}, {}]);
+      } else if (item.type === 'grandtotal') {
+        body.push([
+          { text: item.label, fontSize: 7, bold: true, fillColor: '#1A202C', color: '#FFFFFF' },
+          { text: fmtB(item.netN),  fontSize: 7, bold: true, alignment: 'right', fillColor: '#1A202C', color: '#31B700' },
+          { text: fmtB(item.netN1), fontSize: 7, bold: true, alignment: 'right', fillColor: '#1A202C', color: '#B1DCE2' },
+        ]);
+      } else if (item.type === 'total') {
+        body.push([
+          { text: item.label,       fontSize: 7, bold: true, fillColor: '#E8F5E0' },
+          { text: fmtB(item.netN),  fontSize: 7, bold: true, alignment: 'right', fillColor: '#E8F5E0', color: '#268E00' },
+          { text: fmtB(item.netN1), fontSize: 7, bold: true, alignment: 'right', fillColor: '#E8F5E0', color: '#718096' },
+        ]);
+      } else if (item.type === 'subline') {
+        body.push([
+          { text: [{ text: '    ' }, { text: item.code ? item.code + '  ' : '', fontSize: 6, color: '#CBD5E0' }, { text: item.label || '', italics: true }], fontSize: 7, color: '#718096' },
+          { text: fmtB(item.amount),   fontSize: 7, alignment: 'right', color: '#718096' },
+          { text: fmtB(item.amountN1), fontSize: 7, alignment: 'right', color: '#A0AEC0' },
+        ]);
+      } else {
+        body.push([
+          { text: item.code ? [{ text: item.code + '  ', fontSize: 6, color: '#CBD5E0' }, item.label || ''] : (item.label || ''), fontSize: 7 },
+          { text: fmtB(item.netN),  fontSize: 7, alignment: 'right' },
+          { text: fmtB(item.netN1), fontSize: 7, alignment: 'right', color: '#718096' },
+        ]);
+      }
+    }
+    out.push({ table: { headerRows: 1, widths: ['*', 90, 90], body }, layout: tableLayout(), margin: [0, 0, 0, 14] });
+  }
+
+  // ── COMPTE DE RÉSULTAT ────────────────────────────────────────
+  if (resultat?.length) {
+    out.push({ text: 'COMPTE DE RÉSULTAT', fontSize: 8, bold: true, color: COLORS.secondary, margin: [0, 4, 0, 4] });
+    const body = [[
+      { text: 'Libellé',  style: 'tableHeader', fillColor: '#F7FAFC' },
+      { text: 'Total N',  style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+      { text: 'N-1',      style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+      { text: 'Var. %',   style: 'tableHeader', alignment: 'right', fillColor: '#F7FAFC' },
+    ]];
+    for (const item of resultat) {
+      if (item.type === 'section') {
+        body.push([{ text: item.label, fontSize: 7, bold: true, colSpan: 4, fillColor: '#B1DCE2' }, {}, {}, {}]);
+      } else if (item.type === 'subsection') {
+        body.push([{ text: item.label, fontSize: 7, bold: true, italics: true, colSpan: 4, fillColor: '#E3F2F5', color: '#4A5568' }, {}, {}, {}]);
+      } else if (item.type === 'total') {
+        const isResult   = item.label && /^\d\)/.test(String(item.code ?? item.label));
+        const fillColor  = isResult ? (item.totalN >= 0 ? '#E8F5E0' : '#FFF5F5') : '#F7FAFC';
+        const amtColor   = isResult ? (item.totalN >= 0 ? '#268E00' : '#E53935') : '#1A202C';
+        const varColor   = item.variation >= 0 ? '#268E00' : '#E53935';
+        body.push([
+          { text: item.label,           fontSize: 7, bold: true, fillColor },
+          { text: fmtB(item.totalN),    fontSize: 7, bold: true, alignment: 'right', fillColor, color: amtColor },
+          { text: fmtB(item.totalN1),   fontSize: 7, bold: true, alignment: 'right', fillColor, color: '#4A5568' },
+          { text: fmtVar(item.variation), fontSize: 7, alignment: 'right', fillColor, color: varColor },
+        ]);
+      } else if (item.type === 'subline') {
+        body.push([
+          { text: [{ text: '    ' }, { text: item.code ? item.code + '  ' : '', fontSize: 6, color: '#CBD5E0' }, { text: item.label || '', italics: true }], fontSize: 7, color: '#718096' },
+          { text: fmtB(item.totalN),    fontSize: 7, alignment: 'right', color: '#718096' },
+          { text: fmtB(item.totalN1),   fontSize: 7, alignment: 'right', color: '#A0AEC0' },
+          { text: fmtVar(item.variation), fontSize: 7, alignment: 'right', color: '#A0AEC0' },
+        ]);
+      } else {
+        const isNeg  = item.totalN !== null && item.totalN < 0;
+        const varClr = item.variation >= 0 ? '#268E00' : '#E53935';
+        body.push([
+          { text: item.code ? [{ text: item.code + '  ', fontSize: 6, color: '#CBD5E0' }, item.label || ''] : (item.label || ''), fontSize: 7 },
+          { text: fmtB(item.totalN),      fontSize: 7, alignment: 'right', color: isNeg ? '#E53935' : '#1A202C' },
+          { text: fmtB(item.totalN1),     fontSize: 7, alignment: 'right', color: '#718096' },
+          { text: fmtVar(item.variation), fontSize: 7, alignment: 'right', color: varClr },
+        ]);
+      }
+    }
+    out.push({ table: { headerRows: 1, widths: ['*', 80, 80, 55], body }, layout: tableLayout(), margin: [0, 0, 0, 14] });
+  }
+
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1037,6 +1207,7 @@ export async function generateExport(
     dossier_gestion:   () => buildDossierContent(storeData.dossierData),
     sig:               () => buildSigContent(storeData.sigResult),
     bilan:             () => buildBilanContent(storeData.bilanData, chartW),
+    bilan_cr:          () => buildBilanCRContent(storeData.bilanCRData),
     balance:           () => buildBalanceContent(parsedFec),
     balance_aux:       () => buildBalanceAuxContent(parsedFec),
     grand_livre:       () => buildGrandLivreContent(parsedFec),
@@ -1071,7 +1242,8 @@ export async function generateExport(
         defaultStyle: { fontSize: 8, color: COLORS.text },
         styles: defaultStyles,
       };
-      const fileName = `${DOC_LABELS[id].replace(/[\s—]+/g, '_')}_${parsedFec?.siren ?? 'export'}.pdf`;
+      const fileId   = parsedFec?.siren ?? storeData.bilanCRData?.nomCuma?.replace(/\s+/g, '_') ?? 'export';
+      const fileName = `${DOC_LABELS[id].replace(/[\s—\/()]+/g, '_')}_${fileId}.pdf`;
       const blob = await pdfMake.createPdf(docDef).getBlob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -1081,22 +1253,16 @@ export async function generateExport(
       URL.revokeObjectURL(url);
     }
   } else {
-    // Dossier de gestion toujours en premier s'il est sélectionné
-    const orderedDocs = [
-      ...selectedDocs.filter(id => id === 'dossier_gestion'),
-      ...selectedDocs.filter(id => id !== 'dossier_gestion'),
-    ];
-
     const annexeNames = annexes.map(f => f.name);
 
     const contentBlocks = [
-      ...makeCoverPage(parsedFec, orderedDocs, DOC_LABELS, annexeNames),
+      ...makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames),
       ...makeSommaire(),
     ];
 
-    for (let i = 0; i < orderedDocs.length; i++) {
-      const id = orderedDocs[i];
-      onProgress(10 + (i / orderedDocs.length) * 70, `Génération : ${DOC_LABELS[id]}…`);
+    for (let i = 0; i < selectedDocs.length; i++) {
+      const id = selectedDocs[i];
+      onProgress(10 + (i / selectedDocs.length) * 70, `Génération : ${DOC_LABELS[id]}…`);
       const builder = BUILDERS[id];
       if (!builder) continue;
       contentBlocks.push(...builder());
@@ -1108,7 +1274,7 @@ export async function generateExport(
 
     onProgress(85, 'Assemblage du PDF…');
 
-    const siren    = parsedFec?.siren ?? 'export';
+    const siren    = parsedFec?.siren ?? storeData.bilanCRData?.nomCuma?.replace(/\s+/g, '_') ?? 'export';
     const today    = formatDate(new Date()).replace(/\//g, '-');
     const fileName = `Export_comptable_${siren}_${today}.pdf`;
 

@@ -14,6 +14,7 @@ export function BilanCRTab() {
   const [activeTab, setActiveTab]   = useState('actif');
   const [isDragging, setIsDragging] = useState(false);
   const [loadError, setLoadError]   = useState(null);
+  const [isLoading, setIsLoading]   = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFile = useCallback(async (file) => {
@@ -23,9 +24,12 @@ export function BilanCRTab() {
       return;
     }
     try {
+      setIsLoading(true);
       await loadFileBilanCR(file);
     } catch (err) {
       setLoadError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   }, [loadFileBilanCR]);
 
@@ -50,19 +54,20 @@ export function BilanCRTab() {
 
         {/* Dropzone */}
         <div
-          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={e => { if (!isLoading) { e.preventDefault(); setIsDragging(true); } }}
           onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onDrop={isLoading ? e => e.preventDefault() : handleDrop}
+          onClick={() => !isLoading && fileInputRef.current?.click()}
           style={{
             border: `2px dashed ${isDragging ? '#31B700' : '#B1DCE2'}`,
             borderRadius: '12px',
             padding: '40px 24px',
             textAlign: 'center',
-            cursor: 'pointer',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
             background: isDragging ? '#E8F5E0' : '#F8FAFB',
             transition: 'all 150ms',
             marginBottom: '16px',
+            opacity: isLoading ? 0.6 : 1,
           }}
         >
           <div style={{ fontSize: '32px', marginBottom: '12px' }}>📈</div>
@@ -81,18 +86,51 @@ export function BilanCRTab() {
           />
         </div>
 
+        {/* Indicateur de chargement */}
+        {isLoading && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '12px 16px',
+            background: '#E3F2F5', border: '1px solid #B1DCE2',
+            borderRadius: '8px', fontSize: '14px', color: '#1A202C',
+            marginBottom: '12px',
+          }}>
+            <span style={{
+              display: 'inline-block',
+              width: '18px', height: '18px',
+              border: '3px solid #B1DCE2',
+              borderTopColor: '#31B700',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+              flexShrink: 0,
+            }} />
+            Analyse du fichier en cours, veuillez patienter…
+          </div>
+        )}
+
         {/* Bouton démo */}
         <button
-          onClick={loadDemoBilanCR}
+          disabled={isLoading}
+          onClick={async () => {
+            setLoadError(null);
+            try {
+              setIsLoading(true);
+              await loadDemoBilanCR();
+            } catch (err) {
+              setLoadError(err.message);
+            } finally {
+              setIsLoading(false);
+            }
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             padding: '10px 20px',
             fontSize: '14px', fontWeight: 600,
-            color: '#31B700',
-            background: '#E8F5E0',
-            border: '1px solid #B7DFB7',
+            color: isLoading ? '#A0AEC0' : '#31B700',
+            background: isLoading ? '#F0F0F0' : '#E8F5E0',
+            border: `1px solid ${isLoading ? '#E2E8F0' : '#B7DFB7'}`,
             borderRadius: '8px',
-            cursor: 'pointer',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
             transition: 'background 150ms',
           }}
         >
