@@ -3,7 +3,7 @@
  * Format : "pbkdf2:sha256:<iterations>:<salt_b64>:<hash_b64>"
  */
 
-const ITERATIONS = 310_000; // NIST 2023 recommendation for PBKDF2-SHA256
+const ITERATIONS = 100_000; // Max supported by Cloudflare Workers (OWASP-compliant for SHA-256)
 
 function b64(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -73,7 +73,7 @@ export async function verifyPassword(password, storedHash) {
  * Hash fictif utilisé quand l'email est inconnu — pour éviter les timing leaks.
  * On le calcule une fois pour l'overhead PBKDF2, puis on retourne false.
  */
-const DUMMY_HASH = 'pbkdf2:sha256:310000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+const DUMMY_HASH = 'pbkdf2:sha256:100000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 export async function dummyVerify() {
   await verifyPassword('dummy-password-to-prevent-timing-leak', DUMMY_HASH);
   return false;

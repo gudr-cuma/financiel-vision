@@ -26,7 +26,7 @@ MAX_LOGIN_ATTEMPTS_PER_IP    = "5"
 RATE_LIMIT_WINDOW_SECONDS    = "900"
 ACCOUNT_LOCKOUT_ATTEMPTS     = "10"
 ACCOUNT_LOCKOUT_HOURS        = "1"
-PBKDF2_ITERATIONS            = "310000"
+PBKDF2_ITERATIONS            = "100000"
 
 # ── Secrets (NE PAS mettre les valeurs ici) ───────────────────────────────────
 # Ajouter via : Dashboard → Pages → financiel-vision → Settings → Environment variables
