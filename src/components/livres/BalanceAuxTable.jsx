@@ -13,7 +13,7 @@ function AmtCell({ value, color }) {
   );
 }
 
-export function BalanceAuxTable({ rows }) {
+export function BalanceAuxTable({ rows, onSelectTiers }) {
   if (!rows || rows.length === 0) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>Aucune donnée</div>;
   }
@@ -36,16 +36,22 @@ export function BalanceAuxTable({ rows }) {
         <tbody>
           {rows.map((row, idx) => {
             const isTotal = row.rowType === 'collectifTotal';
+            const isClickable = !isTotal && onSelectTiers;
+            const rowBg = isTotal ? '#E3F2F5' : idx % 2 === 0 ? '#FFFFFF' : '#F9FAFB';
             return (
               <tr
                 key={idx}
+                onClick={isClickable ? () => onSelectTiers(row) : undefined}
                 style={{
-                  background: isTotal ? '#E3F2F5' : idx % 2 === 0 ? '#FFFFFF' : '#F9FAFB',
+                  background: rowBg,
                   borderBottom: isTotal ? '2px solid #B1DCE2' : '1px solid #F0F4F8',
                   fontWeight: isTotal ? 700 : 'normal',
+                  cursor: isClickable ? 'pointer' : 'default',
                 }}
+                onMouseEnter={isClickable ? e => { e.currentTarget.style.background = '#EBF8FF'; } : undefined}
+                onMouseLeave={isClickable ? e => { e.currentTarget.style.background = rowBg; } : undefined}
               >
-                <td style={{ padding: '5px 10px', fontFamily: 'monospace', color: '#2D3748' }}>
+                <td style={{ padding: '5px 10px', fontFamily: 'monospace', color: isClickable ? '#FF8200' : '#2D3748', textDecoration: isClickable ? 'underline dotted' : 'none' }}>
                   {row.compAuxNum}
                 </td>
                 <td style={{ padding: '5px 10px', color: '#2D3748' }}>

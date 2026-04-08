@@ -28,6 +28,8 @@ export const DOC_LABELS = {
   charges_charts:    'Structure des charges',
   analytique_table:  'Analytique — Tous les matériels',
   analytique_podium: 'Analytique — Top 3 matériels',
+  rapport_ia:        'Rapport IA',
+  comparaison_nn1:   'Comparaison N/N-1',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -178,6 +180,7 @@ function buildBilanCRContent(bilanCRData) {
       }
     }
     out.push({ table: { headerRows: 1, widths: ['*', 70, 70, 70, 70], body }, layout: tableLayout(), margin: [0, 0, 0, 14] });
+    out.push({ text: '', pageBreak: 'after' });
   }
 
   // ── PASSIF ────────────────────────────────────────────────────
@@ -220,6 +223,7 @@ function buildBilanCRContent(bilanCRData) {
       }
     }
     out.push({ table: { headerRows: 1, widths: ['*', 90, 90], body }, layout: tableLayout(), margin: [0, 0, 0, 14] });
+    out.push({ text: '', pageBreak: 'after' });
   }
 
   // ── COMPTE DE RÉSULTAT ────────────────────────────────────────
@@ -266,6 +270,7 @@ function buildBilanCRContent(bilanCRData) {
       }
     }
     out.push({ table: { headerRows: 1, widths: ['*', 80, 80, 55], body }, layout: tableLayout(), margin: [0, 0, 0, 14] });
+    out.push({ text: '', pageBreak: 'after' });
   }
 
   return out;
@@ -1184,6 +1189,740 @@ function buildDossierContent(dossierData) {
 // Point d'entrée principal
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// Comparaison N/N-1 — tableaux pdfmake
+// ─────────────────────────────────────────────────────────────
+
+// IDs canoniques des 14 sous-tableaux (même ordre que l'UI)
+export const COMP_SUBTABLE_IDS = [
+  'ca','ebe','resultats','fr','fr_sur_ca','creances_ca',
+  'cs_ca','cs_vbm','cs_cp','taux_endettement','cp_passif',
+  'treso_mensuelle','ca_mensuel','charges',
+];
+
+// ─────────────────────────────────────────────────────────────
+// SVG helpers — Comparaison N/N-1
+// ─────────────────────────────────────────────────────────────
+
+function _fmtSvgVal(v, isPct) {
+  if (v == null) return '—';
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (isPct) return abs >= 100 ? `${sign}${abs.toFixed(0)} %` : `${sign}${abs.toFixed(1)} %`;
+  if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(1)}M`;
+  if (abs >= 1000)    return `${sign}${(abs / 1000).toFixed(0)}k`;
+  return `${sign}${Math.round(abs)}`;
+}
+
+/** Barres simples annuelles — une barre par année.  dataYears=[{year,value,color}] */
+function buildCompAnnualBarSvg(dataYears, isPct, svgW) {
+  const W = svgW, H = 110;
+  const padL = 64, padR = 20, padT = 22, padB = 28;
+  const cW = W - padL - padR;
+  const cH = H - padT - padB;
+  const valid = dataYears.filter(d => d.value != null);
+  if (!valid.length) return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#FAFAFA"/><text x="${W/2}" y="${H/2}" font-size="10" text-anchor="middle" fill="#A0AEC0">Aucune donnée</text></svg>`;
+  const vals = dataYears.map(d => d.value ?? 0);
+  const minV = Math.min(...vals, 0), maxV = Math.max(...vals, 0);
+  const rng  = (maxV - minV) || 1;
+  const toY  = (v) => padT + (1 - (v - minV) / rng) * cH;
+  const zy   = toY(0);
+  const n    = dataYears.length;
+  const colW = cW / n;
+  const barW = Math.min(colW * 0.52, 58);
+  const gridLines = Array.from({ length: 4 }, (_, i) => {
+    const v = minV + (i / 3) * rng; const y = toY(v).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#E2E8F0" stroke-width="0.5"/>` +
+           `<text x="${padL-4}" y="${y}" dy="4" font-size="8" text-anchor="end" fill="#A0AEC0">${_fmtSvgVal(v, isPct)}</text>`;
+  });
+  const barElems = dataYears.map((d, i) => {
+    const cx  = padL + colW * i + colW / 2;
+    const val = d.value ?? 0;
+    const yt  = Math.min(toY(val), zy).toFixed(1);
+    const bH  = Math.max(1, Math.abs(toY(val) - zy)).toFixed(1);
+    const lbl = _fmtSvgVal(d.value, isPct);
+    const ly  = (Math.min(toY(val), zy) - 4).toFixed(1);
+    return `<rect x="${(cx-barW/2).toFixed(1)}" y="${yt}" width="${barW.toFixed(1)}" height="${bH}" fill="${d.color}" rx="2"/>` +
+           `<text x="${cx.toFixed(1)}" y="${ly}" font-size="8" text-anchor="middle" fill="${d.color}" font-weight="bold">${lbl}</text>` +
+           `<text x="${cx.toFixed(1)}" y="${(padT+cH+17).toFixed(1)}" font-size="9" text-anchor="middle" fill="#4A5568" font-weight="bold">${d.year}</text>`;
+  });
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect width="${W}" height="${H}" fill="#FAFAFA"/>` +
+    gridLines.join('') +
+    `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT+cH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>` +
+    `<line x1="${padL}" y1="${zy.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${zy.toFixed(1)}" stroke="${minV < 0 ? '#E53935' : '#CBD5E0'}" stroke-width="1" ${minV < 0 ? 'stroke-dasharray="4,3" opacity="0.6"' : ''}/>` +
+    barElems.join('') + `</svg>`;
+}
+
+/** Barres groupées — Résultats (courant, exceptionnel, net) par année.  dataYears=[{year,color,resultatCourant,resultatExceptionnel,resultatNet}] */
+function buildCompResultatsSvg(dataYears, svgW) {
+  const W = svgW, H = 130;
+  const padL = 65, padR = 20, padT = 22, padB = 30;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  const SERIES = [
+    { key: 'resultatCourant',      label: 'Courant' },
+    { key: 'resultatExceptionnel', label: 'Exceptionnel' },
+    { key: 'resultatNet',          label: 'Net' },
+  ];
+  const allVals = dataYears.flatMap(d => SERIES.map(s => d[s.key] ?? 0));
+  const minV = Math.min(...allVals, 0), maxV = Math.max(...allVals, 0);
+  const rng  = (maxV - minV) || 1;
+  const toY  = (v) => padT + (1 - (v - minV) / rng) * cH;
+  const zy   = toY(0);
+  const nY   = dataYears.length;
+  const grpW = cW / 3;
+  const bW   = Math.min(18, (grpW * 0.7) / nY);
+  const gap  = 2;
+  const gridLines = Array.from({ length: 4 }, (_, i) => {
+    const v = minV + (i / 3) * rng; const y = toY(v).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#E2E8F0" stroke-width="0.5"/>` +
+           `<text x="${padL-4}" y="${y}" dy="4" font-size="8" text-anchor="end" fill="#A0AEC0">${_fmtSvgVal(v, false)}</text>`;
+  });
+  const barElems = SERIES.flatMap((s, gi) => {
+    const cx = padL + grpW * gi + grpW / 2;
+    const offset = -(nY - 1) / 2 * (bW + gap);
+    const bars = dataYears.map((d, yi) => {
+      const val = d[s.key] ?? 0;
+      const xb  = (cx + offset + yi * (bW + gap)).toFixed(1);
+      const yt  = Math.min(toY(val), zy).toFixed(1);
+      const bH  = Math.max(1, Math.abs(toY(val) - zy)).toFixed(1);
+      return `<rect x="${xb}" y="${yt}" width="${bW.toFixed(1)}" height="${bH}" fill="${d.color}" rx="1" opacity="${yi === nY-1 ? 1 : 0.65}"/>`;
+    });
+    return [...bars, `<text x="${cx.toFixed(1)}" y="${(padT+cH+18).toFixed(1)}" font-size="8" text-anchor="middle" fill="#4A5568">${s.label}</text>`];
+  });
+  const legElems = dataYears.map((d, yi) => {
+    const lx = (padL + cW * (yi+1) / (nY+1)).toFixed(1);
+    const ly = (padT - 9).toFixed(1);
+    return `<rect x="${lx}" y="${ly}" width="10" height="8" fill="${d.color}" rx="1"/>` +
+           `<text x="${(Number(lx)+13).toFixed(1)}" y="${(Number(ly)+7).toFixed(1)}" font-size="8" fill="#718096">${d.year}</text>`;
+  });
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect width="${W}" height="${H}" fill="#FAFAFA"/>` +
+    gridLines.join('') +
+    `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT+cH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>` +
+    `<line x1="${padL}" y1="${zy.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${zy.toFixed(1)}" stroke="${minV < 0 ? '#E53935' : '#CBD5E0'}" stroke-width="1" ${minV < 0 ? 'stroke-dasharray="4,3" opacity="0.6"' : ''}/>` +
+    barElems.join('') + legElems.join('') + `</svg>`;
+}
+
+/** Double courbe mensuelle — Trésorerie fin de mois */
+function buildCompTresoMensuelSvg(soldesN, soldesN1, shortLabels, yearN, yearN1, svgW) {
+  const W = svgW, H = 150;
+  const padL = 65, padR = 20, padT = 26, padB = 32;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  const allVals = [...soldesN, ...soldesN1].filter(v => v != null);
+  if (!allVals.length) return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#FAFAFA"/><text x="${W/2}" y="${H/2}" font-size="10" text-anchor="middle" fill="#A0AEC0">Aucune donnée</text></svg>`;
+  const n    = shortLabels.length;
+  const minV = Math.min(...allVals, 0), maxV = Math.max(...allVals, 0);
+  const rng  = (maxV - minV) || 1;
+  const toX  = (i) => padL + (i / Math.max(n-1, 1)) * cW;
+  const toY  = (v) => padT + (1 - (v - minV) / rng) * cH;
+  const zy   = toY(0);
+  const gridLines = Array.from({ length: 5 }, (_, i) => {
+    const v = minV + (i / 4) * rng; const y = toY(v).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#E2E8F0" stroke-width="0.5"/>` +
+           `<text x="${padL-4}" y="${y}" dy="4" font-size="8" text-anchor="end" fill="#A0AEC0">${_fmtSvgVal(v, false)}</text>`;
+  });
+  const ptsN  = soldesN.map((v, i) => v != null ? `${toX(i).toFixed(1)},${toY(v).toFixed(1)}` : null).filter(Boolean);
+  const ptsN1 = soldesN1.map((v, i) => v != null ? `${toX(i).toFixed(1)},${toY(v).toFixed(1)}` : null).filter(Boolean);
+  const step = Math.max(1, Math.ceil(n / 12));
+  const xLabels = shortLabels.map((lbl, i) => (i % step !== 0 && i !== n-1) ? '' :
+    `<text x="${toX(i).toFixed(1)}" y="${(padT+cH+20).toFixed(1)}" font-size="8" text-anchor="middle" fill="#718096">${lbl}</text>`);
+  const legY = 15;
+  const legend = [
+    `<line x1="${padL}" y1="${legY}" x2="${padL+16}" y2="${legY}" stroke="#FF8200" stroke-width="1.5" stroke-dasharray="5,3"/>` +
+    `<text x="${padL+20}" y="${legY+4}" font-size="8" fill="#718096">${yearN1}</text>`,
+    `<line x1="${padL+70}" y1="${legY}" x2="${padL+86}" y2="${legY}" stroke="#31B700" stroke-width="2"/>` +
+    `<text x="${padL+90}" y="${legY+4}" font-size="8" fill="#718096">${yearN}</text>`,
+  ];
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect width="${W}" height="${H}" fill="#FAFAFA"/>` +
+    gridLines.join('') +
+    `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT+cH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>` +
+    `<line x1="${padL}" y1="${(padT+cH).toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${(padT+cH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>` +
+    (minV < 0 ? `<line x1="${padL}" y1="${zy.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${zy.toFixed(1)}" stroke="#E53935" stroke-width="0.8" stroke-dasharray="4,3" opacity="0.6"/>` : '') +
+    (ptsN1.length >= 2 ? `<polyline points="${ptsN1.join(' ')}" fill="none" stroke="#FF8200" stroke-width="1.5" stroke-dasharray="5,3" stroke-linejoin="round" stroke-linecap="round"/>` : '') +
+    (ptsN.length >= 2  ? `<polyline points="${ptsN.join(' ')}"  fill="none" stroke="#31B700" stroke-width="2"   stroke-linejoin="round" stroke-linecap="round"/>` : '') +
+    xLabels.join('') + legend.join('') + `</svg>`;
+}
+
+/** Barres groupées mensuelles — CA N-1 vs N */
+function buildCompCaMensuelSvg(monthlyN, monthlyN1, yearN, yearN1, svgW) {
+  const W = svgW, H = 150;
+  const padL = 65, padR = 20, padT = 26, padB = 32;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  if (!monthlyN?.length) return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#FAFAFA"/><text x="${W/2}" y="${H/2}" font-size="10" text-anchor="middle" fill="#A0AEC0">Aucune donnée</text></svg>`;
+  const n    = monthlyN.length;
+  const vN   = monthlyN.map(m => m.ca ?? 0);
+  const vN1  = monthlyN.map((_, i) => monthlyN1[i]?.ca ?? 0);
+  const allV = [...vN, ...vN1];
+  const minV = Math.min(...allV, 0), maxV = Math.max(...allV, 0);
+  const rng  = (maxV - minV) || 1;
+  const toY  = (v) => padT + (1 - (v - minV) / rng) * cH;
+  const zy   = toY(0);
+  const grpW = cW / n;
+  const bW   = Math.min(grpW * 0.38, 13);
+  const sp   = 2;
+  const gridLines = Array.from({ length: 4 }, (_, i) => {
+    const v = minV + (i / 3) * rng; const y = toY(v).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#E2E8F0" stroke-width="0.5"/>` +
+           `<text x="${padL-4}" y="${y}" dy="4" font-size="8" text-anchor="end" fill="#A0AEC0">${_fmtSvgVal(v, false)}</text>`;
+  });
+  const barElems = monthlyN.map((m, i) => {
+    const cx  = padL + grpW * i + grpW / 2;
+    const x1  = (cx - sp/2 - bW).toFixed(1);
+    const x2  = (cx + sp/2).toFixed(1);
+    const yn1 = Math.min(toY(vN1[i]), zy).toFixed(1);
+    const hn1 = Math.max(1, Math.abs(toY(vN1[i]) - zy)).toFixed(1);
+    const yn  = Math.min(toY(vN[i]),  zy).toFixed(1);
+    const hn  = Math.max(1, Math.abs(toY(vN[i])  - zy)).toFixed(1);
+    const lbl = m.shortLabel ?? String(m.month);
+    return `<rect x="${x1}" y="${yn1}" width="${bW.toFixed(1)}" height="${hn1}" fill="#FF8200" opacity="0.75" rx="1"/>` +
+           `<rect x="${x2}" y="${yn}"  width="${bW.toFixed(1)}" height="${hn}"  fill="#31B700" rx="1"/>` +
+           `<text x="${cx.toFixed(1)}" y="${(padT+cH+18).toFixed(1)}" font-size="7" text-anchor="middle" fill="#718096">${lbl}</text>`;
+  });
+  const legY = 15;
+  const legend = [
+    `<rect x="${padL}" y="${legY-7}" width="10" height="8" fill="#FF8200" opacity="0.75" rx="1"/>` +
+    `<text x="${padL+13}" y="${legY}" font-size="8" fill="#718096">${yearN1}</text>`,
+    `<rect x="${padL+55}" y="${legY-7}" width="10" height="8" fill="#31B700" rx="1"/>` +
+    `<text x="${padL+68}" y="${legY}" font-size="8" fill="#718096">${yearN}</text>`,
+  ];
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect width="${W}" height="${H}" fill="#FAFAFA"/>` +
+    gridLines.join('') +
+    `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT+cH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>` +
+    `<line x1="${padL}" y1="${(padT+cH).toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${(padT+cH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>` +
+    barElems.join('') + legend.join('') + `</svg>`;
+}
+
+/** Deux donuts côte à côte — Répartition des charges N-1 et N */
+function buildCompChargesSvg(chargesN, chargesN1, yearN, yearN1, svgW) {
+  const W = svgW, H = 140;
+  const CAT_IDS    = ['personnel','services_ext','dotations','achats','financieres','impots_taxes'];
+  const CAT_COLORS = { personnel:'#FF8200', services_ext:'#31B700', dotations:'#00965E', achats:'#93C90E', financieres:'#B1DCE2', impots_taxes:'#E53935' };
+  const CAT_LBL    = { personnel:'Personnel', services_ext:'Services ext.', dotations:'Dotations', achats:'Achats', financieres:'Financières', impots_taxes:'Impôts' };
+  if (!chargesN?.categories?.length || !chargesN1?.categories?.length) {
+    return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#FAFAFA"/><text x="${W/2}" y="${H/2}" font-size="10" text-anchor="middle" fill="#A0AEC0">Aucune donnée</text></svg>`;
+  }
+  function donut(cats, cx, cy, rOut, rIn) {
+    const total = cats.reduce((s, c) => s + Math.max(0, c.montant ?? 0), 0);
+    if (!total) return '';
+    let a = -Math.PI / 2;
+    return cats.map(c => {
+      const mt = Math.max(0, c.montant ?? 0);
+      const sw = (mt / total) * 2 * Math.PI;
+      if (sw < 0.001) { a += sw; return ''; }
+      const ea = a + sw;
+      const x1o = cx + rOut*Math.cos(a),  y1o = cy + rOut*Math.sin(a);
+      const x2o = cx + rOut*Math.cos(ea), y2o = cy + rOut*Math.sin(ea);
+      const x2i = cx + rIn *Math.cos(ea), y2i = cy + rIn *Math.sin(ea);
+      const x1i = cx + rIn *Math.cos(a),  y1i = cy + rIn *Math.sin(a);
+      const lg  = sw > Math.PI ? 1 : 0;
+      const d   = `M ${x1o.toFixed(2)} ${y1o.toFixed(2)} A ${rOut} ${rOut} 0 ${lg} 1 ${x2o.toFixed(2)} ${y2o.toFixed(2)} L ${x2i.toFixed(2)} ${y2i.toFixed(2)} A ${rIn} ${rIn} 0 ${lg} 0 ${x1i.toFixed(2)} ${y1i.toFixed(2)} Z`;
+      a = ea;
+      return `<path d="${d}" fill="${CAT_COLORS[c.id] ?? '#CBD5E0'}" stroke="white" stroke-width="0.8"/>`;
+    }).join('');
+  }
+  const rOut = 50, rIn = 26;
+  const fr   = W > 600 ? 0.22 : 0.20;
+  const cx1  = W * fr, cx2 = W * (fr + 0.37), cy = H / 2 + 6;
+  const s1   = CAT_IDS.map(id => chargesN1.categories.find(c => c.id === id)).filter(Boolean);
+  const s2   = CAT_IDS.map(id => chargesN.categories.find(c => c.id === id)).filter(Boolean);
+  const legX = W * (fr + 0.68);
+  const legItems = CAT_IDS.map((id, i) => {
+    const ly = (H / 2 - 32) + i * 14;
+    return `<rect x="${legX.toFixed(1)}" y="${(ly-6).toFixed(1)}" width="8" height="8" fill="${CAT_COLORS[id]}" rx="1"/>` +
+           `<text x="${(legX+11).toFixed(1)}" y="${(ly+1).toFixed(1)}" font-size="8" fill="#4A5568">${CAT_LBL[id]}</text>`;
+  });
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect width="${W}" height="${H}" fill="#FAFAFA"/>` +
+    donut(s1, cx1, cy, rOut, rIn) +
+    `<circle cx="${cx1.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rIn}" fill="#FAFAFA"/>` +
+    `<text x="${cx1.toFixed(1)}" y="${(cy-4).toFixed(1)}" font-size="9" text-anchor="middle" fill="#718096" font-weight="bold">${yearN1}</text>` +
+    `<text x="${cx1.toFixed(1)}" y="${(cy+8).toFixed(1)}" font-size="8" text-anchor="middle" fill="#A0AEC0">${_fmtSvgVal(chargesN1.totalCharges, false)}</text>` +
+    donut(s2, cx2, cy, rOut, rIn) +
+    `<circle cx="${cx2.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rIn}" fill="#FAFAFA"/>` +
+    `<text x="${cx2.toFixed(1)}" y="${(cy-4).toFixed(1)}" font-size="9" text-anchor="middle" fill="#718096" font-weight="bold">${yearN}</text>` +
+    `<text x="${cx2.toFixed(1)}" y="${(cy+8).toFixed(1)}" font-size="8" text-anchor="middle" fill="#A0AEC0">${_fmtSvgVal(chargesN.totalCharges, false)}</text>` +
+    legItems.join('') + `</svg>`;
+}
+
+function _extractYearDataComp(sigResult, bilanData) {
+  if (!sigResult) return null;
+  const line = (id) => sigResult.lines?.find(l => l.id === id)?.amount ?? 0;
+  const ca   = sigResult.caTotal ?? 0;
+  const ebe  = line('ebe');
+  const resultatCourant      = line('resultat_courant');
+  const resultatExceptionnel = line('resultat_exceptionnel');
+  const resultatNet          = line('resultat_net');
+  const fr          = bilanData?.ratios?.fondsRoulement?.value ?? 0;
+  const cpTotal     = bilanData?.capitauxPropres?._sousTotal ?? 0;
+  const totalPassif = bilanData?.totalPassif ?? 0;
+  const capitalSocial = bilanData?.capitauxPropres?.capital_social?.montant ?? 0;
+  const vbm         = bilanData?.valeurBruteMateriels ?? 0;
+  const dettesTotales = Math.max(0, totalPassif - cpTotal);
+  const creances = (bilanData?.actifCirculant?.creances_adherents?.montant    ?? 0)
+                 + (bilanData?.actifCirculant?.creances_exploitation?.montant ?? 0)
+                 + (bilanData?.actifCirculant?.creances_fiscales?.montant     ?? 0)
+                 + (bilanData?.actifCirculant?.autres_creances?.montant       ?? 0);
+  return {
+    ca, ebe, resultatCourant, resultatExceptionnel, resultatNet,
+    fr, cpTotal, totalPassif, capitalSocial, vbm, dettesTotales, creances,
+    frSurCa:                   ca > 0      ? (fr / ca) * 100                      : null,
+    creancesSurCa:             ca > 0      ? (creances / ca) * 100                : null,
+    capitalSocialSurCa:        ca > 0      ? (capitalSocial / ca) * 100           : null,
+    capitalSocialSurMateriels: vbm > 0     ? (capitalSocial / vbm) * 100          : null,
+    capitalSocialSurCp:        cpTotal > 0 ? (capitalSocial / cpTotal) * 100      : null,
+    tauxEndettement:           cpTotal > 0 ? (dettesTotales / cpTotal) * 100      : null,
+    cpSurPassif:               totalPassif > 0 ? (cpTotal / totalPassif) * 100    : null,
+  };
+}
+
+function _monthlyEndSoldes(dailyCurve, months) {
+  return months.map(({ month, year }) => {
+    const pts = (dailyCurve ?? []).filter(d => {
+      const dt = d.date instanceof Date ? d.date : new Date(d.date);
+      return dt.getFullYear() === year && dt.getMonth() + 1 === month;
+    });
+    return pts.length ? Math.round(pts[pts.length - 1].solde) : null;
+  });
+}
+
+function buildComparaisonNN1Content(storeData, chartW = 781) {
+  const {
+    sigResult, sigResultN1, sigResultN2,
+    bilanData, bilanDataN1, bilanDataN2,
+    treasuryData, treasuryDataN1,
+    chargesData, chargesDataN1,
+    comparaisonSubTables,
+  } = storeData;
+
+  if (!sigResult || !sigResultN1) return [];
+
+  const subs    = new Set(comparaisonSubTables ?? COMP_SUBTABLE_IDS);
+  const hasN2   = !!sigResultN2;
+  const yearN   = sigResult.monthly?.[0]?.year  ?? 'N';
+  const yearN1  = sigResultN1.monthly?.[0]?.year ?? 'N-1';
+  const yearN2  = sigResultN2?.monthly?.[0]?.year ?? null;
+
+  const dataN  = _extractYearDataComp(sigResult,  bilanData);
+  const dataN1 = _extractYearDataComp(sigResultN1, bilanDataN1);
+  const dataN2 = hasN2 ? _extractYearDataComp(sigResultN2, bilanDataN2) : null;
+
+  // ── Formatters ────────────────────────────────────────────────
+  const fmtM  = (v) => (v == null ? '—' : fmtEur(v));
+  const fmtP  = (v) => (v == null || !isFinite(v) ? '—'
+    : new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(v) + '\u00a0%');
+  const clrAmt = (v) => (v == null ? COLORS.secondary : v >= 0 ? '#268E00' : COLORS.red);
+  const evolPct = (n, n1) =>
+    (n != null && n1 != null && n1 !== 0) ? ((n - n1) / Math.abs(n1)) * 100 : null;
+
+  // ── Layout adaptatif portrait/paysage ─────────────────────────
+  // Colonnes numériques en 'auto' → s'adaptent automatiquement
+  const annualWidths = () => hasN2 ? ['*','auto','auto','auto','auto','auto']
+                                   : ['*','auto','auto','auto','auto'];
+  const monthlyWidths = ['*', 'auto', 'auto', 'auto'];
+
+  const hdrCell = (txt) => ({ text: txt, fontSize: 7, bold: true,
+    color: COLORS.secondary, fillColor: '#E3F2F5', alignment: 'right' });
+  const hdrLabel = (txt) => ({ ...hdrCell(txt), alignment: 'left' });
+
+  function annualHeader(label) {
+    return [
+      hdrLabel(label),
+      ...(hasN2 ? [hdrCell(String(yearN2))] : []),
+      hdrCell(String(yearN1)),
+      hdrCell(String(yearN)),
+      hdrCell('Écart'),
+      hdrCell('%\u00a0Évol.'),
+    ];
+  }
+
+  // Ligne annuelle montant
+  function annualMoneyRow(label, key) {
+    const n  = dataN?.[key];  const n1 = dataN1?.[key]; const n2 = dataN2?.[key];
+    const d  = (n != null && n1 != null) ? n - n1 : null;
+    const ep = evolPct(n, n1);
+    return [
+      { text: label, fontSize: 8, color: COLORS.text },
+      ...(hasN2 ? [{ text: fmtM(n2), fontSize: 8, alignment: 'right', color: COLORS.text }] : []),
+      { text: fmtM(n1), fontSize: 8, alignment: 'right', color: COLORS.text },
+      { text: fmtM(n),  fontSize: 8, alignment: 'right', bold: true, color: COLORS.text },
+      { text: d != null ? (d >= 0 ? '+' : '') + fmtM(Math.abs(d)) : '—', fontSize: 8, alignment: 'right', color: clrAmt(d) },
+      { text: fmtP(ep), fontSize: 8, alignment: 'right', color: clrAmt(ep) },
+    ];
+  }
+
+  // Ligne annuelle ratio %
+  function annualPctRow(label, key) {
+    const n  = dataN?.[key]; const n1 = dataN1?.[key]; const n2 = dataN2?.[key];
+    const d  = (n != null && n1 != null) ? n - n1 : null;
+    return [
+      { text: label, fontSize: 8, color: COLORS.text },
+      ...(hasN2 ? [{ text: fmtP(n2), fontSize: 8, alignment: 'right', color: COLORS.text }] : []),
+      { text: fmtP(n1), fontSize: 8, alignment: 'right', color: COLORS.text },
+      { text: fmtP(n),  fontSize: 8, alignment: 'right', bold: true, color: COLORS.text },
+      { text: d != null ? (d >= 0 ? '+' : '') + fmtP(Math.abs(d)) + '\u00a0pts' : '—', fontSize: 8, alignment: 'right', color: clrAmt(d) },
+      { text: '—', fontSize: 8, alignment: 'right', color: COLORS.secondary },
+    ];
+  }
+
+  function annualBlock(label, subtitle, rows, svgStr) {
+    return {
+      unbreakable: true,
+      stack: [
+        { text: label, fontSize: 9, bold: true, color: COLORS.text, margin: [0, 6, 0, 2] },
+        ...(subtitle ? [{ text: subtitle, fontSize: 7, italics: true, color: COLORS.secondary, margin: [0, 0, 0, 3] }] : []),
+        ...(svgStr ? [{ svg: svgStr, width: chartW, margin: [0, 0, 0, 4] }] : []),
+        {
+          table: { headerRows: 1, widths: annualWidths(), body: [annualHeader(label), ...rows] },
+          layout: tableLayout(),
+        },
+      ],
+      margin: [0, 0, 0, 6],
+    };
+  }
+
+  // ── Données par année pour les SVG ────────────────────────────
+  const YEAR_COLORS = ['#B1DCE2', '#FF8200', '#31B700']; // N-2, N-1, N
+  const annualYears = [
+    ...(hasN2 ? [{ year: yearN2, data: dataN2, color: YEAR_COLORS[0] }] : []),
+    { year: yearN1, data: dataN1, color: YEAR_COLORS[1] },
+    { year: yearN,  data: dataN,  color: YEAR_COLORS[2] },
+  ];
+  const toBarData = (key) => annualYears.map(y => ({ year: y.year, value: y.data?.[key] ?? null, color: y.color }));
+  const resultatYears = annualYears.map(y => ({
+    year: y.year, color: y.color,
+    resultatCourant:      y.data?.resultatCourant      ?? 0,
+    resultatExceptionnel: y.data?.resultatExceptionnel ?? 0,
+    resultatNet:          y.data?.resultatNet          ?? 0,
+  }));
+
+  const out = [makeSectionTitle(DOC_LABELS.comparaison_nn1, 'comparaison_nn1')];
+
+  // ── Titre période ─────────────────────────────────────────────
+  const periodeLabel = hasN2 ? `${yearN2} / ${yearN1} / ${yearN}` : `${yearN1} / ${yearN}`;
+  out.push({ text: `Comparaison ${periodeLabel}`, fontSize: 11, color: COLORS.secondary, margin: [0, 0, 0, 12] });
+
+  // ═══════════════════════════════════════════════════════════════
+  // SECTION 1 — Analyses pluriannuelles
+  // ═══════════════════════════════════════════════════════════════
+  const hasAnnual = ['ca','ebe','resultats','fr','fr_sur_ca','creances_ca',
+    'cs_ca','cs_vbm','cs_cp','taux_endettement','cp_passif'].some(id => subs.has(id));
+
+  if (hasAnnual) {
+    out.push({ text: 'Analyses pluriannuelles', fontSize: 11, bold: true,
+      color: COLORS.text, margin: [0, 0, 0, 8],
+      decoration: 'underline', decorationColor: COLORS.blue });
+
+    if (subs.has('ca'))
+      out.push(annualBlock("Chiffre d'affaires",
+        'Comptes 701* à 708* (ventes de biens et services, travaux agricoles)',
+        [annualMoneyRow("Chiffre d'affaires", 'ca')],
+        buildCompAnnualBarSvg(toBarData('ca'), false, chartW)));
+
+    if (subs.has('ebe'))
+      out.push(annualBlock('EBE — Excédent Brut d\'Exploitation',
+        '= Valeur Ajoutée − Charges de personnel (64*, 621*) − Impôts & taxes (63*)',
+        [annualMoneyRow('EBE', 'ebe')],
+        buildCompAnnualBarSvg(toBarData('ebe'), false, chartW)));
+
+    if (subs.has('resultats'))
+      out.push(annualBlock('Résultats',
+        'Courant (Rex + Résultat financier) · Exceptionnel (77*−67*) · Net (après IS 69*)',
+        [
+          annualMoneyRow('Résultat courant',      'resultatCourant'),
+          annualMoneyRow('Résultat exceptionnel', 'resultatExceptionnel'),
+          annualMoneyRow('Résultat net',          'resultatNet'),
+        ],
+        buildCompResultatsSvg(resultatYears, chartW)));
+
+    if (subs.has('fr'))
+      out.push(annualBlock('Fonds de roulement',
+        '= (Capitaux propres 10*–13* + Dettes MLT 16*) − Actif immobilisé net (20*–28*)',
+        [annualMoneyRow('Fonds de roulement', 'fr')],
+        buildCompAnnualBarSvg(toBarData('fr'), false, chartW)));
+
+    if (subs.has('fr_sur_ca'))
+      out.push(annualBlock('Fonds de roulement / CA',
+        'FR ÷ Chiffre d\'affaires × 100 — mesure la couverture du cycle d\'exploitation',
+        [annualPctRow('FR / CA', 'frSurCa')],
+        buildCompAnnualBarSvg(toBarData('frSurCa'), true, chartW)));
+
+    if (subs.has('creances_ca'))
+      out.push(annualBlock('Créances / CA',
+        'Créances adhérents (45*) + exploitation (41*, 409*) ÷ CA × 100 — délai client',
+        [annualPctRow('Créances / CA', 'creancesSurCa')],
+        buildCompAnnualBarSvg(toBarData('creancesSurCa'), true, chartW)));
+
+    if (subs.has('cs_ca'))
+      out.push(annualBlock('Capital social / CA',
+        'Parts sociales (101*–104*) ÷ CA × 100 — intensité capitalistique',
+        [annualPctRow('Capital social / CA', 'capitalSocialSurCa')],
+        buildCompAnnualBarSvg(toBarData('capitalSocialSurCa'), true, chartW)));
+
+    if (subs.has('cs_vbm'))
+      out.push(annualBlock('Capital social / Val. brute matériels',
+        'Parts sociales ÷ Immob. corporelles brutes (21*, 22*, 23*) × 100',
+        [annualPctRow('Capital social / VBM', 'capitalSocialSurMateriels')],
+        buildCompAnnualBarSvg(toBarData('capitalSocialSurMateriels'), true, chartW)));
+
+    if (subs.has('cs_cp'))
+      out.push(annualBlock('Capital social / Capitaux propres',
+        'Parts sociales ÷ Capitaux propres totaux × 100 — part des membres dans les fonds propres',
+        [annualPctRow('Capital social / CP', 'capitalSocialSurCp')],
+        buildCompAnnualBarSvg(toBarData('capitalSocialSurCp'), true, chartW)));
+
+    if (subs.has('taux_endettement'))
+      out.push(annualBlock('Taux d\'endettement',
+        'Dettes totales (15*, 16*, 40*, 42*–47*) ÷ Capitaux propres × 100 — levier financier',
+        [annualPctRow('Taux d\'endettement', 'tauxEndettement')],
+        buildCompAnnualBarSvg(toBarData('tauxEndettement'), true, chartW)));
+
+    if (subs.has('cp_passif'))
+      out.push(annualBlock('Capitaux propres / Passif',
+        'Capitaux propres ÷ Total passif × 100 — autonomie financière (seuil CUMA : > 30 %)',
+        [annualPctRow('CP / Passif', 'cpSurPassif')],
+        buildCompAnnualBarSvg(toBarData('cpSurPassif'), true, chartW)));
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SECTION 2 — Détail mensuel N vs N-1
+  // ═══════════════════════════════════════════════════════════════
+  const hasMonthly = ['treso_mensuelle','ca_mensuel','charges'].some(id => subs.has(id));
+
+  if (hasMonthly) {
+    out.push({ text: `Détail mensuel ${yearN1} vs ${yearN}`, fontSize: 11, bold: true,
+      color: COLORS.text, margin: [0, 8, 0, 8],
+      decoration: 'underline', decorationColor: COLORS.blue });
+
+    const mHdr = (label) => [
+      hdrLabel(label),
+      hdrCell(String(yearN1)),
+      hdrCell(String(yearN)),
+      hdrCell('Écart'),
+    ];
+    const totalRow = (label, n1, n) => {
+      const d = n - n1;
+      return [
+        { text: label, fontSize: 8, bold: true, color: COLORS.text, fillColor: '#F7FAFC' },
+        { text: fmtM(n1), fontSize: 8, alignment: 'right', bold: true, color: COLORS.text, fillColor: '#F7FAFC' },
+        { text: fmtM(n),  fontSize: 8, alignment: 'right', bold: true, color: COLORS.text, fillColor: '#F7FAFC' },
+        { text: (d >= 0 ? '+' : '') + fmtM(Math.abs(d)), fontSize: 8, alignment: 'right', bold: true, color: clrAmt(d), fillColor: '#F7FAFC' },
+      ];
+    };
+
+    // ── Trésorerie ───────────────────────────────────────────────
+    if (subs.has('treso_mensuelle') && treasuryData?.dailyCurve && treasuryDataN1?.dailyCurve) {
+      const months  = sigResult.monthly.map(m => ({ month: m.month, year: m.year }));
+      const monthsN1 = sigResultN1.monthly.map(m => ({ month: m.month, year: m.year }));
+      const soldesN  = _monthlyEndSoldes(treasuryData.dailyCurve, months);
+      const soldesN1 = _monthlyEndSoldes(treasuryDataN1.dailyCurve, monthsN1);
+      const body = [
+        mHdr('Mois — Tréso. fin de mois'),
+        ...sigResult.monthly.map((m, i) => {
+          const n  = soldesN[i];  const n1 = soldesN1[i];
+          const d  = (n != null && n1 != null) ? n - n1 : null;
+          return [
+            { text: m.shortLabel, fontSize: 8, color: COLORS.text },
+            { text: n1 != null ? fmtM(n1) : '—', fontSize: 8, alignment: 'right', color: COLORS.text },
+            { text: n  != null ? fmtM(n)  : '—', fontSize: 8, alignment: 'right', bold: true, color: COLORS.text },
+            { text: d  != null ? (d >= 0 ? '+' : '') + fmtM(Math.abs(d)) : '—', fontSize: 8, alignment: 'right', color: clrAmt(d) },
+          ];
+        }),
+      ];
+      const tresoShortLabels = sigResult.monthly.map(m => m.shortLabel ?? String(m.month));
+      const tresoSvg = buildCompTresoMensuelSvg(soldesN, soldesN1, tresoShortLabels, yearN, yearN1, chartW);
+      out.push({
+        unbreakable: true,
+        stack: [
+          { text: 'Trésorerie — solde fin de mois', fontSize: 9, bold: true, color: COLORS.text, margin: [0, 6, 0, 3] },
+          { svg: tresoSvg, width: chartW, margin: [0, 0, 0, 4] },
+          { table: { headerRows: 1, widths: monthlyWidths, body }, layout: tableLayout() },
+        ],
+        margin: [0, 0, 0, 6],
+      });
+    }
+
+    // ── CA mensuel ───────────────────────────────────────────────
+    if (subs.has('ca_mensuel')) {
+      const body = [
+        mHdr('Mois — CA mensuel'),
+        ...sigResult.monthly.map((m, i) => {
+          const n  = m.ca ?? 0;  const n1 = sigResultN1.monthly[i]?.ca ?? 0;
+          const d  = n - n1;
+          return [
+            { text: m.shortLabel, fontSize: 8, color: COLORS.text },
+            { text: fmtM(n1), fontSize: 8, alignment: 'right', color: COLORS.text },
+            { text: fmtM(n),  fontSize: 8, alignment: 'right', bold: true, color: COLORS.text },
+            { text: (d >= 0 ? '+' : '') + fmtM(Math.abs(d)), fontSize: 8, alignment: 'right', color: clrAmt(d) },
+          ];
+        }),
+        totalRow('Total CA',
+          sigResultN1.monthly.reduce((s, m) => s + (m.ca ?? 0), 0),
+          sigResult.monthly.reduce((s, m) => s + (m.ca ?? 0), 0)),
+      ];
+      const caSvg = buildCompCaMensuelSvg(sigResult.monthly, sigResultN1.monthly, yearN, yearN1, chartW);
+      out.push({
+        unbreakable: true,
+        stack: [
+          { text: 'CA mensuel', fontSize: 9, bold: true, color: COLORS.text, margin: [0, 6, 0, 3] },
+          { svg: caSvg, width: chartW, margin: [0, 0, 0, 4] },
+          { table: { headerRows: 1, widths: monthlyWidths, body }, layout: tableLayout() },
+        ],
+        margin: [0, 0, 0, 6],
+      });
+    }
+
+    // ── Répartition des charges ──────────────────────────────────
+    if (subs.has('charges') && chargesData?.categories && chargesDataN1?.categories) {
+      const CAT_IDS    = ['personnel','services_ext','dotations','achats','financieres','impots_taxes'];
+      const CAT_LABELS = { personnel: 'Personnel', services_ext: 'Services ext.',
+        dotations: 'Dotations', achats: 'Achats', financieres: 'Financières',
+        impots_taxes: 'Impôts & taxes' };
+      const catN  = Object.fromEntries(chargesData.categories.map(c => [c.id, c]));
+      const catN1 = Object.fromEntries(chargesDataN1.categories.map(c => [c.id, c]));
+      const totN  = chargesData.totalCharges ?? 0;
+      const totN1 = chargesDataN1.totalCharges ?? 0;
+      const chgWidths = ['*', 'auto', 'auto', 'auto', 'auto', 'auto'];
+      const chgHdr = [
+        hdrLabel('Catégorie'),
+        hdrCell(String(yearN1)),
+        hdrCell('%'),
+        hdrCell(String(yearN)),
+        hdrCell('%'),
+        hdrCell('Écart'),
+      ];
+      const body = [
+        chgHdr,
+        ...CAT_IDS.map(id => {
+          const n  = catN[id]?.montant  ?? 0;
+          const n1 = catN1[id]?.montant ?? 0;
+          const d  = n - n1;
+          return [
+            { text: CAT_LABELS[id] ?? id, fontSize: 8, color: COLORS.text },
+            { text: fmtM(n1), fontSize: 8, alignment: 'right', color: COLORS.text },
+            { text: totN1 > 0 ? fmtP((n1/totN1)*100) : '—', fontSize: 8, alignment: 'right', color: COLORS.secondary },
+            { text: fmtM(n),  fontSize: 8, alignment: 'right', bold: true, color: COLORS.text },
+            { text: totN  > 0 ? fmtP((n /totN )*100) : '—', fontSize: 8, alignment: 'right', color: COLORS.secondary },
+            { text: (d >= 0 ? '+' : '') + fmtM(Math.abs(d)), fontSize: 8, alignment: 'right', color: clrAmt(d) },
+          ];
+        }),
+        [
+          { text: 'Total charges', fontSize: 8, bold: true, color: COLORS.text, fillColor: '#F7FAFC' },
+          { text: fmtM(totN1), fontSize: 8, alignment: 'right', bold: true, color: COLORS.text, fillColor: '#F7FAFC' },
+          { text: '100\u00a0%', fontSize: 8, alignment: 'right', color: COLORS.secondary, fillColor: '#F7FAFC' },
+          { text: fmtM(totN),  fontSize: 8, alignment: 'right', bold: true, color: COLORS.text, fillColor: '#F7FAFC' },
+          { text: '100\u00a0%', fontSize: 8, alignment: 'right', color: COLORS.secondary, fillColor: '#F7FAFC' },
+          { text: (totN-totN1 >= 0 ? '+' : '') + fmtM(Math.abs(totN-totN1)), fontSize: 8, alignment: 'right', bold: true, color: clrAmt(totN-totN1), fillColor: '#F7FAFC' },
+        ],
+      ];
+      const chargesSvg = buildCompChargesSvg(chargesData, chargesDataN1, yearN, yearN1, chartW);
+      out.push({
+        unbreakable: true,
+        stack: [
+          { text: 'Répartition des charges', fontSize: 9, bold: true, color: COLORS.text, margin: [0, 6, 0, 3] },
+          { svg: chargesSvg, width: chartW, margin: [0, 0, 0, 4] },
+          { table: { headerRows: 1, widths: chgWidths, body }, layout: tableLayout() },
+        ],
+        margin: [0, 0, 0, 6],
+      });
+    }
+  }
+
+  out.push({ text: '', pageBreak: 'after' });
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Rapport IA — markdown → contenu pdfmake
+// ─────────────────────────────────────────────────────────────
+function buildRapportIAContent(markdownText) {
+  if (!markdownText) return [];
+
+  const out = [makeSectionTitle(DOC_LABELS.rapport_ia, 'rapport_ia')];
+
+  function inlineFormat(str) {
+    const parts = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map(part => {
+      if (part.startsWith('**') && part.endsWith('**')) return { text: part.slice(2, -2), bold: true };
+      if (part.startsWith('*') && part.endsWith('*'))   return { text: part.slice(1, -1), italics: true };
+      return part;
+    });
+  }
+
+  const lines = markdownText.split('\n');
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (/^---+$/.test(line.trim())) {
+      out.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 781, y2: 0, lineWidth: 0.5, lineColor: '#E2E8F0' }], margin: [0, 8, 0, 8] });
+      i++; continue;
+    }
+    if (line.startsWith('# ') && !line.startsWith('## ')) {
+      out.push({ text: inlineFormat(line.slice(2)), fontSize: 16, bold: true, color: COLORS.text, margin: [0, 16, 0, 6] });
+      i++; continue;
+    }
+    if (line.startsWith('## ') && !line.startsWith('### ')) {
+      out.push({ text: inlineFormat(line.slice(3)), fontSize: 13, bold: true, color: COLORS.text, margin: [0, 12, 0, 4], decoration: 'underline', decorationColor: '#B1DCE2' });
+      i++; continue;
+    }
+    if (line.startsWith('### ')) {
+      out.push({ text: inlineFormat(line.slice(4)), fontSize: 11, bold: true, color: '#2D3748', margin: [0, 8, 0, 3] });
+      i++; continue;
+    }
+    if (line.startsWith('#### ')) {
+      out.push({ text: inlineFormat(line.slice(5)), fontSize: 10, bold: true, color: '#4A5568', margin: [0, 6, 0, 2] });
+      i++; continue;
+    }
+    // Table markdown
+    if (line.trim().startsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) { tableLines.push(lines[i]); i++; }
+      const isHeaderSep = (l) => /^\s*\|[\s\-:|]+\|\s*$/.test(l);
+      const headerCells = tableLines[0].split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(c => c.trim());
+      const bodyRows    = tableLines.slice(1).filter(l => !isHeaderSep(l));
+      const colCount = headerCells.length;
+      if (colCount === 0) { continue; }
+      const body = [
+        headerCells.map(c => ({ text: c, fontSize: 8, bold: true, color: COLORS.secondary, fillColor: '#F7FAFC' })),
+        ...bodyRows.map(row => {
+          const cells = row.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(c => c.trim());
+          if (cells.length === 0) return null;
+          // Aligner sur colCount (pad ou tronquer)
+          while (cells.length < colCount) cells.push('');
+          return cells.slice(0, colCount).map(c => ({ text: c, fontSize: 8 }));
+        }).filter(Boolean),
+      ];
+      if (body.length === 0) { continue; }
+      out.push({ table: { headerRows: 1, widths: Array(colCount).fill('*'), body }, layout: 'lightHorizontalLines', margin: [0, 6, 0, 6] });
+      continue;
+    }
+    // Bullet list
+    if (/^[\s]*[-*] /.test(line)) {
+      const items = [];
+      while (i < lines.length && /^[\s]*[-*] /.test(lines[i])) {
+        items.push({ text: inlineFormat(lines[i].replace(/^[\s]*[-*] /, '')), fontSize: 10, color: '#2D3748', margin: [0, 1, 0, 1] });
+        i++;
+      }
+      out.push({ ul: items, margin: [0, 2, 0, 2] });
+      continue;
+    }
+    // Ligne vide
+    if (!line.trim()) {
+      out.push({ text: ' ', fontSize: 4, margin: [0, 2, 0, 2] });
+      i++; continue;
+    }
+    // Paragraphe normal
+    out.push({ text: inlineFormat(line), fontSize: 10, color: '#2D3748', lineHeight: 1.5, margin: [0, 2, 0, 2] });
+    i++;
+  }
+
+  return out;
+}
+
 /**
  * @param {object}   parsedFec
  * @param {string[]} selectedDocs  ex: ['sig', 'balance', 'grand_livre']
@@ -1215,6 +1954,8 @@ export async function generateExport(
     charges_charts:    () => buildChargesCharts(storeData.chargesData, chartW),
     analytique_table:  () => buildAnalytiqueTable(storeData.analytiqueData),
     analytique_podium: () => buildAnalytiquePodium(storeData.analytiqueData, chartW),
+    rapport_ia:        () => buildRapportIAContent(storeData.analyseIAText),
+    comparaison_nn1:   () => buildComparaisonNN1Content(storeData, chartW),
   };
 
   const defaultStyles = {
@@ -1256,7 +1997,7 @@ export async function generateExport(
     const annexeNames = annexes.map(f => f.name);
 
     const contentBlocks = [
-      ...makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames),
+      ...makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames, storeData.logoDataUrl ?? null),
       ...makeSommaire(),
     ];
 

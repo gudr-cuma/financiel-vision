@@ -202,8 +202,9 @@ function PrivacyModal({ onClose }) {
 // ---------------------------------------------------------------------------
 export function AppHeader() {
   const parsedFec = useStore((s) => s.parsedFec);
-  const isDemo = useStore((s) => s.isDemo);
-  const reset = useStore((s) => s.reset);
+  const isDemo           = useStore((s) => s.isDemo);
+  const reset            = useStore((s) => s.reset);
+  const loadDemoComplete = useStore((s) => s.loadDemoComplete);
   const [showPrivacy, setShowPrivacy] = useState(false);
 
   const fileName = parsedFec?.fileName ?? null;
@@ -296,29 +297,38 @@ export function AppHeader() {
           )}
 
           {isDemo && (
-            <button
-              onClick={() => reset()}
-              style={{
-                fontSize: '12px',
-                fontWeight: 500,
-                color: '#FF8200',
-                backgroundColor: 'transparent',
-                border: '1px solid #FF8200',
-                borderRadius: '6px',
-                padding: '5px 12px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'background-color 150ms',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#FFF3E0';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              Recharger démo
-            </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                onClick={() => loadDemoComplete()}
+                title="Recharge FEC + N-1 + N-2 + Dossier de gestion + Bilan & CR"
+                style={{
+                  fontSize: '12px', fontWeight: 600,
+                  color: '#FFFFFF', backgroundColor: '#FF8200',
+                  border: 'none', borderRadius: '6px',
+                  padding: '5px 12px', cursor: 'pointer',
+                  whiteSpace: 'nowrap', transition: 'background-color 150ms',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#E57300'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FF8200'; }}
+              >
+                🚀 Démo complète
+              </button>
+              <button
+                onClick={() => reset()}
+                title="Réinitialiser — retour à la page d'accueil"
+                style={{
+                  fontSize: '12px', fontWeight: 500,
+                  color: '#FF8200', backgroundColor: 'transparent',
+                  border: '1px solid #FF8200', borderRadius: '6px',
+                  padding: '5px 12px', cursor: 'pointer',
+                  whiteSpace: 'nowrap', transition: 'background-color 150ms',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#FFF3E0'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                ↺ Réinitialiser
+              </button>
+            </div>
           )}
 
           {/* Bouton confidentialité */}

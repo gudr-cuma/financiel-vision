@@ -103,7 +103,7 @@ export function makeHeader(parsedFec, sectionTitle) {
 // ─────────────────────────────────────────────────────────────
 // Page de garde
 // ─────────────────────────────────────────────────────────────
-export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames = []) {
+export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames = [], logoDataUrl = null) {
   const period = parsedFec?.exerciceStart && parsedFec?.exerciceEnd
     ? `${formatDate(parsedFec.exerciceStart)} — ${formatDate(parsedFec.exerciceEnd)}`
     : '';
@@ -112,7 +112,14 @@ export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames =
     // Bloc logo / titre
     {
       stack: [
-        { text: 'Clario Vision', fontSize: 32, bold: true, color: COLORS.primary, margin: [0, 80, 0, 4] },
+        // Logo client en haut à droite (si fourni)
+        ...(logoDataUrl ? [{
+          columns: [
+            { text: '', width: '*' },
+            { image: logoDataUrl, fit: [150, 70], alignment: 'right', margin: [0, 20, 0, 0] },
+          ],
+        }] : []),
+        { text: 'Clario Vision', fontSize: 32, bold: true, color: COLORS.primary, margin: [0, logoDataUrl ? 16 : 80, 0, 4] },
         { text: 'Export des livres comptables', fontSize: 16, color: COLORS.secondary, margin: [0, 0, 0, 40] },
         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: COLORS.blue }] },
         { text: ' ', fontSize: 4 },

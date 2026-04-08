@@ -24,7 +24,7 @@ function AmtCell({ value, style = {} }) {
   );
 }
 
-export function BalanceTable({ rows }) {
+export function BalanceTable({ rows, onSelectCompte }) {
   if (!rows || rows.length === 0) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>Aucune donnée</div>;
   }
@@ -48,15 +48,20 @@ export function BalanceTable({ rows }) {
           {rows.map((row, idx) => {
             const s = ROW_STYLES[row.rowType] ?? ROW_STYLES.compte;
             const isTotal = ['groupe','classe','bilanTotal','gestionTotal','grandTotal'].includes(row.rowType);
+            const isClickable = row.rowType === 'compte' && onSelectCompte;
             return (
               <tr
                 key={idx}
+                onClick={isClickable ? () => onSelectCompte(row) : undefined}
                 style={{
                   background: s.background,
                   borderBottom: isTotal ? '2px solid #E2E8F0' : '1px solid #F0F4F8',
+                  cursor: isClickable ? 'pointer' : 'default',
                 }}
+                onMouseEnter={isClickable ? e => { e.currentTarget.style.background = '#EBF8FF'; } : undefined}
+                onMouseLeave={isClickable ? e => { e.currentTarget.style.background = s.background; } : undefined}
               >
-                <td style={{ padding: '5px 10px', fontWeight: s.fontWeight, color: s.color, fontFamily: 'monospace', fontSize: s.fontSize }}>
+                <td style={{ padding: '5px 10px', fontWeight: s.fontWeight, color: isClickable ? '#FF8200' : s.color, fontFamily: 'monospace', fontSize: s.fontSize, textDecoration: isClickable ? 'underline dotted' : 'none' }}>
                   {row.compteNum}
                 </td>
                 <td style={{ padding: '5px 10px', fontWeight: s.fontWeight, color: s.color, fontSize: s.fontSize }}>

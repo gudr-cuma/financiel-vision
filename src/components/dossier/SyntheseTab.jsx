@@ -1,3 +1,5 @@
+import { RichCommentZone } from './RichCommentZone';
+
 export function SyntheseTab({ variables, comments, onCommentChange }) {
   return (
     <div>
@@ -21,33 +23,11 @@ export function SyntheseTab({ variables, comments, onCommentChange }) {
         <div><span style={{ color: '#718096' }}>Nb adhérents :</span> <strong>{variables.nb_adherent || '—'}</strong></div>
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{
-          fontSize: '13px', fontWeight: 700, color: '#1A202C',
-          marginBottom: '8px',
-        }}>
-          Synthèse générale
-        </div>
-        <textarea
-          value={comments.synthese || ''}
-          onChange={e => onCommentChange('synthese', e.target.value)}
-          placeholder="Saisir la synthèse générale..."
-          rows={10}
-          style={{
-            width: '100%',
-            padding: '12px 14px',
-            fontSize: '13px',
-            color: '#1A202C',
-            border: '1px solid #E2E8F0',
-            borderRadius: '8px',
-            resize: 'vertical',
-            outline: 'none',
-            fontFamily: 'inherit',
-            lineHeight: '1.6',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
+      <RichCommentZone
+        tab="synthese"
+        comments={comments}
+        onCommentChange={onCommentChange}
+      />
     </div>
   );
 }

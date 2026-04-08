@@ -10,6 +10,16 @@
  */
 
 import { extractSiren, detectExerciceStart, buildExerciceMonths } from './exerciceUtils';
+import workerSource from './parseFec.worker.js?raw';
+
+// Blob URL — same-origin dans tous les contextes (iframe, etc.)
+function createWorker() {
+  const blob = new Blob([workerSource], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  const worker = new Worker(url);
+  worker._blobUrl = url;
+  return worker;
+}
 
 /**
  * Parse un fichier FEC en utilisant un Web Worker.
@@ -20,10 +30,7 @@ import { extractSiren, detectExerciceStart, buildExerciceMonths } from './exerci
  */
 export function parseFec(file, onProgress) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL('./parseFec.worker.js', import.meta.url),
-      { type: 'module' }
-    );
+    const worker = createWorker();
 
     worker.onmessage = (event) => {
       const { type, result, percent, message } = event.data;
@@ -34,6 +41,7 @@ export function parseFec(file, onProgress) {
       }
 
       worker.terminate();
+      URL.revokeObjectURL(worker._blobUrl);
 
       if (type === 'error') {
         reject(new Error(message));
@@ -66,7 +74,8 @@ export function parseFec(file, onProgress) {
 
     worker.onerror = (err) => {
       worker.terminate();
-      reject(new Error(`Erreur Web Worker : ${err.message}`));
+      URL.revokeObjectURL(worker._blobUrl);
+      reject(new Error(err.message || 'Erreur lors du chargement du module de parsing.'));
     };
 
     // Lire le fichier en ArrayBuffer et l'envoyer au worker

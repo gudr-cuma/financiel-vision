@@ -413,7 +413,8 @@ function AnomalieDocCard({ color, bg, border, title, items }) {
 export function AnalyseurTab() {
   const analyseurData = useStore(s => s.analyseurData);
   const loadFec       = useStore(s => s.loadFec);
-  const loadDemo      = useStore(s => s.loadDemo);
+  const loadDemo         = useStore(s => s.loadDemo);
+  const loadDemoComplete = useStore(s => s.loadDemoComplete);
   const isLoading     = useStore(s => s.isLoading);
   const loadProgress  = useStore(s => s.loadProgress);
 
@@ -444,8 +445,9 @@ export function AnalyseurTab() {
           <div style={{ flex: 1, height: '1px', backgroundColor: '#E2E8F0' }} />
         </div>
 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
-          onClick={() => loadDemo()}
+          onClick={() => loadDemoComplete()}
           disabled={isLoading}
           style={{
             width: '100%',
@@ -466,8 +468,33 @@ export function AnalyseurTab() {
           onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#E57300'; }}
           onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FF8200'; }}
         >
-          ⚡ Charger les données de démonstration
+          🚀 Charger la démo complète
         </button>
+        <button
+          onClick={() => loadDemo()}
+          disabled={isLoading}
+          style={{
+            width: '100%',
+            padding: '9px 24px',
+            backgroundColor: 'transparent',
+            color: isLoading ? '#CBD5E0' : '#FF8200',
+            border: '1px solid ' + (isLoading ? '#CBD5E0' : '#FF8200'),
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 500,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            transition: 'background-color 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+          }}
+          onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FFF3E0'; }}
+          onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = 'transparent'; }}
+        >
+          ⚡ FEC seul (démonstration)
+        </button>
+        </div>
 
         <p style={{ margin: '16px 0 0', fontSize: '12px', color: '#A0AEC0', textAlign: 'center', lineHeight: 1.5 }}>
           🔒 Vos données restent dans votre navigateur et ne sont jamais envoyées sur nos serveurs.

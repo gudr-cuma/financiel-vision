@@ -30,6 +30,7 @@ const useStore = create((set, get) => ({
   bilanData: null,
   analyseurData: null,
   analytiqueData: null,  // { materiels, global } — chargé depuis AnalytiqueTab
+  analyseIAText: '',     // texte markdown du rapport IA généré
   dossierData: null,     // { cumaList, selectedCumaIndex, variables, overrides, comments }
   bilanCRData: null,     // { nomCuma, dateDebut, dateFin, actif[], passif[], resultat[] }
   activeSection: 'analyseur', // 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
@@ -229,6 +230,8 @@ const useStore = create((set, get) => ({
 
   setAnalytiqueData: (data) => set({ analytiqueData: data }),
 
+  setAnalyseIAText: (text) => set({ analyseIAText: text }),
+
   // -------------------------------------------------------------------------
   // Actions — Dossier de gestion
   // -------------------------------------------------------------------------
@@ -322,6 +325,19 @@ const useStore = create((set, get) => ({
 
   clearError: () => set({ error: null }),
 
+  /** Charge toutes les sources de démo disponibles en une fois */
+  loadDemoComplete: async () => {
+    // 1. FEC principal en premier (bloquant — calcule sigResult, bilanData, etc.)
+    await get().loadDemo();
+    // 2. Le reste en parallèle
+    await Promise.all([
+      get().loadDemoN1(),
+      get().loadDemoN2(),
+      get().loadDemoGestion(),
+      get().loadDemoBilanCR(),
+    ]);
+  },
+
   reset: () => set({
     view: 'dashboard',
     parsedFec: null,
@@ -331,6 +347,7 @@ const useStore = create((set, get) => ({
     bilanData: null,
     analyseurData: null,
     analytiqueData: null,
+    analyseIAText: '',
     dossierData: null,
     bilanCRData: null,
     activeSection: 'analyseur',

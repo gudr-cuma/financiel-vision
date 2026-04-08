@@ -152,11 +152,13 @@ function renderMarkdown(text) {
 // Main component
 // ---------------------------------------------------------------------------
 export function AnalyseTab() {
-  const parsedFec = useStore(s => s.parsedFec);
-  const sigResult = useStore(s => s.sigResult);
-  const bilanData = useStore(s => s.bilanData);
-  const treasuryData = useStore(s => s.treasuryData);
-  const chargesData = useStore(s => s.chargesData);
+  const parsedFec       = useStore(s => s.parsedFec);
+  const sigResult       = useStore(s => s.sigResult);
+  const bilanData       = useStore(s => s.bilanData);
+  const treasuryData    = useStore(s => s.treasuryData);
+  const chargesData     = useStore(s => s.chargesData);
+  const analyseIAText   = useStore(s => s.analyseIAText);
+  const setAnalyseIAText = useStore(s => s.setAnalyseIAText);
 
   const LS_KEY = 'fv_anthropic_key';
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(LS_KEY) ?? '');
@@ -177,16 +179,22 @@ export function AnalyseTab() {
     return () => clearTimeout(timer);
   }, [apiKey]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [text, setText] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  // text est synchronisé avec le store (persistance inter-onglets)
+  const text = analyseIAText;
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
+  // Buffer d'accumulation pour le streaming — évite les problèmes de closure stale
+  const accRef = useRef('');
 
   const canGenerate = apiKey.trim().startsWith('sk-') && !isGenerating;
 
   const generate = useCallback(async () => {
     if (!canGenerate) return;
     setIsGenerating(true);
-    setText('');
+    setIsEditing(false);
+    accRef.current = '';
+    setAnalyseIAText('');
     setError(null);
 
     try {
@@ -241,7 +249,8 @@ export function AnalyseTab() {
             try {
               const data = JSON.parse(raw);
               if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
-                setText(prev => prev + data.delta.text);
+                accRef.current += data.delta.text;
+                setAnalyseIAText(accRef.current);
               }
             } catch {
               // skip malformed chunks
@@ -338,12 +347,20 @@ export function AnalyseTab() {
         </button>
 
         {text && !isGenerating && (
-          <button
-            onClick={copyToClipboard}
-            style={{ padding: '11px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: '13px', color: '#718096' }}
-          >
-            📋 Copier
-          </button>
+          <>
+            <button
+              onClick={copyToClipboard}
+              style={{ padding: '11px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', background: '#fff', cursor: 'pointer', fontSize: '13px', color: '#718096' }}
+            >
+              📋 Copier
+            </button>
+            <button
+              onClick={() => setIsEditing(v => !v)}
+              style={{ padding: '11px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', background: isEditing ? '#FFF3E0' : '#fff', cursor: 'pointer', fontSize: '13px', color: isEditing ? '#E57300' : '#718096', fontWeight: isEditing ? 600 : 400 }}
+            >
+              {isEditing ? '✓ Terminer' : '✏️ Modifier'}
+            </button>
+          </>
         )}
 
         {isGenerating && (
@@ -364,9 +381,31 @@ export function AnalyseTab() {
       {/* Result */}
       {text && (
         <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '28px 32px' }}>
-          {renderMarkdown(text)}
-          {isGenerating && (
-            <span style={{ display: 'inline-block', width: '2px', height: '16px', background: '#FF8200', animation: 'blink 1s step-end infinite', verticalAlign: 'middle', marginLeft: '2px' }} />
+          {isEditing ? (
+            <textarea
+              value={text}
+              onChange={e => setAnalyseIAText(e.target.value)}
+              style={{
+                width: '100%',
+                minHeight: '500px',
+                padding: '0',
+                fontSize: '13px',
+                fontFamily: 'monospace',
+                lineHeight: '1.7',
+                color: '#1A202C',
+                border: 'none',
+                outline: 'none',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+              }}
+            />
+          ) : (
+            <>
+              {renderMarkdown(text)}
+              {isGenerating && (
+                <span style={{ display: 'inline-block', width: '2px', height: '16px', background: '#FF8200', animation: 'blink 1s step-end infinite', verticalAlign: 'middle', marginLeft: '2px' }} />
+              )}
+            </>
           )}
         </div>
       )}

@@ -4,6 +4,7 @@ import { computeBalance, computeBalanceAuxiliaire, computeGrandLivre } from '../
 import { BalanceTable } from './BalanceTable';
 import { BalanceAuxTable } from './BalanceAuxTable';
 import { GrandLivreView } from './GrandLivreView';
+import { EcrituresPanel } from './EcrituresPanel';
 
 const TABS = [
   { id: 'balance',    label: 'Balance générale' },
@@ -56,6 +57,7 @@ function Toggle({ checked, onChange, label }) {
 function BalancePane({ parsedFec }) {
   const [search, setSearch]         = useState('');
   const [inclureSoldes, setInclureSoldes] = useState(false);
+  const [selectedCompte, setSelectedCompte] = useState(null);
 
   const rows = useMemo(() => computeBalance(parsedFec, { inclureComptesSansMouvement: inclureSoldes }), [parsedFec, inclureSoldes]);
 
@@ -78,7 +80,14 @@ function BalancePane({ parsedFec }) {
           {rows.filter(r => r.rowType === 'compte').length} comptes
         </span>
       </FilterBar>
-      <BalanceTable rows={filtered} />
+      <BalanceTable rows={filtered} onSelectCompte={setSelectedCompte} />
+      {selectedCompte && (
+        <EcrituresPanel
+          compte={selectedCompte}
+          parsedFec={parsedFec}
+          onClose={() => setSelectedCompte(null)}
+        />
+      )}
     </>
   );
 }
@@ -96,6 +105,7 @@ const COLLECTIFS_DISPONIBLES = [
 function BalanceAuxPane({ parsedFec }) {
   const [search, setSearch] = useState('');
   const [collectifs, setCollectifs] = useState(['401', '411', '453']);
+  const [selectedTiers, setSelectedTiers] = useState(null);
 
   const toggleCollectif = (prefix) => {
     setCollectifs(prev =>
@@ -131,7 +141,14 @@ function BalanceAuxPane({ parsedFec }) {
           {rows.filter(r => r.rowType === 'aux').length} tiers
         </span>
       </FilterBar>
-      <BalanceAuxTable rows={filtered} />
+      <BalanceAuxTable rows={filtered} onSelectTiers={setSelectedTiers} />
+      {selectedTiers && (
+        <EcrituresPanel
+          compte={selectedTiers}
+          parsedFec={parsedFec}
+          onClose={() => setSelectedTiers(null)}
+        />
+      )}
     </>
   );
 }

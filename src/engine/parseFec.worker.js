@@ -8,8 +8,6 @@
  *   { type: 'error', message: string }
  */
 
-import Papa from 'papaparse';
-
 const FEC_HEADERS = [
   'JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate',
   'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib',

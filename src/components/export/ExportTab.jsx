@@ -1,6 +1,26 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import useStore from '../../store/useStore';
-import { generateExport, DOC_LABELS } from '../../engine/generatePdf';
+import { generateExport, DOC_LABELS, COMP_SUBTABLE_IDS } from '../../engine/generatePdf';
+
+// ── Sous-tableaux Comparaison N/N-1 ─────────────────────────────────────────
+const COMP_SUBTABLES = [
+  // Analyses pluriannuelles
+  { id: 'ca',              label: "Chiffre d'affaires",               section: 'annual' },
+  { id: 'ebe',             label: 'EBE — Excédent Brut d\'Exploitation', section: 'annual' },
+  { id: 'resultats',       label: 'Résultats (courant / exceptionnel / net)', section: 'annual' },
+  { id: 'fr',              label: 'Fonds de roulement',               section: 'annual' },
+  { id: 'fr_sur_ca',       label: 'Fonds de roulement / CA',          section: 'annual' },
+  { id: 'creances_ca',     label: 'Créances / CA',                    section: 'annual' },
+  { id: 'cs_ca',           label: 'Capital social / CA',              section: 'annual' },
+  { id: 'cs_vbm',          label: 'Capital social / Val. brute matériels', section: 'annual' },
+  { id: 'cs_cp',           label: 'Capital social / Capitaux propres', section: 'annual' },
+  { id: 'taux_endettement',label: "Taux d'endettement",               section: 'annual' },
+  { id: 'cp_passif',       label: 'Capitaux propres / Passif',        section: 'annual' },
+  // Détail mensuel
+  { id: 'treso_mensuelle', label: 'Trésorerie — solde fin de mois',   section: 'monthly' },
+  { id: 'ca_mensuel',      label: 'CA mensuel',                       section: 'monthly' },
+  { id: 'charges',         label: 'Répartition des charges',          section: 'monthly' },
+];
 
 // ── Catalogue complet des documents ──────────────────────────────────────────
 // requiresFec        → nécessite un FEC chargé
@@ -19,6 +39,8 @@ const ALL_DOCS = [
   { id: 'charges_charts',    requiresFec: true },
   { id: 'analytique_table',  requiresAnalytique: true },
   { id: 'analytique_podium', requiresAnalytique: true },
+  { id: 'rapport_ia',        requiresRapportIA: true },
+  { id: 'comparaison_nn1',  requiresComparaisonNN1: true },
 ];
 
 const DEFAULT_SELECTED = ['sig', 'bilan', 'balance', 'balance_aux', 'treasury_curve', 'charges_charts'];
@@ -55,6 +77,14 @@ export function ExportTab() {
   const analytiqueData = useStore(s => s.analytiqueData);
   const dossierData    = useStore(s => s.dossierData);
   const bilanCRData    = useStore(s => s.bilanCRData);
+  const analyseIAText  = useStore(s => s.analyseIAText);
+  // N-1 / N-2 pour la comparaison
+  const sigResultN1    = useStore(s => s.sigResultN1);
+  const sigResultN2    = useStore(s => s.sigResultN2);
+  const bilanDataN1    = useStore(s => s.bilanDataN1);
+  const bilanDataN2    = useStore(s => s.bilanDataN2);
+  const treasuryDataN1 = useStore(s => s.treasuryDataN1);
+  const chargesDataN1  = useStore(s => s.chargesDataN1);
 
   // orderedSelection = tableau ordonné des IDs cochés (ordre = ordre d'export)
   const [orderedSelection, setOrderedSelection] = useState(
@@ -66,12 +96,16 @@ export function ExportTab() {
       if (doc.requiresDossier    && !dossierData)    return false;
       if (doc.requiresBilanCR    && !bilanCRData)    return false;
       if (doc.requiresAnalytique && !analytiqueData) return false;
+      if (doc.requiresRapportIA       && !analyseIAText)  return false;
+      if (doc.requiresComparaisonNN1  && !sigResultN1)    return false;
       return true;
     })
   );
+  const [comparaisonSubTables, setComparaisonSubTables] = useState(COMP_SUBTABLE_IDS);
   const [mode, setMode]               = useState('global');
   const [orientation, setOrientation] = useState('landscape');
   const [annexes, setAnnexes]         = useState([]);
+  const [logoDataUrl, setLogoDataUrl] = useState(null);
   const [progress, setProgress]       = useState(null);
   const [error, setError]             = useState(null);
 
@@ -81,6 +115,8 @@ export function ExportTab() {
     if (d.requiresDossier    && !dossierData)    return false;
     if (d.requiresBilanCR    && !bilanCRData)    return false;
     if (d.requiresAnalytique && !analytiqueData) return false;
+    if (d.requiresRapportIA       && !analyseIAText)  return false;
+    if (d.requiresComparaisonNN1  && !sigResultN1)    return false;
     return true;
   });
 
@@ -122,7 +158,12 @@ export function ExportTab() {
     setError(null);
     setProgress({ pct: 0, label: 'Initialisation…' });
 
-    const storeData = { sigResult, bilanData, bilanCRData, treasuryData, chargesData, analytiqueData, dossierData };
+    const storeData = {
+      sigResult, bilanData, bilanCRData, treasuryData, chargesData, analytiqueData, dossierData,
+      analyseIAText, logoDataUrl,
+      sigResultN1, sigResultN2, bilanDataN1, bilanDataN2, treasuryDataN1, chargesDataN1,
+      comparaisonSubTables,
+    };
 
     try {
       await generateExport(
@@ -177,8 +218,8 @@ export function ExportTab() {
               const isLast  = checked && orderedSelection[orderedSelection.length - 1] === doc.id;
 
               return (
+                <Fragment key={doc.id}>
                 <div
-                  key={doc.id}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '7px 10px', borderRadius: '8px',
@@ -221,6 +262,65 @@ export function ExportTab() {
                     <div style={{ width: '48px', flexShrink: 0 }} />
                   )}
                 </div>
+
+                {/* ── Sous-cases Comparaison N/N-1 ────────────── */}
+                {doc.id === 'comparaison_nn1' && checked && (
+                  <div style={{
+                    marginLeft: '44px', marginTop: '-2px',
+                    padding: '12px 14px', background: '#F8FAFB',
+                    borderRadius: '8px', border: '1px solid #E2E8F0',
+                  }}>
+                    {/* En-tête + boutons globaux */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '12px', color: '#718096' }}>Sélectionnez les tableaux :</span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button onClick={() => setComparaisonSubTables(COMP_SUBTABLE_IDS)}
+                          style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid #E2E8F0', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#718096' }}>
+                          Tout cocher
+                        </button>
+                        <button onClick={() => setComparaisonSubTables([])}
+                          style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid #E2E8F0', borderRadius: '4px', background: '#fff', cursor: 'pointer', color: '#718096' }}>
+                          Tout décocher
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Section Pluriannuelles */}
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Analyses pluriannuelles
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 12px', marginBottom: '10px' }}>
+                      {COMP_SUBTABLES.filter(t => t.section === 'annual').map(t => (
+                        <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#2D3748', cursor: 'pointer' }}>
+                          <input type="checkbox"
+                            checked={comparaisonSubTables.includes(t.id)}
+                            onChange={() => setComparaisonSubTables(prev =>
+                              prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id])}
+                            style={{ accentColor: '#FF8200', cursor: 'pointer', flexShrink: 0 }} />
+                          {t.label}
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Section Mensuel */}
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#A0AEC0', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Détail mensuel N vs N-1
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      {COMP_SUBTABLES.filter(t => t.section === 'monthly').map(t => (
+                        <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#2D3748', cursor: 'pointer' }}>
+                          <input type="checkbox"
+                            checked={comparaisonSubTables.includes(t.id)}
+                            onChange={() => setComparaisonSubTables(prev =>
+                              prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id])}
+                            style={{ accentColor: '#FF8200', cursor: 'pointer', flexShrink: 0 }} />
+                          {t.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </Fragment>
               );
             })}
           </div>
@@ -316,6 +416,52 @@ export function ExportTab() {
             );
           })}
         </div>
+      </section>
+
+      {/* ── Logo page de garde ── */}
+      <section style={{ marginBottom: '28px' }}>
+        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1A202C', marginBottom: '4px' }}>
+          Logo (page de garde)
+        </h2>
+        <p style={{ fontSize: '12px', color: '#718096', margin: '0 0 12px' }}>
+          Affiché en haut à droite de la page de garde du PDF global.
+        </p>
+
+        {logoDataUrl ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFB' }}>
+            <img src={logoDataUrl} alt="Logo" style={{ maxHeight: '60px', maxWidth: '160px', objectFit: 'contain', borderRadius: '4px' }} />
+            <div style={{ flex: 1, fontSize: '12px', color: '#718096' }}>Logo chargé</div>
+            <button
+              onClick={() => setLogoDataUrl(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#E53935', fontSize: '18px', lineHeight: 1, padding: '0 4px' }}
+              title="Supprimer le logo"
+            >×</button>
+          </div>
+        ) : (
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '12px 16px', borderRadius: '10px',
+            border: '2px dashed #CBD5E0', background: '#FAFAFA',
+            cursor: 'pointer', fontSize: '13px', color: '#718096',
+          }}>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => setLogoDataUrl(ev.target.result);
+                reader.readAsDataURL(file);
+                e.target.value = '';
+              }}
+            />
+            <span style={{ fontSize: '18px' }}>🖼️</span>
+            <span>Déposer un logo ici ou <strong style={{ color: '#FF8200' }}>parcourir</strong></span>
+            <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#CBD5E0' }}>PNG · JPG · SVG</span>
+          </label>
+        )}
       </section>
 
       {/* ── Annexes PDF (mode global uniquement) ── */}
