@@ -1,4 +1,5 @@
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 
 const SECTIONS = [
   { id: 'analyseur', icon: '🔎', label: 'Analyseur FEC' },
@@ -13,6 +14,10 @@ const SECTIONS = [
 export function MainNav() {
   const activeSection    = useStore((s) => s.activeSection);
   const setActiveSection = useStore((s) => s.setActiveSection);
+  const hasPermission    = useAuthStore((s) => s.hasPermission);
+
+  // Filtrer les sections selon les permissions de l'utilisateur
+  const visibleSections = SECTIONS.filter(s => hasPermission(s.id));
 
   return (
     <nav
@@ -28,7 +33,7 @@ export function MainNav() {
         scrollbarWidth: 'none',
       }}
     >
-      {SECTIONS.map((section) => {
+      {visibleSections.map((section) => {
         const isActive = section.id === activeSection;
         return (
           <button

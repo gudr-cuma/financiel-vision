@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 import { getExerciceLabel } from '../../engine/exerciceUtils';
 
 // ---------------------------------------------------------------------------
@@ -205,7 +206,11 @@ export function AppHeader() {
   const isDemo           = useStore((s) => s.isDemo);
   const reset            = useStore((s) => s.reset);
   const loadDemoComplete = useStore((s) => s.loadDemoComplete);
+  const setActiveSection = useStore((s) => s.setActiveSection);
   const [showPrivacy, setShowPrivacy] = useState(false);
+
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const logout      = useAuthStore((s) => s.logout);
 
   const fileName = parsedFec?.fileName ?? null;
   const exerciceLabel =
@@ -327,6 +332,50 @@ export function AppHeader() {
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               >
                 ↺ Réinitialiser
+              </button>
+            </div>
+          )}
+
+          {/* Utilisateur connecté + actions */}
+          {currentUser && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              {/* Nom */}
+              <span style={{ fontSize: '13px', color: '#4A5568', fontWeight: 500 }}>
+                {currentUser.name}
+              </span>
+              {/* Lien admin */}
+              {currentUser.role === 'admin' && (
+                <button
+                  onClick={() => setActiveSection('admin')}
+                  title="Gestion des utilisateurs"
+                  style={{
+                    fontSize: '12px', fontWeight: 500,
+                    color: '#718096', background: 'transparent',
+                    border: '1px solid #E2E8F0', borderRadius: '6px',
+                    padding: '5px 10px', cursor: 'pointer',
+                    whiteSpace: 'nowrap', transition: 'border-color 150ms, color 150ms',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#B1DCE2'; e.currentTarget.style.color = '#1A202C'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#718096'; }}
+                >
+                  ⚙️ Admin
+                </button>
+              )}
+              {/* Déconnexion */}
+              <button
+                onClick={logout}
+                title="Se déconnecter"
+                style={{
+                  fontSize: '12px', fontWeight: 500,
+                  color: '#E53935', background: 'transparent',
+                  border: '1px solid #FECACA', borderRadius: '6px',
+                  padding: '5px 10px', cursor: 'pointer',
+                  whiteSpace: 'nowrap', transition: 'border-color 150ms, background 150ms',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                Déconnexion
               </button>
             </div>
           )}

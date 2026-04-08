@@ -1,0 +1,33 @@
+name = "financiel-vision"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+# ── Cloudflare D1 — Base de données SQLite ────────────────────────────────────
+# Créer via : Dashboard → Workers & Pages → D1 → Create database → "financiel-vision-db"
+# Puis remplacer DATABASE_ID_HERE par l'ID obtenu.
+[[d1_databases]]
+binding     = "DB"
+database_name = "financiel-vision-db"
+database_id = "DATABASE_ID_HERE"
+
+# ── Cloudflare KV — Rate limiting ─────────────────────────────────────────────
+# Créer via : Dashboard → Workers & Pages → KV → Create namespace → "RATE_LIMIT_KV"
+# Puis remplacer KV_ID_HERE et KV_PREVIEW_ID_HERE par les IDs obtenus.
+[[kv_namespaces]]
+binding    = "RATE_LIMIT_KV"
+id         = "KV_ID_HERE"
+preview_id = "KV_PREVIEW_ID_HERE"
+
+# ── Variables d'environnement (non-secrètes) ──────────────────────────────────
+[vars]
+SESSION_DURATION_HOURS       = "8"
+MAX_LOGIN_ATTEMPTS_PER_IP    = "5"
+RATE_LIMIT_WINDOW_SECONDS    = "900"
+ACCOUNT_LOCKOUT_ATTEMPTS     = "10"
+ACCOUNT_LOCKOUT_HOURS        = "1"
+PBKDF2_ITERATIONS            = "310000"
+
+# ── Secrets (NE PAS mettre les valeurs ici) ───────────────────────────────────
+# Ajouter via : Dashboard → Pages → financiel-vision → Settings → Environment variables
+# Nom : SESSION_SIGNING_KEY  Type : Secret  Valeur : 64 caractères hex aléatoires
