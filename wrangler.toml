@@ -9,15 +9,15 @@ pages_build_output_dir = "./dist"
 [[d1_databases]]
 binding     = "DB"
 database_name = "financiel-vision-db"
-database_id = "DATABASE_ID_HERE"
+database_id = "312f656a-d028-4ed4-a652-46d61526337b"
 
 # ── Cloudflare KV — Rate limiting ─────────────────────────────────────────────
 # Créer via : Dashboard → Workers & Pages → KV → Create namespace → "RATE_LIMIT_KV"
 # Puis remplacer KV_ID_HERE et KV_PREVIEW_ID_HERE par les IDs obtenus.
 [[kv_namespaces]]
 binding    = "RATE_LIMIT_KV"
-id         = "KV_ID_HERE"
-preview_id = "KV_PREVIEW_ID_HERE"
+id         = "879d70f371014aea855e87ac88b2608b"
+preview_id = "879d70f371014aea855e87ac88b2608b"
 
 # ── Variables d'environnement (non-secrètes) ──────────────────────────────────
 [vars]
