@@ -6,7 +6,7 @@ import { getSessionId }    from '../_lib/session.js';
 import { getValidSession } from '../_lib/db.js';
 import { unauthorized, forbidden } from '../_lib/responses.js';
 
-const PUBLIC_ROUTES = ['/api/auth/login'];
+const PUBLIC_ROUTES = ['/api/auth/login', '/api/bootstrap'];
 
 export async function onRequest(context) {
   const { request, env, next } = context;
