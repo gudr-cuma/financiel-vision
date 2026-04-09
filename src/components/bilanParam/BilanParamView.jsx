@@ -39,6 +39,11 @@ export function BilanParamView({ items, title }) {
               <tr key={item.id} style={{ borderBottom: '1px solid #F0F0F0' }}>
                 <td style={{ padding: '6px 8px', ...style, paddingRight: undefined }}>
                   {item.label}
+                  {item.type === 'line' && item.code_ranges?.length > 0 && (
+                    <span style={{ fontSize: '10px', color: '#A0AEC0', marginLeft: '8px', fontWeight: 400 }}>
+                      [{item.code_ranges.join(', ')}]
+                    </span>
+                  )}
                 </td>
                 <AmountCell amount={item.amount} />
               </tr>
