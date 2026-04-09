@@ -36,17 +36,18 @@ const MODE_FN = {
  */
 export function computeBilanParam(config, parsedFec) {
   // Exclure les écritures ANC (à-nouveau) — elles concernent le bilan d'ouverture
-  const entries = (parsedFec?.entries ?? []).filter(e => e.JournalCode !== 'ANC');
+  // Les champs du FEC parsé sont en camelCase : journalCode, compteNum, debit, credit
+  const entries = (parsedFec?.entries ?? []).filter(e => e.journalCode !== 'ANC');
 
   // ── Pré-agréger toutes les écritures par compte ──────────────────────────
   // accountMap : { compteNum → { td: Σdébits, tc: Σcrédits } }
   const accountMap = {};
   for (const e of entries) {
-    const num = e.CompteNum;
+    const num = e.compteNum;
     if (!num) continue;
     if (!accountMap[num]) accountMap[num] = { td: 0, tc: 0 };
-    accountMap[num].td += e.Debit  ?? 0;
-    accountMap[num].tc += e.Credit ?? 0;
+    accountMap[num].td += e.debit  ?? 0;
+    accountMap[num].tc += e.credit ?? 0;
   }
 
   // ── Calcul du montant d'un item type=line ─────────────────────────────────
