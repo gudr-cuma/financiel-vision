@@ -1,4 +1,4 @@
-import { formatAmount } from '../../engine/formatUtils';
+import { formatAmountFull } from '../../engine/formatUtils';
 
 const TYPE_STYLES = {
   section:    { fontWeight: 700, fontSize: '13px', background: '#E3F2F5', color: '#1A202C', paddingLeft: '8px' },
@@ -10,11 +10,11 @@ const TYPE_STYLES = {
 };
 
 function AmountCell({ amount }) {
-  if (amount === null || amount === undefined) return <td style={{ width: '140px' }} />;
-  const formatted = formatAmount(Math.abs(amount));
+  if (amount === null || amount === undefined) return <td style={{ width: '160px' }} />;
+  const formatted = formatAmountFull(Math.abs(amount));
   const color = amount < 0 ? '#E53935' : '#1A202C';
   return (
-    <td style={{ width: '140px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color, paddingRight: '12px' }}>
+    <td style={{ width: '160px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color, paddingRight: '12px' }}>
       {amount < 0 ? `(${formatted})` : formatted}
     </td>
   );
