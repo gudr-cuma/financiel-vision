@@ -417,6 +417,7 @@ export function AnalyseurTab() {
   const loadDemo         = useStore(s => s.loadDemo);
   const loadDemoComplete = useStore(s => s.loadDemoComplete);
   const isLoading        = useStore(s => s.isLoading);
+  const isLoadingDemo    = useStore(s => s.isLoadingDemo);
   const loadProgress     = useStore(s => s.loadProgress);
   const canUploadFile    = useAuthStore(s => s.canUploadFile());
 
@@ -453,21 +454,30 @@ export function AnalyseurTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button
             onClick={() => loadDemoComplete()}
-            disabled={isLoading}
+            disabled={isLoading || isLoadingDemo}
             style={{
               width: '100%', padding: '12px 24px',
-              backgroundColor: isLoading ? '#FFC06A' : '#FF8200',
+              backgroundColor: (isLoading || isLoadingDemo) ? '#FFC06A' : '#FF8200',
               color: '#FFFFFF', border: 'none', borderRadius: '8px',
               fontSize: '15px', fontWeight: 600,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
+              cursor: (isLoading || isLoadingDemo) ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.2s ease',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
-            onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#E57300'; }}
-            onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FF8200'; }}
+            onMouseEnter={e => { if (!isLoading && !isLoadingDemo) e.currentTarget.style.backgroundColor = '#E57300'; }}
+            onMouseLeave={e => { if (!isLoading && !isLoadingDemo) e.currentTarget.style.backgroundColor = '#FF8200'; }}
           >
-            🚀 Charger la démo complète
+            {isLoadingDemo
+              ? <><span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Chargement en cours…</>
+              : '🚀 Charger la démo complète'
+            }
           </button>
+          {isLoadingDemo && (
+            <div style={{ padding: '10px 14px', background: '#E3F2F5', border: '1px solid #B1DCE2', borderRadius: '8px', fontSize: '13px', color: '#1A202C', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #B1DCE2', borderTopColor: '#31B700', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+              Chargement FEC, dossier de gestion, bilan, analytique…
+            </div>
+          )}
           {canUploadFile && (
             <button
               onClick={() => loadDemo()}

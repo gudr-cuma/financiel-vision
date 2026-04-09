@@ -39,6 +39,7 @@ const useStore = create((set, get) => ({
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
   isLoading: false,
+  isLoadingDemo: false,    // true pendant loadDemoComplete
   loadProgress: 0,         // 0-100
   error: null,
   parseWarnings: [],
@@ -299,7 +300,7 @@ const useStore = create((set, get) => ({
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
       const dossierData = await parseDossierGestion(file);
-      set({ dossierData, activeSection: 'dossier' });
+      set({ dossierData });
     } catch (err) {
       set({ error: err.message });
     }
@@ -330,7 +331,7 @@ const useStore = create((set, get) => ({
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
     const bilanCRData = await parseBilanCR(file);
-    set({ bilanCRData, activeSection: 'bilanCR' });
+    set({ bilanCRData });
   },
 
   /** Charge un fichier BilanCR déposé par l'utilisateur */
@@ -343,16 +344,21 @@ const useStore = create((set, get) => ({
 
   /** Charge toutes les sources de démo disponibles en une fois */
   loadDemoComplete: async () => {
-    // 1. FEC principal en premier (bloquant — calcule sigResult, bilanData, etc.)
-    await get().loadDemo();
-    // 2. Le reste en parallèle
-    await Promise.all([
-      get().loadDemoN1(),
-      get().loadDemoN2(),
-      get().loadDemoGestion(),
-      get().loadDemoBilanCR(),
-      get().loadDemoAnalytique(),
-    ]);
+    set({ isLoadingDemo: true });
+    try {
+      // 1. FEC principal en premier (bloquant — calcule sigResult, bilanData, etc.)
+      await get().loadDemo();
+      // 2. Le reste en parallèle — sans navigation automatique
+      await Promise.all([
+        get().loadDemoN1(),
+        get().loadDemoN2(),
+        get().loadDemoGestion(),
+        get().loadDemoBilanCR(),
+        get().loadDemoAnalytique(),
+      ]);
+    } finally {
+      set({ isLoadingDemo: false });
+    }
   },
 
   reset: () => set({
@@ -372,6 +378,7 @@ const useStore = create((set, get) => ({
     activeSubTab: 'mensuel',
     detailPanel: null,
     isLoading: false,
+    isLoadingDemo: false,
     loadProgress: 0,
     error: null,
     parseWarnings: [],
