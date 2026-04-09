@@ -5,6 +5,13 @@ import { SlideList } from './SlideList';
 import { SlideEditor } from './SlideEditor';
 
 // ---------------------------------------------------------------------------
+// Sélecteurs atomiques (primitifs ou références stables → pas de re-render infini)
+// ---------------------------------------------------------------------------
+const selFec        = s => s.parsedFec;
+const selN1         = s => s.sigResultN1;
+const selAnalytique = s => s.analytiqueData;
+
+// ---------------------------------------------------------------------------
 // DiaporamaTab — constructeur de diaporama
 // ---------------------------------------------------------------------------
 
@@ -18,29 +25,20 @@ export function DiaporamaTab() {
   const moveDiaporamaSlide   = useStore(s => s.moveDiaporamaSlide);
   const updateDiaporamaCover = useStore(s => s.updateDiaporamaCover);
 
-  // Snapshot de toutes les données du store pour la génération
-  const storeData = useStore(s => ({
-    parsedFec:      s.parsedFec,
-    parsedFecN1:    s.parsedFecN1,
-    parsedFecN2:    s.parsedFecN2,
-    sigResult:      s.sigResult,
-    sigResultN1:    s.sigResultN1,
-    sigResultN2:    s.sigResultN2,
-    treasuryData:   s.treasuryData,
-    treasuryDataN1: s.treasuryDataN1,
-    chargesData:    s.chargesData,
-    bilanData:      s.bilanData,
-    bilanDataN1:    s.bilanDataN1,
-    bilanDataN2:    s.bilanDataN2,
-    analytiqueData: s.analytiqueData,
-  }));
+  // Sélecteurs atomiques pour l'affichage (ne causent pas de re-render infini)
+  const parsedFec     = useStore(selFec);
+  const sigResultN1   = useStore(selN1);
+  const analytiqueData = useStore(selAnalytique);
+
+  // storeData pour les ZoneEditor (uniquement ce qui détermine la disponibilité des graphiques)
+  const storeData = { sigResultN1, analytiqueData };
 
   const [selectedId,   setSelectedId]   = useState('cover');
   const [generating,   setGenerating]   = useState(false);
   const [progressMsg,  setProgressMsg]  = useState('');
   const [genError,     setGenError]     = useState(null);
 
-  const hasFec = storeData.parsedFec !== null;
+  const hasFec = parsedFec !== null;
 
   // Ajout d'un slide avec template 'title_full' par défaut
   const handleAdd = () => {
@@ -64,10 +62,27 @@ export function DiaporamaTab() {
     setGenerating(true);
     setGenError(null);
     try {
+      // Lire le store au moment du clic (snapshot complet, sans selector réactif)
+      const s = useStore.getState();
+      const fullStoreData = {
+        parsedFec:      s.parsedFec,
+        parsedFecN1:    s.parsedFecN1,
+        parsedFecN2:    s.parsedFecN2,
+        sigResult:      s.sigResult,
+        sigResultN1:    s.sigResultN1,
+        sigResultN2:    s.sigResultN2,
+        treasuryData:   s.treasuryData,
+        treasuryDataN1: s.treasuryDataN1,
+        chargesData:    s.chargesData,
+        bilanData:      s.bilanData,
+        bilanDataN1:    s.bilanDataN1,
+        bilanDataN2:    s.bilanDataN2,
+        analytiqueData: s.analytiqueData,
+      };
       await generateBuilderPptx({
         slides:     diaporamaSlides,
         coverInfo:  diaporamaCover,
-        storeData,
+        storeData:  fullStoreData,
         onProgress: setProgressMsg,
       });
     } catch (err) {

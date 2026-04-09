@@ -1,5 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Component } from 'react';
 import useStore from './store/useStore';
+
+// ---------------------------------------------------------------------------
+// ErrorBoundary — capture les erreurs de rendu et affiche un message utile
+// ---------------------------------------------------------------------------
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(err) { return { error: err }; }
+  componentDidCatch(err, info) { console.error('[Clario ErrorBoundary]', err, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: '40px 24px', maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ fontSize: '24px', marginBottom: '12px' }}>⚠️ Erreur d'affichage</div>
+          <div style={{ fontSize: '14px', color: '#718096', marginBottom: '16px' }}>
+            Une erreur s'est produite dans ce module. Détails :
+          </div>
+          <pre style={{
+            background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px',
+            padding: '12px', fontSize: '12px', color: '#E53935', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+          }}>
+            {this.state.error?.message ?? String(this.state.error)}
+          </pre>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{ marginTop: '16px', padding: '8px 20px', background: '#31B700', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
+          >
+            Réessayer
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import useAuthStore from './store/useAuthStore';
 import { LoginPage } from './components/auth/LoginPage';
 import AdminPanel from './components/admin/AdminPanel';
@@ -138,7 +172,7 @@ export default function App() {
                 {activeSection === 'bilanParam' && <BilanParamTab />}
                 {activeSection === 'editions'   && <LivresTab />}
                 {activeSection === 'export'     && <ExportTab />}
-                {activeSection === 'diaporama'  && <DiaporamaTab />}
+                {activeSection === 'diaporama'  && <ErrorBoundary key="diaporama"><DiaporamaTab /></ErrorBoundary>}
                 {activeSection === 'analyse'    && <AnalyseTab />}
               </main>
             </>
