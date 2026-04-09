@@ -18,7 +18,7 @@ export function DossierTab() {
   const loadDemoGestion    = useStore(s => s.loadDemoGestion);
   const loadFecGestion     = useStore(s => s.loadFecGestion);
 
-  const canUploadFile = useAuthStore(s => s.canUploadFile);
+  const canUploadFile = useAuthStore(s => s.canUploadFile());
   const [activeTab, setActiveTab] = useState('resultats');
   const [isDragging, setIsDragging] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -62,7 +62,7 @@ export function DossierTab() {
         </p>
 
         {/* Dropzone — visible seulement si import autorisé */}
-        {canUploadFile() && (
+        {canUploadFile && (
           <div
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
@@ -114,7 +114,7 @@ export function DossierTab() {
           ⚡ Charger les données de démonstration
         </button>
 
-        {!canUploadFile() && (
+        {!canUploadFile && (
           <div style={{ marginTop: '10px', padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096' }}>
             🔒 Import limité à la démonstration — droits non activés
           </div>

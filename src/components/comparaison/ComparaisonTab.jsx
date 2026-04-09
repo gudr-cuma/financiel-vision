@@ -389,7 +389,7 @@ function UploadN1Zone() {
   const isLoadingN1 = useStore(s => s.isLoadingN1);
   const errorN1     = useStore(s => s.errorN1);
   const isDemo      = useStore(s => s.isDemo);
-  const canUploadFile = useAuthStore(s => s.canUploadFile);
+  const canUploadFile = useAuthStore(s => s.canUploadFile());
   const inputRef    = useRef(null);
 
   function handleFiles(files) { if (files?.length === 1) loadFecN1(files[0]); }
@@ -406,7 +406,7 @@ function UploadN1Zone() {
             Déposez le FEC N-1 pour activer les graphiques de comparaison.
           </p>
         </div>
-        {canUploadFile() && (
+        {canUploadFile && (
           <div
             onDragOver={e => e.preventDefault()} onDrop={handleDrop}
             onClick={() => !isLoadingN1 && inputRef.current?.click()}
@@ -433,7 +433,7 @@ function UploadN1Zone() {
             </button>
           </>
         )}
-        {!canUploadFile() && !isDemo && (
+        {!canUploadFile && !isDemo && (
           <div style={{ padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
             🔒 Import limité à la démonstration — droits non activés
           </div>
@@ -454,7 +454,7 @@ function UploadN2Zone() {
   const isLoadingN2 = useStore(s => s.isLoadingN2);
   const errorN2     = useStore(s => s.errorN2);
   const isDemo      = useStore(s => s.isDemo);
-  const canUploadFile = useAuthStore(s => s.canUploadFile);
+  const canUploadFile = useAuthStore(s => s.canUploadFile());
   const inputRef    = useRef(null);
 
   function handleFiles(files) { if (files?.length === 1) loadFecN2(files[0]); }
@@ -475,7 +475,7 @@ function UploadN2Zone() {
         {errorN2 && <div style={{ fontSize: '12px', color: '#E53935', marginTop: '4px' }}>⚠️ {errorN2}</div>}
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {canUploadFile() && (
+        {canUploadFile && (
           <button
             onClick={() => inputRef.current?.click()}
             disabled={isLoadingN2}
@@ -495,7 +495,7 @@ function UploadN2Zone() {
             ⚡ Démo N-2
           </button>
         )}
-        {!canUploadFile() && !isDemo && (
+        {!canUploadFile && !isDemo && (
           <span style={{ fontSize: '12px', color: '#A0AEC0', alignSelf: 'center' }}>🔒 Droits non activés</span>
         )}
       </div>

@@ -12,7 +12,7 @@ export function UploadPage() {
   const loadProgress = useStore((s) => s.loadProgress);
   const error = useStore((s) => s.error);
   const clearError = useStore((s) => s.clearError);
-  const canUploadFile = useAuthStore((s) => s.canUploadFile);
+  const canUploadFile = useAuthStore(s => s.canUploadFile());
 
   return (
     <div
@@ -71,7 +71,7 @@ export function UploadPage() {
         )}
 
         {/* Dropzone — visible seulement si import autorisé */}
-        {canUploadFile() && (
+        {canUploadFile && (
           <>
             <Dropzone
               onFile={(file) => loadFec(file)}
@@ -107,7 +107,7 @@ export function UploadPage() {
           >
             🚀 Charger la démo complète
           </button>
-          {canUploadFile() && (
+          {canUploadFile && (
             <button
               onClick={() => loadDemo()}
               disabled={isLoading}
@@ -127,7 +127,7 @@ export function UploadPage() {
               ⚡ FEC seul (démonstration)
             </button>
           )}
-          {!canUploadFile() && (
+          {!canUploadFile && (
             <div style={{ padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
               🔒 Import limité à la démonstration — droits non activés
             </div>

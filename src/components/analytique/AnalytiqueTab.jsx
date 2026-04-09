@@ -258,7 +258,7 @@ function DetailPanel({ m, onClose }) {
 export function AnalytiqueTab() {
   const setAnalytiqueData  = useStore(s => s.setAnalytiqueData);
   const storeAnalytique    = useStore(s => s.analytiqueData);  // chargé par loadDemoComplete
-  const canUploadFile      = useAuthStore(s => s.canUploadFile);
+  const canUploadFile      = useAuthStore(s => s.canUploadFile());
   const [materiels, setMateriels] = useState(null);
   const [global, setGlobal]       = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -361,7 +361,7 @@ export function AnalytiqueTab() {
           </div>
         )}
 
-        {canUploadFile() && (
+        {canUploadFile && (
           <>
             <div
               onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
@@ -429,7 +429,7 @@ export function AnalytiqueTab() {
         >
           ⚡ Charger les données de démonstration
         </button>
-        {!canUploadFile() && (
+        {!canUploadFile && (
           <div style={{ marginTop: '8px', padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
             🔒 Import limité à la démonstration — droits non activés
           </div>

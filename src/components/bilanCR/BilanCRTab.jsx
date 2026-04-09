@@ -12,7 +12,7 @@ export function BilanCRTab() {
   const loadDemoBilanCR  = useStore(s => s.loadDemoBilanCR);
   const loadFileBilanCR  = useStore(s => s.loadFileBilanCR);
 
-  const canUploadFile = useAuthStore(s => s.canUploadFile);
+  const canUploadFile = useAuthStore(s => s.canUploadFile());
   const [activeTab, setActiveTab]   = useState('actif');
   const [isDragging, setIsDragging] = useState(false);
   const [loadError, setLoadError]   = useState(null);
@@ -55,7 +55,7 @@ export function BilanCRTab() {
         </p>
 
         {/* Dropzone — visible seulement si import autorisé */}
-        {canUploadFile() && (
+        {canUploadFile && (
           <div
             onDragOver={e => { if (!isLoading) { e.preventDefault(); setIsDragging(true); } }}
             onDragLeave={() => setIsDragging(false)}
@@ -141,7 +141,7 @@ export function BilanCRTab() {
           ⚡ Charger les données de démonstration
         </button>
 
-        {!canUploadFile() && (
+        {!canUploadFile && (
           <div style={{ marginTop: '10px', padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096' }}>
             🔒 Import limité à la démonstration — droits non activés
           </div>
