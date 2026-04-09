@@ -294,7 +294,7 @@ function addCompBarSlide(pptx, { title, values, footer }) {
     const valZoneX = W - MARGIN - 3.5;
     const valZoneW = 3.2;
 
-    slide.addChart(PptxGenJS.ChartType.bar, chartData, {
+    slide.addChart('bar', chartData, {
       x: MARGIN,
       y: CHART_Y,
       w: valZoneX - MARGIN - 0.3,
@@ -349,7 +349,7 @@ function addMultiBarSlide(pptx, { title, series, footer }) {
     color: SERIES_COLORS[i] ?? CLR.grey,
   }));
 
-  slide.addChart(PptxGenJS.ChartType.bar, slide_chart_data, {
+  slide.addChart('bar', slide_chart_data, {
     x: MARGIN,
     y: CHART_Y,
     w: CHART_W,
@@ -396,7 +396,7 @@ function addCompRatioSlide(pptx, { title, values, unit, footer }) {
 
   const valZoneX = W - MARGIN - 3.5;
 
-  slide.addChart(PptxGenJS.ChartType.bar, chartData, {
+  slide.addChart('bar', chartData, {
     x: MARGIN,
     y: CHART_Y,
     w: valZoneX - MARGIN - 0.3,
@@ -447,7 +447,7 @@ function addLineSlide(pptx, { title, series, footer }) {
     values: s.data.map(d => Math.round(d.value ?? 0)),
   }));
 
-  slide.addChart(PptxGenJS.ChartType.line, chartData, {
+  slide.addChart('line', chartData, {
     x: MARGIN,
     y: CHART_Y,
     w: CHART_W,
@@ -492,7 +492,7 @@ function addDonutSlide(pptx, { title, categories, footer }) {
 
   // Donut à gauche
   const donutW = 6.5;
-  slide.addChart(PptxGenJS.ChartType.doughnut, chartData, {
+  slide.addChart('doughnut', chartData, {
     x: MARGIN,
     y: CHART_Y,
     w: donutW,
