@@ -1,4 +1,5 @@
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 import { Dropzone } from '../upload/Dropzone';
 import { ProgressBar } from '../upload/ProgressBar';
 
@@ -411,12 +412,13 @@ function AnomalieDocCard({ color, bg, border, title, items }) {
 // Main AnalyseurTab
 // ---------------------------------------------------------------------------
 export function AnalyseurTab() {
-  const analyseurData = useStore(s => s.analyseurData);
-  const loadFec       = useStore(s => s.loadFec);
+  const analyseurData    = useStore(s => s.analyseurData);
+  const loadFec          = useStore(s => s.loadFec);
   const loadDemo         = useStore(s => s.loadDemo);
   const loadDemoComplete = useStore(s => s.loadDemoComplete);
-  const isLoading     = useStore(s => s.isLoading);
-  const loadProgress  = useStore(s => s.loadProgress);
+  const isLoading        = useStore(s => s.isLoading);
+  const loadProgress     = useStore(s => s.loadProgress);
+  const canUploadFile    = useAuthStore(s => s.canUploadFile());
 
   if (!analyseurData) {
     return (
@@ -431,12 +433,15 @@ export function AnalyseurTab() {
           </p>
         </div>
 
-        <Dropzone onFile={file => loadFec(file)} disabled={isLoading} />
-
-        {isLoading && (
-          <div style={{ marginTop: '16px' }}>
-            <ProgressBar percent={loadProgress} />
-          </div>
+        {canUploadFile && (
+          <>
+            <Dropzone onFile={file => loadFec(file)} disabled={isLoading} />
+            {isLoading && (
+              <div style={{ marginTop: '16px' }}>
+                <ProgressBar percent={loadProgress} />
+              </div>
+            )}
+          </>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
@@ -446,54 +451,48 @@ export function AnalyseurTab() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <button
-          onClick={() => loadDemoComplete()}
-          disabled={isLoading}
-          style={{
-            width: '100%',
-            padding: '12px 24px',
-            backgroundColor: isLoading ? '#FFC06A' : '#FF8200',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '15px',
-            fontWeight: 600,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-          }}
-          onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#E57300'; }}
-          onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FF8200'; }}
-        >
-          🚀 Charger la démo complète
-        </button>
-        <button
-          onClick={() => loadDemo()}
-          disabled={isLoading}
-          style={{
-            width: '100%',
-            padding: '9px 24px',
-            backgroundColor: 'transparent',
-            color: isLoading ? '#CBD5E0' : '#FF8200',
-            border: '1px solid ' + (isLoading ? '#CBD5E0' : '#FF8200'),
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-          }}
-          onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FFF3E0'; }}
-          onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = 'transparent'; }}
-        >
-          ⚡ FEC seul (démonstration)
-        </button>
+          <button
+            onClick={() => loadDemoComplete()}
+            disabled={isLoading}
+            style={{
+              width: '100%', padding: '12px 24px',
+              backgroundColor: isLoading ? '#FFC06A' : '#FF8200',
+              color: '#FFFFFF', border: 'none', borderRadius: '8px',
+              fontSize: '15px', fontWeight: 600,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.2s ease',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}
+            onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#E57300'; }}
+            onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FF8200'; }}
+          >
+            🚀 Charger la démo complète
+          </button>
+          {canUploadFile && (
+            <button
+              onClick={() => loadDemo()}
+              disabled={isLoading}
+              style={{
+                width: '100%', padding: '9px 24px',
+                backgroundColor: 'transparent',
+                color: isLoading ? '#CBD5E0' : '#FF8200',
+                border: '1px solid ' + (isLoading ? '#CBD5E0' : '#FF8200'),
+                borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s ease',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}
+              onMouseEnter={e => { if (!isLoading) e.currentTarget.style.backgroundColor = '#FFF3E0'; }}
+              onMouseLeave={e => { if (!isLoading) e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              ⚡ FEC seul (démonstration)
+            </button>
+          )}
+          {!canUploadFile && (
+            <div style={{ padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
+              🔒 Import limité à la démonstration — droits non activés
+            </div>
+          )}
         </div>
 
         <p style={{ margin: '16px 0 0', fontSize: '12px', color: '#A0AEC0', textAlign: 'center', lineHeight: 1.5 }}>
