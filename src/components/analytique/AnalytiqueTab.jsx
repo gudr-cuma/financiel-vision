@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal, CHARGE_CATEGORIES } from '../../engine/computeAnalytique';
 import { formatAmountFull } from '../../engine/formatUtils';
@@ -256,16 +256,25 @@ function DetailPanel({ m, onClose }) {
 // Main — AnalytiqueTab
 // ---------------------------------------------------------------------------
 export function AnalytiqueTab() {
-  const setAnalytiqueData = useStore(s => s.setAnalytiqueData);
-  const canUploadFile = useAuthStore(s => s.canUploadFile);
+  const setAnalytiqueData  = useStore(s => s.setAnalytiqueData);
+  const storeAnalytique    = useStore(s => s.analytiqueData);  // chargé par loadDemoComplete
+  const canUploadFile      = useAuthStore(s => s.canUploadFile);
   const [materiels, setMateriels] = useState(null);
-  const [global, setGlobal] = useState(null);
+  const [global, setGlobal]       = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [filter, setFilter] = useState('all'); // 'all' | 'positif' | 'negatif'
-  const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading]   = useState(false);
+  const [error, setError]           = useState(null);
+  const [selected, setSelected]     = useState(null);
+  const [filter, setFilter]         = useState('all');
+  const [search, setSearch]         = useState('');
+
+  // Synchroniser avec les données chargées via loadDemoComplete depuis le store
+  useEffect(() => {
+    if (storeAnalytique && !materiels) {
+      setMateriels(storeAnalytique.materiels);
+      setGlobal(storeAnalytique.global);
+    }
+  }, [storeAnalytique]);
 
   const processArrayBuffer = useCallback((arrayBuffer) => {
     const { rows, error: parseError } = parseAnalytique(arrayBuffer);
@@ -380,6 +389,23 @@ export function AnalytiqueTab() {
             </div>
             <input id="analytique-file-input" type="file" accept=".xlsx,.xls" onChange={handleFileInput} style={{ display: 'none' }} />
           </>
+        )}
+
+        {/* Indicateur de chargement */}
+        {isLoading && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '12px 16px', marginTop: '12px',
+            background: '#E3F2F5', border: '1px solid #B1DCE2',
+            borderRadius: '8px', fontSize: '14px', color: '#1A202C',
+          }}>
+            <span style={{
+              display: 'inline-block', width: '18px', height: '18px',
+              border: '3px solid #B1DCE2', borderTopColor: '#31B700',
+              borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0,
+            }} />
+            Analyse du fichier en cours, veuillez patienter…
+          </div>
         )}
 
         <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>

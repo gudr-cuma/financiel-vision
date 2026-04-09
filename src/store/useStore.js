@@ -7,6 +7,7 @@ import { computeBilan } from '../engine/computeBilan';
 import { computeAnalyseurFec } from '../engine/computeAnalyseurFec';
 import { parseDossierGestion } from '../engine/parseDossierGestion';
 import { parseBilanCR } from '../engine/parseBilanCR';
+import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal } from '../engine/computeAnalytique';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -230,6 +231,21 @@ const useStore = create((set, get) => ({
 
   setAnalytiqueData: (data) => set({ analytiqueData: data }),
 
+  loadDemoAnalytique: async () => {
+    try {
+      const response = await fetch('/demo/demo_analytique.xlsx');
+      if (!response.ok) throw new Error('Impossible de charger la démo analytique.');
+      const arrayBuffer = await response.arrayBuffer();
+      const { rows, error: parseError } = parseAnalytique(arrayBuffer);
+      if (parseError) return;
+      const materiels = computeAnalytique(rows);
+      const global    = computeAnalytiqueGlobal(materiels);
+      set({ analytiqueData: { materiels, global } });
+    } catch {
+      // Erreur silencieuse — l'onglet analytique reste vide
+    }
+  },
+
   setAnalyseIAText: (text) => set({ analyseIAText: text }),
 
   // -------------------------------------------------------------------------
@@ -335,6 +351,7 @@ const useStore = create((set, get) => ({
       get().loadDemoN2(),
       get().loadDemoGestion(),
       get().loadDemoBilanCR(),
+      get().loadDemoAnalytique(),
     ]);
   },
 
