@@ -11,6 +11,7 @@ const SECTIONS = [
   { id: 'bilanParam', icon: '⚖️',  label: 'Bilan paramétré' },
   { id: 'editions',   icon: '📒', label: 'Éditions' },
   { id: 'export',     icon: '⬇️',  label: 'Export PDF' },
+  { id: 'diaporama',  icon: '🎬', label: 'Diaporama' },
   { id: 'analyse',    icon: '🤖', label: 'Rapport IA' },
 ];
 

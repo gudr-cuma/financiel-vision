@@ -61,6 +61,14 @@ const MODULES = [
     description: 'Générez des PDF imprimables à partir des tableaux de bord et du SIG.',
   },
   {
+    id: 'diaporama',
+    icon: '🎬',
+    label: 'Diaporama',
+    color: '#6B46C1',
+    bg: '#F3EEFF',
+    description: 'Exportez vos graphiques en diaporama PowerPoint (.pptx) prêt à présenter en assemblée.',
+  },
+  {
     id: 'analyse',
     icon: '🤖',
     label: 'Rapport IA',

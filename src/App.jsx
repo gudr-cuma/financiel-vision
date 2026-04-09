@@ -23,6 +23,7 @@ import BilanCRTab from './components/bilanCR/BilanCRTab';
 import BilanParamTab from './components/bilanParam/BilanParamTab';
 import ExportTab from './components/export/ExportTab';
 import AccueilTab from './components/accueil/AccueilTab';
+import DiaporamaTab from './components/diaporama/DiaporamaTab';
 import SessionRestoreModal from './components/session/SessionRestoreModal';
 
 export default function App() {
@@ -137,6 +138,7 @@ export default function App() {
                 {activeSection === 'bilanParam' && <BilanParamTab />}
                 {activeSection === 'editions'   && <LivresTab />}
                 {activeSection === 'export'     && <ExportTab />}
+                {activeSection === 'diaporama'  && <DiaporamaTab />}
                 {activeSection === 'analyse'    && <AnalyseTab />}
               </main>
             </>
