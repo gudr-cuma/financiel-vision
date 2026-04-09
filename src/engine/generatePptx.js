@@ -9,6 +9,8 @@
  */
 
 import PptxGenJS from 'pptxgenjs';
+import { htmlToPptxRuns } from './htmlToPptxRuns';
+import { TEMPLATES, GRAPH_OPTIONS } from './diaporamaConfig';
 
 // ---------------------------------------------------------------------------
 // Constantes de style
@@ -1053,5 +1055,465 @@ export async function generatePptx({ selectedSlides, coverInfo, storeData, onPro
   const siren = parsedFec?.siren || 'diaporama';
   const fileName = `${siren}_diaporama.pptx`;
   await pptx.writeFile({ fileName });
+  progress('Terminé');
+}
+
+// =============================================================================
+// SLIDE BUILDER — nouvelles fonctions pour le constructeur de diaporama
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Zone helpers — texte riche
+// ---------------------------------------------------------------------------
+
+/**
+ * Ajoute du texte HTML (Tiptap) dans une zone d'une diapositive.
+ */
+function addTextToZone(slide, htmlContent, zone) {
+  if (!htmlContent || !htmlContent.trim() || htmlContent === '<p></p>') return;
+  const runs = htmlToPptxRuns(htmlContent);
+  if (!runs.length) return;
+  slide.addText(runs, {
+    x: zone.x,
+    y: zone.y,
+    w: zone.w,
+    h: zone.h,
+    fontSize: 13,
+    fontFace: 'Calibri',
+    color: '1A202C',
+    valign: 'top',
+    wrap: true,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Zone helpers — graphiques
+// ---------------------------------------------------------------------------
+
+function addBarChartZone(slide, chartData, zone) {
+  if (!chartData || !chartData.length) return;
+  slide.addChart('bar', chartData, {
+    x: zone.x,
+    y: zone.y,
+    w: zone.w,
+    h: zone.h,
+    barDir: 'col',
+    barGrouping: chartData.length > 1 ? 'clustered' : 'clustered',
+    chartColors: chartData.map((_, i) => SERIES_COLORS[i] ?? CLR.grey),
+    showLegend: true,
+    legendPos: 'b',
+    legendFontSize: 9,
+    showValue: true,
+    dataLabelFontSize: 9,
+    valAxisHidden: true,
+    catGridLine: { style: 'none' },
+    valGridLine: { style: 'none' },
+  });
+}
+
+function addLineChartZone(slide, chartData, zone) {
+  if (!chartData || !chartData.length) return;
+  slide.addChart('line', chartData, {
+    x: zone.x,
+    y: zone.y,
+    w: zone.w,
+    h: zone.h,
+    chartColors: chartData.map((_, i) => SERIES_COLORS[i] ?? CLR.grey),
+    lineSize: 2,
+    showDot: true,
+    showLegend: chartData.length > 1,
+    legendPos: 'b',
+    legendFontSize: 9,
+    showValue: false,
+    catAxisLabelFontSize: 10,
+    valAxisHidden: false,
+    catGridLine: { style: 'none' },
+    valGridLine: { style: 'thin', color: CLR.border },
+  });
+}
+
+function addDonutChartZone(slide, categories, zone) {
+  const validCats = (categories ?? []).filter(c => c.montant > 0);
+  if (!validCats.length) return;
+  const chartData = [{
+    name: 'Charges',
+    labels: validCats.map(c => c.label),
+    values: validCats.map(c => Math.round(c.montant)),
+  }];
+  const colors = validCats.map((_, i) => CHARGE_COLORS[i % CHARGE_COLORS.length]);
+  slide.addChart('doughnut', chartData, {
+    x: zone.x,
+    y: zone.y,
+    w: zone.w,
+    h: zone.h,
+    chartColors: colors,
+    holeSize: 55,
+    showLegend: true,
+    legendPos: 'b',
+    legendFontSize: 8,
+    showPercent: true,
+    showValue: false,
+    dataLabelFontSize: 9,
+  });
+}
+
+function addBilanRatiosZone(slide, bilanData, zone) {
+  if (!bilanData?.ratios) return;
+  const { ratios } = bilanData;
+  const ratioList = [
+    { label: 'Fonds de roulement', value: fmt(ratios.fondsRoulement?.value) },
+    { label: 'BFR',                value: fmt(ratios.bfr?.value) },
+    { label: 'Autonomie financière', value: fmtPct(ratios.autonomieFinanciere?.value) },
+    { label: 'Liquidité générale',  value: ratios.liquiditeGenerale?.value != null ? ratios.liquiditeGenerale.value.toFixed(2) : '—' },
+  ];
+
+  const halfW = zone.w / 2 - 0.1;
+  const halfH = zone.h / 2 - 0.1;
+  const positions = [
+    { x: zone.x,                y: zone.y },
+    { x: zone.x + halfW + 0.2,  y: zone.y },
+    { x: zone.x,                y: zone.y + halfH + 0.2 },
+    { x: zone.x + halfW + 0.2,  y: zone.y + halfH + 0.2 },
+  ];
+
+  ratioList.forEach((r, i) => {
+    const p = positions[i];
+    slide.addText(r.label, {
+      x: p.x, y: p.y, w: halfW, h: 0.25,
+      fontSize: 9, color: CLR.grey, fontFace: 'Calibri', align: 'center',
+    });
+    slide.addText(r.value, {
+      x: p.x, y: p.y + 0.28, w: halfW, h: halfH - 0.28,
+      fontSize: 18, bold: true, color: CLR.green, fontFace: 'Calibri', align: 'center', valign: 'middle',
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// addGraphToZone — dispatche vers le bon helper selon graphId
+// ---------------------------------------------------------------------------
+
+export function addGraphToZone(slide, graphId, zone, storeData) {
+  const {
+    parsedFec, sigResult, sigResultN1, sigResultN2,
+    treasuryData, chargesData, bilanData, bilanDataN1, bilanDataN2,
+    analytiqueData,
+  } = storeData;
+
+  const labelN  = exLabel(parsedFec)                   || 'N';
+  const labelN1 = exLabel(storeData?.parsedFecN1)      || 'N-1';
+  const labelN2 = exLabel(storeData?.parsedFecN2)      || 'N-2';
+
+  function compValuesLocal(getterN, getterN1, getterN2) {
+    const out = [];
+    if (sigResult)   out.push({ label: labelN,  value: getterN() });
+    if (sigResultN1) out.push({ label: labelN1, value: getterN1() });
+    if (sigResultN2) out.push({ label: labelN2, value: getterN2() });
+    return out;
+  }
+
+  function toBarChartData(valuesArray) {
+    return valuesArray
+      .filter(v => v.value !== null && isFinite(v.value))
+      .map((v, i) => ({
+        name: v.label,
+        labels: [v.label],
+        values: [Math.round(v.value)],
+        color: SERIES_COLORS[i] ?? CLR.grey,
+      }));
+  }
+
+  function toBarChartDataMulti(valuesArray) {
+    return valuesArray
+      .filter(v => v.value !== null && isFinite(v.value))
+      .map((v, i) => ({
+        name: v.label,
+        labels: [v.label],
+        values: [Math.round(v.value * 10) / 10],
+        color: SERIES_COLORS[i] ?? CLR.grey,
+      }));
+  }
+
+  switch (graphId) {
+    case 'comp_ca': {
+      const vals = compValuesLocal(
+        () => sigVal(sigResult,   'chiffre_affaires'),
+        () => sigVal(sigResultN1, 'chiffre_affaires'),
+        () => sigVal(sigResultN2, 'chiffre_affaires'),
+      );
+      addBarChartZone(slide, toBarChartData(vals), zone);
+      break;
+    }
+    case 'comp_ebe': {
+      const vals = compValuesLocal(
+        () => sigVal(sigResult,   'ebe'),
+        () => sigVal(sigResultN1, 'ebe'),
+        () => sigVal(sigResultN2, 'ebe'),
+      );
+      addBarChartZone(slide, toBarChartData(vals), zone);
+      break;
+    }
+    case 'comp_fr': {
+      const vals = compValuesLocal(
+        () => bilanData?.ratios?.fondsRoulement?.value ?? null,
+        () => bilanDataN1?.ratios?.fondsRoulement?.value ?? null,
+        () => bilanDataN2?.ratios?.fondsRoulement?.value ?? null,
+      );
+      addBarChartZone(slide, toBarChartData(vals), zone);
+      break;
+    }
+    case 'comp_charges': {
+      const getTotal = (sr) => sr ? [
+        sigVal(sr, 'charges_personnel'),
+        sigVal(sr, 'services_exterieurs'),
+        sigVal(sr, 'dotations'),
+        sigVal(sr, 'achats_consommes'),
+        sigVal(sr, 'charges_financieres'),
+        sigVal(sr, 'impots_taxes'),
+      ].reduce((a, b) => a + b, 0) : null;
+      const vals = compValuesLocal(
+        () => getTotal(sigResult),
+        () => getTotal(sigResultN1),
+        () => getTotal(sigResultN2),
+      );
+      addBarChartZone(slide, toBarChartData(vals), zone);
+      break;
+    }
+    case 'comp_resultats': {
+      const series = [];
+      if (sigResult)   series.push({ name: labelN,  labels: ['Courant', 'Excep.', 'Net'], values: [sigVal(sigResult,   'resultat_courant'), sigVal(sigResult,   'resultat_exceptionnel'), sigVal(sigResult,   'resultat_net')] });
+      if (sigResultN1) series.push({ name: labelN1, labels: ['Courant', 'Excep.', 'Net'], values: [sigVal(sigResultN1, 'resultat_courant'), sigVal(sigResultN1, 'resultat_exceptionnel'), sigVal(sigResultN1, 'resultat_net')] });
+      if (sigResultN2) series.push({ name: labelN2, labels: ['Courant', 'Excep.', 'Net'], values: [sigVal(sigResultN2, 'resultat_courant'), sigVal(sigResultN2, 'resultat_exceptionnel'), sigVal(sigResultN2, 'resultat_net')] });
+      const chartData = series.map((s, i) => ({
+        name: s.name,
+        labels: s.labels,
+        values: s.values.map(v => Math.round(v ?? 0)),
+        color: SERIES_COLORS[i] ?? CLR.grey,
+      }));
+      addBarChartZone(slide, chartData, zone);
+      break;
+    }
+    case 'comp_fr_ca': {
+      const vals = compValuesLocal(
+        () => safeDiv(bilanData?.ratios?.fondsRoulement?.value, sigVal(sigResult, 'chiffre_affaires')),
+        () => safeDiv(bilanDataN1?.ratios?.fondsRoulement?.value, sigVal(sigResultN1, 'chiffre_affaires')),
+        () => safeDiv(bilanDataN2?.ratios?.fondsRoulement?.value, sigVal(sigResultN2, 'chiffre_affaires')),
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_cp_passif': {
+      const vals = compValuesLocal(
+        () => bilanData?.ratios?.autonomieFinanciere?.value ?? null,
+        () => bilanDataN1?.ratios?.autonomieFinanciere?.value ?? null,
+        () => bilanDataN2?.ratios?.autonomieFinanciere?.value ?? null,
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_cs_ca': {
+      const vals = compValuesLocal(
+        () => safeDiv(bilanData?.capitauxPropres?.capital_social?.montant, sigVal(sigResult, 'chiffre_affaires')),
+        () => safeDiv(bilanDataN1?.capitauxPropres?.capital_social?.montant, sigVal(sigResultN1, 'chiffre_affaires')),
+        () => safeDiv(bilanDataN2?.capitauxPropres?.capital_social?.montant, sigVal(sigResultN2, 'chiffre_affaires')),
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_cs_vbm': {
+      const vals = compValuesLocal(
+        () => safeDiv(bilanData?.capitauxPropres?.capital_social?.montant, bilanData?.valeurBruteMateriels),
+        () => safeDiv(bilanDataN1?.capitauxPropres?.capital_social?.montant, bilanDataN1?.valeurBruteMateriels),
+        () => safeDiv(bilanDataN2?.capitauxPropres?.capital_social?.montant, bilanDataN2?.valeurBruteMateriels),
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_cs_cp': {
+      const vals = compValuesLocal(
+        () => safeDiv(bilanData?.capitauxPropres?.capital_social?.montant, bilanData?.capitauxPropres?._sousTotal),
+        () => safeDiv(bilanDataN1?.capitauxPropres?.capital_social?.montant, bilanDataN1?.capitauxPropres?._sousTotal),
+        () => safeDiv(bilanDataN2?.capitauxPropres?.capital_social?.montant, bilanDataN2?.capitauxPropres?._sousTotal),
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_creances': {
+      const getCreances = (bilan) => {
+        if (!bilan) return null;
+        const ac = bilan.actifCirculant;
+        return (ac?.creances_adherents?.montant ?? 0) + (ac?.creances_exploitation?.montant ?? 0);
+      };
+      const vals = compValuesLocal(
+        () => safeDiv(getCreances(bilanData), sigVal(sigResult, 'chiffre_affaires')),
+        () => safeDiv(getCreances(bilanDataN1), sigVal(sigResultN1, 'chiffre_affaires')),
+        () => safeDiv(getCreances(bilanDataN2), sigVal(sigResultN2, 'chiffre_affaires')),
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_endettement': {
+      const getEndet = (bilan) => {
+        if (!bilan) return null;
+        return safeDiv(bilan.dettes?._sousTotal, bilan.capitauxPropres?._sousTotal);
+      };
+      const vals = compValuesLocal(
+        () => getEndet(bilanData),
+        () => getEndet(bilanDataN1),
+        () => getEndet(bilanDataN2),
+      );
+      addBarChartZone(slide, toBarChartDataMulti(vals), zone);
+      break;
+    }
+    case 'comp_treso_mois': {
+      const labels = monthlyTreasury(treasuryData, parsedFec);
+      const series = [];
+      if (labels.length) series.push({ name: labelN, labels: labels.map(d => d.label), values: labels.map(d => d.value) });
+      const dataN1 = monthlyTreasury(storeData.treasuryDataN1, storeData.parsedFecN1);
+      if (dataN1.length) series.push({ name: labelN1, labels: dataN1.map(d => d.label), values: dataN1.map(d => d.value) });
+      if (series.length) addLineChartZone(slide, series, zone);
+      break;
+    }
+    case 'treso_courbe': {
+      const tresoData = monthlyTreasury(treasuryData, parsedFec);
+      if (tresoData.length) {
+        addLineChartZone(slide, [{ name: labelN, labels: tresoData.map(d => d.label), values: tresoData.map(d => d.value) }], zone);
+      }
+      break;
+    }
+    case 'comp_ca_mensuel': {
+      const series = [];
+      const dataN  = monthlyCA(sigResult);
+      const dataN1m = monthlyCA(sigResultN1);
+      const dataN2m = monthlyCA(sigResultN2);
+      if (dataN.length)  series.push({ name: labelN,  labels: dataN.map(d => d.label),  values: dataN.map(d => d.value)  });
+      if (dataN1m.length) series.push({ name: labelN1, labels: dataN1m.map(d => d.label), values: dataN1m.map(d => d.value) });
+      if (dataN2m.length) series.push({ name: labelN2, labels: dataN2m.map(d => d.label), values: dataN2m.map(d => d.value) });
+      if (series.length) addLineChartZone(slide, series, zone);
+      break;
+    }
+    case 'charges_donut': {
+      addDonutChartZone(slide, chargesData?.categories, zone);
+      break;
+    }
+    case 'bilan_simplifie': {
+      addBilanRatiosZone(slide, bilanData, zone);
+      break;
+    }
+    case 'top3_materiels': {
+      const mats = analytiqueData?.materiels
+        ? [...analytiqueData.materiels].sort((a, b) => (b.totalProduit ?? 0) - (a.totalProduit ?? 0)).slice(0, 3)
+        : [];
+      if (!mats.length) break;
+      const colW = zone.w / 3 - 0.05;
+      mats.forEach((mat, i) => {
+        const x = zone.x + i * (colW + 0.075);
+        slide.addText(`${i + 1}. ${mat.label || mat.code || `Matériel ${i + 1}`}`, {
+          x, y: zone.y, w: colW, h: 0.3,
+          fontSize: 10, bold: true, color: SERIES_COLORS[i] ?? CLR.text, fontFace: 'Calibri', wrap: true,
+        });
+        const rows = [
+          { label: 'Produits', value: fmt(mat.totalProduit) },
+          { label: 'Charges',  value: fmt(mat.totalCharge) },
+          { label: 'Tx couv.', value: fmtPct(mat.txCouverture) },
+        ];
+        rows.forEach((r, j) => {
+          slide.addText(r.label, {
+            x, y: zone.y + 0.35 + j * 0.38, w: colW * 0.5, h: 0.35,
+            fontSize: 9, color: CLR.grey, fontFace: 'Calibri',
+          });
+          slide.addText(r.value, {
+            x: x + colW * 0.5, y: zone.y + 0.35 + j * 0.38, w: colW * 0.5, h: 0.35,
+            fontSize: 11, bold: true, color: CLR.text, fontFace: 'Calibri', align: 'right',
+          });
+        });
+      });
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// addBuilderSlide — construit une diapositive depuis les données du builder
+// ---------------------------------------------------------------------------
+
+function addBuilderSlide(pptx, slideData, coverInfo, storeData) {
+  const template = TEMPLATES.find(t => t.id === slideData.templateId) ?? TEMPLATES[0];
+  const slide = pptx.addSlide();
+
+  // Titre
+  if (slideData.title) {
+    slide.addText(slideData.title, {
+      x: 0.4, y: 0.28, w: 12.53, h: 0.55,
+      fontSize: 22,
+      bold: true,
+      color: '1A202C',
+      fontFace: 'Calibri',
+    });
+  }
+
+  // Ligne de séparation sous le titre
+  slide.addShape('rect', {
+    x: 0.4, y: 0.83, w: 12.53, h: 0.02,
+    fill: { color: 'E2E8F0' },
+    line: { color: 'E2E8F0' },
+  });
+
+  // Footer
+  addFooter(slide, coverInfo.cumaName ?? '', coverInfo.exerciceLabel ?? '');
+
+  // Zones
+  (slideData.zones ?? []).forEach((zone, i) => {
+    const zoneDef = template.zones[i];
+    if (!zoneDef) return;
+
+    if (zone.type === 'text') {
+      addTextToZone(slide, zone.content, zoneDef);
+    } else if (zone.type === 'graph' && zone.graphId) {
+      addGraphToZone(slide, zone.graphId, zoneDef, storeData);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// generateBuilderPptx — point d'entrée public du constructeur
+// ---------------------------------------------------------------------------
+
+/**
+ * Génère et télécharge un fichier .pptx depuis le constructeur de slides.
+ *
+ * @param {object} params
+ * @param {Array}    params.slides      — diaporamaSlides du store
+ * @param {object}   params.coverInfo   — { cumaName, exerciceLabel, logoDataUrl }
+ * @param {object}   params.storeData   — snapshot du store Zustand
+ * @param {function} [params.onProgress]
+ */
+export async function generateBuilderPptx({ slides, coverInfo, storeData, onProgress }) {
+  const progress = (msg) => onProgress?.(msg);
+
+  progress('Initialisation…');
+
+  const pptx = new PptxGenJS();
+  pptx.layout  = 'LAYOUT_WIDE';
+  pptx.title   = ['Clario Vision', coverInfo.cumaName, coverInfo.exerciceLabel].filter(Boolean).join(' — ');
+  pptx.author  = 'Clario Vision';
+
+  // Page de garde
+  progress('Page de garde…');
+  addCoverSlide(pptx, coverInfo);
+
+  // Slides utilisateur
+  for (let i = 0; i < slides.length; i++) {
+    const slideData = slides[i];
+    progress(`Slide ${i + 1} / ${slides.length}…`);
+    addBuilderSlide(pptx, slideData, coverInfo, storeData);
+  }
+
+  // Écriture du fichier
+  progress('Génération du fichier…');
+  const siren = storeData.parsedFec?.siren || 'diaporama';
+  await pptx.writeFile({ fileName: `${siren}_diaporama.pptx` });
   progress('Terminé');
 }

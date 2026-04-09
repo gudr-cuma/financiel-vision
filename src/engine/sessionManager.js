@@ -55,6 +55,14 @@ export function exportSession(storeState) {
       analyseIAText:       analyseIAText ?? '',
       activeSection:       activeSection ?? 'analyseur',
       activeTab:           activeTab     ?? 'sig',
+      diaporama: {
+        cover: {
+          cumaName:      storeState.diaporamaCover?.cumaName      ?? '',
+          exerciceLabel: storeState.diaporamaCover?.exerciceLabel ?? '',
+          // logoDataUrl excluded (too large for file)
+        },
+        slides: storeState.diaporamaSlides ?? [],
+      },
     },
   };
 

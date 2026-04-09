@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { TEMPLATES } from '../engine/diaporamaConfig';
 import { parseFec } from '../engine/parseFec';
 import { computeSig } from '../engine/computeSig';
 import { computeTreasury } from '../engine/computeTreasury';
@@ -46,6 +47,12 @@ const useStore = create((set, get) => ({
   parseWarnings: [],
   isDemo: false,
   pendingSession: null,  // contenu d'un .clario en attente de rechargement des fichiers
+
+  // -------------------------------------------------------------------------
+  // État — Constructeur de diaporama
+  // -------------------------------------------------------------------------
+  diaporamaCover:  { cumaName: '', exerciceLabel: '', logoDataUrl: null },
+  diaporamaSlides: [],
 
   // -------------------------------------------------------------------------
   // État — exercice N-1
@@ -391,6 +398,14 @@ const useStore = create((set, get) => ({
       set({ analyseIAText: session.analyseIAText });
     }
 
+    // Restaurer le diaporama
+    if (session.diaporama) {
+      set(state => ({
+        diaporamaCover:  { ...state.diaporamaCover, ...(session.diaporama.cover ?? {}) },
+        diaporamaSlides: session.diaporama.slides ?? [],
+      }));
+    }
+
     // Naviguer vers la section sauvegardée
     set({
       activeSection:  session.activeSection ?? 'analyseur',
@@ -401,6 +416,65 @@ const useStore = create((set, get) => ({
 
   /** Annule la restauration en cours */
   cancelSession: () => set({ pendingSession: null, activeSection: 'accueil' }),
+
+  // -------------------------------------------------------------------------
+  // Actions — Constructeur de diaporama
+  // -------------------------------------------------------------------------
+
+  /** Ajoute un slide basé sur un template */
+  addDiaporamaSlide: (templateId) => {
+    const template = TEMPLATES.find(t => t.id === templateId) ?? TEMPLATES[1];
+    const newSlide = {
+      id: Math.random().toString(36).substr(2, 9),
+      templateId: template.id,
+      title: '',
+      zones: template.zones.map(z => ({ type: z.defaultType, content: '', graphId: null })),
+    };
+    set(state => ({ diaporamaSlides: [...state.diaporamaSlides, newSlide] }));
+  },
+
+  /** Met à jour les propriétés d'un slide (title, templateId, zones…) */
+  updateDiaporamaSlide: (id, changes) => {
+    set(state => ({
+      diaporamaSlides: state.diaporamaSlides.map(s =>
+        s.id === id ? { ...s, ...changes } : s
+      ),
+    }));
+  },
+
+  /** Met à jour une zone d'un slide */
+  updateDiaporamaZone: (slideId, zoneIdx, changes) => {
+    set(state => ({
+      diaporamaSlides: state.diaporamaSlides.map(s => {
+        if (s.id !== slideId) return s;
+        const zones = s.zones.map((z, i) => i === zoneIdx ? { ...z, ...changes } : z);
+        return { ...s, zones };
+      }),
+    }));
+  },
+
+  /** Supprime un slide */
+  removeDiaporamaSlide: (id) => {
+    set(state => ({ diaporamaSlides: state.diaporamaSlides.filter(s => s.id !== id) }));
+  },
+
+  /** Déplace un slide vers le haut (-1) ou vers le bas (+1) */
+  moveDiaporamaSlide: (id, direction) => {
+    set(state => {
+      const slides = [...state.diaporamaSlides];
+      const idx = slides.findIndex(s => s.id === id);
+      if (idx < 0) return {};
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= slides.length) return {};
+      [slides[idx], slides[newIdx]] = [slides[newIdx], slides[idx]];
+      return { diaporamaSlides: slides };
+    });
+  },
+
+  /** Met à jour les informations de la page de garde */
+  updateDiaporamaCover: (changes) => {
+    set(state => ({ diaporamaCover: { ...state.diaporamaCover, ...changes } }));
+  },
 
   /** Charge toutes les sources de démo disponibles en une fois */
   loadDemoComplete: async () => {
@@ -449,6 +523,9 @@ const useStore = create((set, get) => ({
     isLoadingN1: false, errorN1: null,
     parsedFecN2: null, sigResultN2: null, bilanDataN2: null,
     isLoadingN2: false, errorN2: null,
+    // Réinitialiser le constructeur de diaporama
+    diaporamaCover:  { cumaName: '', exerciceLabel: '', logoDataUrl: null },
+    diaporamaSlides: [],
   }),
 }));
 
