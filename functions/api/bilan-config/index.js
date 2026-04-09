@@ -8,6 +8,7 @@ import { isValidUUID } from '../../_lib/validate.js';
 
 const VALID_TYPES = ['section', 'subsection', 'line', 'total', 'grandtotal', 'separator'];
 const VALID_DOCS  = ['actif', 'passif', 'resultat'];
+const VALID_MODES = ['SOLDE', 'TOTAL_DEBIT', 'TOTAL_CREDIT', 'TOTAL_DEBITEUR', 'TOTAL_CREDITEUR'];
 
 export async function onRequestGet(context) {
   const { env, data } = context;
@@ -26,6 +27,7 @@ export async function onRequestGet(context) {
     ...item,
     code_ranges:  item.code_ranges  ? JSON.parse(item.code_ranges)  : null,
     formula_refs: item.formula_refs ? JSON.parse(item.formula_refs) : null,
+    mode: item.mode ?? 'SOLDE',
     bold: !!item.bold,
   }));
   return json({ items: parsed });
@@ -55,6 +57,7 @@ export async function onRequestPut(context) {
     if (!VALID_DOCS.includes(item.doc))            return error(`doc invalide : ${item.doc}`);
     if (!VALID_TYPES.includes(item.type))          return error(`type invalide : ${item.type}`);
     if (typeof item.label !== 'string' || !item.label.trim()) return error('label manquant');
+    if (item.mode && !VALID_MODES.includes(item.mode)) return error(`mode invalide : ${item.mode}`);
     validated.push(item);
   }
 

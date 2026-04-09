@@ -159,7 +159,7 @@ export async function getUserEditPermissions(db, userId) {
  */
 export async function getBilanConfig(db) {
   const result = await db.prepare(
-    'SELECT id, doc, type, parent_id, position, label, code_ranges, credit_sign, formula_refs, bold FROM bilan_config ORDER BY doc, position'
+    'SELECT id, doc, type, parent_id, position, label, code_ranges, credit_sign, mode, formula_refs, bold FROM bilan_config ORDER BY doc, position'
   ).all();
   return result.results;
 }
@@ -176,7 +176,7 @@ export async function saveBilanConfig(db, items, userId) {
     db.prepare('DELETE FROM bilan_config'),
     ...items.map((item, i) =>
       db.prepare(
-        'INSERT INTO bilan_config (id, doc, type, parent_id, position, label, code_ranges, credit_sign, formula_refs, bold, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO bilan_config (id, doc, type, parent_id, position, label, code_ranges, credit_sign, mode, formula_refs, bold, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
         item.id,
         item.doc,
@@ -186,6 +186,7 @@ export async function saveBilanConfig(db, items, userId) {
         item.label,
         item.code_ranges ? JSON.stringify(item.code_ranges) : null,
         item.credit_sign ?? 1,
+        item.mode ?? 'SOLDE',
         item.formula_refs ? JSON.stringify(item.formula_refs) : null,
         item.bold ? 1 : 0,
         now,

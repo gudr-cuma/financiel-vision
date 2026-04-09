@@ -14,9 +14,12 @@ const TYPE_OPTIONS = [
   { value: 'separator',  label: 'Séparateur (ligne vide)' },
 ];
 
-const SENS_OPTIONS = [
-  { value: 1,  label: 'Solde débiteur net — Σ(Débit) − Σ(Crédit)  →  Actif, Charges' },
-  { value: -1, label: 'Solde créditeur net — Σ(Crédit) − Σ(Débit)  →  Passif, Produits' },
+const MODE_OPTIONS = [
+  { value: 'TOTAL_DEBITEUR',  label: 'Actif (solde débiteur net)',   hint: 'max(Σdébit − Σcrédit, 0) — Immobilisations, stocks, créances…' },
+  { value: 'TOTAL_CREDITEUR', label: 'Passif (solde créditeur net)',  hint: 'max(Σcrédit − Σdébit, 0) — Capitaux propres, dettes…' },
+  { value: 'TOTAL_DEBIT',     label: 'Charges (total flux débit)',    hint: 'Σdébit — Achats, personnel, dotations…' },
+  { value: 'TOTAL_CREDIT',    label: 'Produits (total flux crédit)',  hint: 'Σcrédit — CA, subventions, produits financiers…' },
+  { value: 'SOLDE',           label: 'Solde net signé',               hint: 'Σdébit − Σcrédit (peut être négatif) — résultats intermédiaires' },
 ];
 
 const btnStyle  = { padding: '3px 9px', fontSize: '12px', border: '1px solid #E2E8F0', borderRadius: '4px', background: '#f5f5f5', cursor: 'pointer' };
@@ -96,12 +99,12 @@ function ItemRow({ item, onUpdate, onDelete, onMove, autoExpand }) {
               </label>
 
               <label style={labelStyle}>
-                Sens du calcul
-                <select style={inputStyle} value={item.credit_sign ?? 1} onChange={e => onUpdate(item.id, 'credit_sign', parseInt(e.target.value))}>
-                  {SENS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                Mode de calcul
+                <select style={inputStyle} value={item.mode ?? 'SOLDE'} onChange={e => onUpdate(item.id, 'mode', e.target.value)}>
+                  {MODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <span style={hintStyle}>
-                  Le résultat sera positif quand le solde va dans le bon sens (ex : actif débiteur, produit créditeur).
+                  {MODE_OPTIONS.find(o => o.value === (item.mode ?? 'SOLDE'))?.hint}
                 </span>
               </label>
             </>
@@ -163,12 +166,17 @@ export function BilanParamConfigEditor() {
 
   const addItem = () => {
     const id = crypto.randomUUID();
+    // Choisir le mode par défaut selon le document actif
+    const defaultMode = activeDoc === 'actif' ? 'TOTAL_DEBITEUR'
+                      : activeDoc === 'passif' ? 'TOTAL_CREDITEUR'
+                      : 'TOTAL_DEBIT'; // résultat → charges par défaut
     const newItem = {
       id,
       doc: activeDoc,
       type: 'line',
       label: '',
       code_ranges: [],
+      mode: defaultMode,
       credit_sign: 1,
       formula_refs: null,
       bold: false,

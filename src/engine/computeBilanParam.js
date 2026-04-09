@@ -2,73 +2,74 @@
  * computeBilanParam.js
  * Calcule les montants du bilan paramétrable à partir du FEC parsé et de la config D1.
  *
- * Logique :
- * - type='line'        → Σ(débit−crédit) × credit_sign  sur les comptes correspondants (hors ANC)
- * - type='total'       → évalue formula_refs (somme de ±montants d'autres items par ID)
- * - type='grandtotal'  → idem
- * - type='section','subsection','separator' → pas de montant propre
+ * Modes de calcul (colonne `mode` de bilan_config) :
+ *   SOLDE          = Σdébit − Σcrédit  (signé, peut être négatif)
+ *   TOTAL_DEBIT    = Σdébit             (flux charges — toujours positif)
+ *   TOTAL_CREDIT   = Σcrédit            (flux produits — toujours positif)
+ *   TOTAL_DEBITEUR = max(Σdébit − Σcrédit, 0)   → part active du compte
+ *   TOTAL_CREDITEUR= max(Σcrédit − Σdébit, 0)   → part passive du compte
  *
- * Spécificité CUMA compte 45 :
- * Si un item de l'actif a code_ranges incluant '45' et credit_sign=1 → on n'inclut que la part débitrice nette.
- * Si un item du passif a code_ranges incluant '45' et credit_sign=-1 → on n'inclut que la part créditrice nette.
- * (solde net global des 45* calculé une seule fois)
+ * Les types 'total' et 'grandtotal' utilisent formula_refs : ["+id", "-id", ...]
+ * Les types 'section', 'subsection', 'separator' n'ont pas de montant propre.
+ *
+ * Spécificité CUMA compte 45 : géré naturellement par TOTAL_DEBITEUR (actif)
+ * et TOTAL_CREDITEUR (passif) — aucune logique spéciale requise.
  */
 
 /**
- * @param {object[]} config  — items D1 (avec code_ranges et formula_refs déjà désérialisés)
- * @param {object}   parsedFec — { entries: [] } où chaque entry a { CompteNum, Debit, Credit, JournalCode }
+ * Fonctions de calcul par mode.
+ * @param {number} td  Σ débits pour le groupe de comptes
+ * @param {number} tc  Σ crédits pour le groupe de comptes
+ */
+const MODE_FN = {
+  SOLDE:           (td, tc) => td - tc,
+  TOTAL_DEBIT:     (td, tc) => td,
+  TOTAL_CREDIT:    (td, tc) => tc,
+  TOTAL_DEBITEUR:  (td, tc) => Math.max(td - tc, 0),
+  TOTAL_CREDITEUR: (td, tc) => Math.max(tc - td, 0),
+};
+
+/**
+ * @param {object[]} config   — items D1 (code_ranges et formula_refs déjà désérialisés)
+ * @param {object}   parsedFec — { entries: [] }  chaque entry : { CompteNum, Debit, Credit, JournalCode }
  * @returns {{ actif: object[], passif: object[], resultat: object[] }}
  */
 export function computeBilanParam(config, parsedFec) {
+  // Exclure les écritures ANC (à-nouveau) — elles concernent le bilan d'ouverture
   const entries = (parsedFec?.entries ?? []).filter(e => e.JournalCode !== 'ANC');
 
-  // ── Pré-calcul solde net global du compte 45 (adhérents CUMA) ──────────────
-  let solde45 = 0;
+  // ── Pré-agréger toutes les écritures par compte ──────────────────────────
+  // accountMap : { compteNum → { td: Σdébits, tc: Σcrédits } }
+  const accountMap = {};
   for (const e of entries) {
-    if (e.CompteNum?.startsWith('45')) {
-      solde45 += (e.Debit ?? 0) - (e.Credit ?? 0);
-    }
+    const num = e.CompteNum;
+    if (!num) continue;
+    if (!accountMap[num]) accountMap[num] = { td: 0, tc: 0 };
+    accountMap[num].td += e.Debit  ?? 0;
+    accountMap[num].tc += e.Credit ?? 0;
   }
 
-  // ── Calcul du montant brut d'un item type=line ─────────────────────────────
+  // ── Calcul du montant d'un item type=line ─────────────────────────────────
   function computeLine(item) {
     const ranges = item.code_ranges ?? [];
     if (ranges.length === 0) return 0;
 
-    const has45 = ranges.includes('45');
+    const modeFn = MODE_FN[item.mode] ?? MODE_FN.SOLDE;
 
-    let sum = 0;
-    for (const e of entries) {
-      const num = e.CompteNum ?? '';
+    let td = 0;
+    let tc = 0;
 
-      // Traitement spécial compte 45
-      if (has45 && num.startsWith('45')) {
-        // Géré séparément via solde45 — on skip ici
-        continue;
+    for (const [num, sums] of Object.entries(accountMap)) {
+      if (ranges.some(r => num.startsWith(r))) {
+        td += sums.td;
+        tc += sums.tc;
       }
-
-      const match = ranges.some(r => num.startsWith(r));
-      if (!match) continue;
-
-      sum += (e.Debit ?? 0) - (e.Credit ?? 0);
     }
 
-    // Injecter la part 45 selon le signe
-    if (has45) {
-      if (item.credit_sign === 1 && solde45 > 0) {
-        // Actif : inclure seulement si débiteur net
-        sum += solde45;
-      } else if (item.credit_sign === -1 && solde45 < 0) {
-        // Passif : inclure seulement si créditeur net (valeur absolue)
-        sum += -solde45;
-      }
-      // Sinon contribution nulle
-    }
-
-    return sum * (item.credit_sign ?? 1);
+    return modeFn(td, tc);
   }
 
-  // ── Calcul de tous les items en deux passes ────────────────────────────────
+  // ── Calcul de tous les items ──────────────────────────────────────────────
   const amountById = {};
 
   // Passe 1 : items type=line
@@ -78,15 +79,15 @@ export function computeBilanParam(config, parsedFec) {
     }
   }
 
-  // Passe 2 : items type=total/grandtotal (évaluer formula_refs)
-  // Peut nécessiter plusieurs passes si des totaux référencent d'autres totaux
+  // Passe 2 (multi-passes) : items type=total/grandtotal via formula_refs
+  // Nécessaire car un grandtotal peut référencer d'autres totaux
   const totalItems = config.filter(i => i.type === 'total' || i.type === 'grandtotal');
   let maxPasses = 10;
   while (totalItems.some(i => amountById[i.id] === undefined) && maxPasses-- > 0) {
     for (const item of totalItems) {
       if (amountById[item.id] !== undefined) continue;
+
       const refs = item.formula_refs ?? [];
-      // Vérifier que toutes les références sont résolues
       const allResolved = refs.every(ref => {
         const refId = ref.replace(/^[+-]/, '');
         return amountById[refId] !== undefined;
@@ -103,7 +104,7 @@ export function computeBilanParam(config, parsedFec) {
     }
   }
 
-  // ── Enrichir chaque item avec son montant ──────────────────────────────────
+  // ── Enrichir chaque item avec son montant calculé ─────────────────────────
   const enriched = config.map(item => ({
     ...item,
     amount: amountById[item.id] ?? null,
