@@ -23,9 +23,11 @@ import BilanCRTab from './components/bilanCR/BilanCRTab';
 import BilanParamTab from './components/bilanParam/BilanParamTab';
 import ExportTab from './components/export/ExportTab';
 import AccueilTab from './components/accueil/AccueilTab';
+import SessionRestoreModal from './components/session/SessionRestoreModal';
 
 export default function App() {
-  const activeSection = useStore(s => s.activeSection);
+  const activeSection   = useStore(s => s.activeSection);
+  const pendingSession  = useStore(s => s.pendingSession);
   const activeTab     = useStore(s => s.activeTab);
   const error         = useStore(s => s.error);
   const clearError    = useStore(s => s.clearError);
@@ -96,6 +98,9 @@ export default function App() {
             />
           </div>
         )}
+
+        {/* Modal de restauration de session — overlay prioritaire */}
+        {pendingSession !== null && <SessionRestoreModal />}
 
         <div className="max-w-[1280px] mx-auto px-6 pb-4">
           <MainNav />

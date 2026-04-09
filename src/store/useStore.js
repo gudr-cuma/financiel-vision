@@ -8,6 +8,7 @@ import { computeAnalyseurFec } from '../engine/computeAnalyseurFec';
 import { parseDossierGestion } from '../engine/parseDossierGestion';
 import { parseBilanCR } from '../engine/parseBilanCR';
 import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal } from '../engine/computeAnalytique';
+import { exportSession, parseSessionFile, addRecentSession } from '../engine/sessionManager';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -44,6 +45,7 @@ const useStore = create((set, get) => ({
   error: null,
   parseWarnings: [],
   isDemo: false,
+  pendingSession: null,  // contenu d'un .clario en attente de rechargement des fichiers
 
   // -------------------------------------------------------------------------
   // État — exercice N-1
@@ -342,6 +344,64 @@ const useStore = create((set, get) => ({
 
   clearError: () => set({ error: null }),
 
+  // -------------------------------------------------------------------------
+  // Actions — Session save / restore (.clario)
+  // -------------------------------------------------------------------------
+
+  /** Génère et télécharge le fichier .clario de la session courante */
+  saveSession: () => {
+    exportSession(get());
+  },
+
+  /** Lit un fichier .clario et prépare la restauration */
+  openSession: async (file) => {
+    try {
+      const data = await parseSessionFile(file);
+      addRecentSession(data.metadata);
+      set({ pendingSession: data, activeSection: 'session-restore' });
+    } catch (err) {
+      set({ error: err.message });
+    }
+  },
+
+  /** Applique les données de session après rechargement des fichiers sources */
+  applySession: () => {
+    const { pendingSession, dossierData } = get();
+    if (!pendingSession) return;
+
+    const { session } = pendingSession;
+
+    // Restaurer les données du dossier de gestion
+    if (dossierData) {
+      const newIdx = session.selectedCumaIndex ?? 0;
+      const newVariables = dossierData.cumaList?.[newIdx] ?? dossierData.variables;
+      set(state => ({
+        dossierData: {
+          ...state.dossierData,
+          selectedCumaIndex: newIdx,
+          variables: newVariables,
+          overrides: session.dossierOverrides ?? {},
+          comments:  { ...(state.dossierData.comments ?? {}), ...(session.dossierComments ?? {}) },
+        },
+      }));
+    }
+
+    // Restaurer le rapport IA
+    if (session.analyseIAText) {
+      set({ analyseIAText: session.analyseIAText });
+    }
+
+    // Naviguer vers la section sauvegardée
+    set({
+      activeSection:  session.activeSection ?? 'analyseur',
+      activeTab:      session.activeTab     ?? 'sig',
+      pendingSession: null,
+    });
+  },
+
+  /** Annule la restauration en cours */
+  cancelSession: () => set({ pendingSession: null, activeSection: 'accueil' }),
+
   /** Charge toutes les sources de démo disponibles en une fois */
   loadDemoComplete: async () => {
     set({ isLoadingDemo: true });
@@ -383,6 +443,7 @@ const useStore = create((set, get) => ({
     error: null,
     parseWarnings: [],
     isDemo: false,
+    pendingSession: null,
     // Réinitialiser aussi le N-1 et N-2
     parsedFecN1: null, sigResultN1: null, treasuryDataN1: null, chargesDataN1: null, bilanDataN1: null,
     isLoadingN1: false, errorN1: null,

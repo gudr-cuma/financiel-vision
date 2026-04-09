@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
+import { getRecentSessions, removeRecentSession } from '../../engine/sessionManager';
 
 const MODULES = [
   {
@@ -141,10 +142,30 @@ function ModuleCard({ module, onClick, disabled }) {
 
 export function AccueilTab() {
   const setActiveSection = useStore(s => s.setActiveSection);
+  const openSession      = useStore(s => s.openSession);
   const hasPermission    = useAuthStore(s => s.hasPermission);
   const currentUser      = useAuthStore(s => s.currentUser);
 
   const isAdmin = currentUser?.role === 'admin';
+
+  const [recentSessions, setRecentSessions] = useState(() => getRecentSessions());
+  const clarioRef = useRef();
+
+  // Rafraîchir la liste à chaque fois que l'onglet Accueil est affiché
+  useEffect(() => {
+    setRecentSessions(getRecentSessions());
+  }, []);
+
+  const handleClarioFile = (e) => {
+    const file = e.target.files?.[0];
+    if (file) openSession(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveRecent = (siren, exercice) => {
+    removeRecentSession(siren, exercice);
+    setRecentSessions(getRecentSessions());
+  };
 
   return (
     <div style={{ paddingTop: '32px', paddingBottom: '60px' }}>
@@ -263,6 +284,92 @@ export function AccueilTab() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ── Dossiers récents ─────────────────────────────────────────────────── */}
+      <div style={{
+        background: '#FFFFFF',
+        border: '1px solid #E2E8F0',
+        borderRadius: '14px',
+        padding: '28px 32px',
+        marginBottom: '28px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1A202C', margin: 0 }}>
+            Dossiers récents
+          </h2>
+          <button
+            onClick={() => clarioRef.current?.click()}
+            style={{
+              fontSize: '13px', fontWeight: 600,
+              color: '#FFFFFF', background: '#FF8200',
+              border: 'none', borderRadius: '8px',
+              padding: '8px 16px', cursor: 'pointer',
+              transition: 'background 150ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#E57300'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#FF8200'; }}
+          >
+            📂 Ouvrir un dossier .clario
+          </button>
+          <input ref={clarioRef} type="file" accept=".clario,.json" style={{ display: 'none' }} onChange={handleClarioFile} />
+        </div>
+
+        {recentSessions.length === 0 ? (
+          <div style={{ fontSize: '13px', color: '#A0AEC0', textAlign: 'center', padding: '20px 0' }}>
+            Aucun dossier récent — enregistrez votre première session via le bouton <strong>💾 Enregistrer</strong> dans le bandeau supérieur.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {recentSessions.map((s, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '12px 14px',
+                background: '#F8FAFB',
+                border: '1px solid #E2E8F0',
+                borderRadius: '10px',
+              }}>
+                <div style={{ fontSize: '18px' }}>📁</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#1A202C' }}>
+                    {s.cumaName || s.siren || 'Dossier sans nom'}{s.exercice ? ` — ${s.exercice}` : ''}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#A0AEC0' }}>
+                    Ouvert le {new Date(s.lastOpenedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {s.siren ? ` · SIREN ${s.siren}` : ''}
+                  </div>
+                </div>
+                <button
+                  onClick={() => clarioRef.current?.click()}
+                  title="Ouvrir ce dossier (sélectionnez le fichier .clario)"
+                  style={{
+                    fontSize: '12px', fontWeight: 600,
+                    color: '#FF8200', background: 'transparent',
+                    border: '1px solid #FECB89', borderRadius: '6px',
+                    padding: '5px 12px', cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Ouvrir
+                </button>
+                <button
+                  onClick={() => handleRemoveRecent(s.siren, s.exercice)}
+                  title="Retirer de la liste"
+                  style={{
+                    fontSize: '14px', color: '#CBD5E0',
+                    background: 'transparent', border: 'none',
+                    cursor: 'pointer', padding: '4px',
+                    borderRadius: '4px', lineHeight: 1,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#E53935'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#CBD5E0'; }}
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── FAQ ───────────────────────────────────────────────────────────────── */}

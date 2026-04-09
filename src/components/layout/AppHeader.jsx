@@ -202,12 +202,17 @@ function PrivacyModal({ onClose }) {
 // AppHeader
 // ---------------------------------------------------------------------------
 export function AppHeader() {
-  const parsedFec = useStore((s) => s.parsedFec);
-  const isDemo           = useStore((s) => s.isDemo);
-  const reset            = useStore((s) => s.reset);
+  const parsedFec      = useStore((s) => s.parsedFec);
+  const dossierData    = useStore((s) => s.dossierData);
+  const analyseIAText  = useStore((s) => s.analyseIAText);
+  const isDemo         = useStore((s) => s.isDemo);
+  const reset          = useStore((s) => s.reset);
   const loadDemoComplete = useStore((s) => s.loadDemoComplete);
   const setActiveSection = useStore((s) => s.setActiveSection);
+  const saveSession    = useStore((s) => s.saveSession);
   const [showPrivacy, setShowPrivacy] = useState(false);
+
+  const hasSomethingToSave = parsedFec !== null || dossierData !== null || (analyseIAText ?? '') !== '';
 
   const currentUser = useAuthStore((s) => s.currentUser);
   const logout      = useAuthStore((s) => s.logout);
@@ -299,6 +304,26 @@ export function AppHeader() {
                 </span>
               )}
             </div>
+          )}
+
+          {/* Bouton Enregistrer session */}
+          {hasSomethingToSave && !isDemo && (
+            <button
+              onClick={saveSession}
+              title="Enregistrer la session en cours dans un fichier .clario"
+              style={{
+                fontSize: '12px', fontWeight: 600,
+                color: '#FFFFFF', backgroundColor: '#31B700',
+                border: 'none', borderRadius: '6px',
+                padding: '5px 12px', cursor: 'pointer',
+                whiteSpace: 'nowrap', transition: 'background-color 150ms',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#268E00'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#31B700'; }}
+            >
+              💾 Enregistrer
+            </button>
           )}
 
           {isDemo && (
