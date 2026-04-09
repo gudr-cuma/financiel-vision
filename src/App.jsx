@@ -1,11 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import useStore from './store/useStore';
 import useAuthStore from './store/useAuthStore';
 import { LoginPage } from './components/auth/LoginPage';
 import AdminPanel from './components/admin/AdminPanel';
 import AppHeader from './components/layout/AppHeader';
 import KpiBar from './components/layout/KpiBar';
-import MainNav from './components/layout/MainNav';
+import SideNav from './components/layout/SideNav';
 import TabNav from './components/layout/TabNav';
 import SigTable from './components/sig/SigTable';
 import ErrorBanner from './components/shared/ErrorBanner';
@@ -26,27 +26,38 @@ import AccueilTab from './components/accueil/AccueilTab';
 import SessionRestoreModal from './components/session/SessionRestoreModal';
 
 export default function App() {
+  // ── État sidebar ──────────────────────────────────────────────────────────
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('clario_sidebar_collapsed') === 'true'
+  );
+  const sidebarWidth = sidebarCollapsed ? 56 : 220;
+
+  const handleSidebarToggle = () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    localStorage.setItem('clario_sidebar_collapsed', String(next));
+  };
+
+  // ── Store ─────────────────────────────────────────────────────────────────
   const activeSection   = useStore(s => s.activeSection);
   const pendingSession  = useStore(s => s.pendingSession);
-  const activeTab     = useStore(s => s.activeTab);
-  const error         = useStore(s => s.error);
-  const clearError    = useStore(s => s.clearError);
-  const parseWarnings = useStore(s => s.parseWarnings);
+  const activeTab       = useStore(s => s.activeTab);
+  const error           = useStore(s => s.error);
+  const clearError      = useStore(s => s.clearError);
+  const parseWarnings   = useStore(s => s.parseWarnings);
+  const reset           = useStore(s => s.reset);
 
   const init            = useAuthStore(s => s.init);
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const isAuthLoading   = useAuthStore(s => s.isLoading);
 
-  // Vérifier la session au montage
   useEffect(() => { init(); }, []);
 
-  // Réinitialiser les données métier à la déconnexion
-  const reset = useStore(s => s.reset);
   useEffect(() => {
     if (!isAuthenticated && !isAuthLoading) reset();
   }, [isAuthenticated, isAuthLoading]);
 
-  // Pendant le check initial : splash minimaliste
+  // ── Splash loading ────────────────────────────────────────────────────────
   if (isAuthLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFB' }}>
@@ -62,34 +73,27 @@ export default function App() {
     );
   }
 
-  // Non authentifié → page de login
+  // ── Non authentifié ───────────────────────────────────────────────────────
   if (!isAuthenticated) return <LoginPage />;
 
-  // Admin panel
-  if (activeSection === 'admin') {
-    return (
-      <div className="min-h-screen bg-fv-bg-secondary">
-        <AppHeader />
-        <div style={{ paddingTop: '65px' }}>
-          <div className="max-w-[1280px] mx-auto px-6 pb-4">
-            <AdminPanel />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // ── App principale ────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-fv-bg-secondary">
       <AppHeader />
+      <SideNav collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
-      <div style={{ paddingTop: '65px' }}>
+      <div style={{
+        paddingTop: '65px',
+        marginLeft: `${sidebarWidth}px`,
+        transition: 'margin-left 200ms ease',
+        minHeight: '100vh',
+      }}>
+        {/* Bannières erreurs */}
         {error && (
           <div className="max-w-[1280px] mx-auto px-6 pt-4">
             <ErrorBanner message={error} onClose={clearError} />
           </div>
         )}
-
         {parseWarnings.length > 0 && (
           <div className="max-w-[1280px] mx-auto px-6 pt-2">
             <ErrorBanner
@@ -99,41 +103,44 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal de restauration de session — overlay prioritaire */}
+        {/* Modal de restauration de session */}
         {pendingSession !== null && <SessionRestoreModal />}
 
         <div className="max-w-[1280px] mx-auto px-6 pb-4">
-          <MainNav />
 
-          {/* KpiBar uniquement dans la section Dashboard */}
-          {activeSection === 'dashboard' && <KpiBar />}
+          {/* Administration */}
+          {activeSection === 'admin' && <AdminPanel />}
 
-          {/* Sous-navigation financière (uniquement dans Dashboard) */}
-          <TabNav />
+          {/* Sections principales */}
+          {activeSection !== 'admin' && (
+            <>
+              {activeSection === 'dashboard' && <KpiBar />}
+              <TabNav />
+              <main>
+                {activeSection === 'accueil'    && <AccueilTab />}
+                {activeSection === 'analyseur'  && <AnalyseurTab />}
 
-          <main>
-            {activeSection === 'accueil'   && <AccueilTab />}
-            {activeSection === 'analyseur' && <AnalyseurTab />}
+                {activeSection === 'dashboard' && (
+                  <>
+                    {activeTab === 'sig'         && <SigTable />}
+                    {activeTab === 'monthly'     && <MonthlyTab />}
+                    {activeTab === 'treasury'    && <TreasuryTab />}
+                    {activeTab === 'charges'     && <ChargesTab />}
+                    {activeTab === 'balance'     && <BalanceTab />}
+                    {activeTab === 'comparaison' && <ComparaisonTab />}
+                    {activeTab === 'analytique'  && <AnalytiqueTab />}
+                  </>
+                )}
 
-            {activeSection === 'dashboard' && (
-              <>
-                {activeTab === 'sig'        && <SigTable />}
-                {activeTab === 'monthly'    && <MonthlyTab />}
-                {activeTab === 'treasury'   && <TreasuryTab />}
-                {activeTab === 'charges'    && <ChargesTab />}
-                {activeTab === 'balance'    && <BalanceTab />}
-                {activeTab === 'comparaison'&& <ComparaisonTab />}
-                {activeTab === 'analytique' && <AnalytiqueTab />}
-              </>
-            )}
-
-            {activeSection === 'dossier'    && <DossierTab />}
-            {activeSection === 'bilanCR'    && <BilanCRTab />}
-            {activeSection === 'bilanParam' && <BilanParamTab />}
-            {activeSection === 'editions' && <LivresTab />}
-            {activeSection === 'export'   && <ExportTab />}
-            {activeSection === 'analyse'  && <AnalyseTab />}
-          </main>
+                {activeSection === 'dossier'    && <DossierTab />}
+                {activeSection === 'bilanCR'    && <BilanCRTab />}
+                {activeSection === 'bilanParam' && <BilanParamTab />}
+                {activeSection === 'editions'   && <LivresTab />}
+                {activeSection === 'export'     && <ExportTab />}
+                {activeSection === 'analyse'    && <AnalyseTab />}
+              </main>
+            </>
+          )}
         </div>
       </div>
     </div>

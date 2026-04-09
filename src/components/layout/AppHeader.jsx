@@ -208,7 +208,6 @@ export function AppHeader() {
   const isDemo         = useStore((s) => s.isDemo);
   const reset          = useStore((s) => s.reset);
   const loadDemoComplete = useStore((s) => s.loadDemoComplete);
-  const setActiveSection = useStore((s) => s.setActiveSection);
   const saveSession    = useStore((s) => s.saveSession);
   const [showPrivacy, setShowPrivacy] = useState(false);
 
@@ -368,24 +367,6 @@ export function AppHeader() {
               <span style={{ fontSize: '13px', color: '#4A5568', fontWeight: 500 }}>
                 {currentUser.name}
               </span>
-              {/* Lien admin */}
-              {currentUser.role === 'admin' && (
-                <button
-                  onClick={() => setActiveSection('admin')}
-                  title="Gestion des utilisateurs"
-                  style={{
-                    fontSize: '12px', fontWeight: 500,
-                    color: '#718096', background: 'transparent',
-                    border: '1px solid #E2E8F0', borderRadius: '6px',
-                    padding: '5px 10px', cursor: 'pointer',
-                    whiteSpace: 'nowrap', transition: 'border-color 150ms, color 150ms',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#B1DCE2'; e.currentTarget.style.color = '#1A202C'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#718096'; }}
-                >
-                  ⚙️ Admin
-                </button>
-              )}
               {/* Déconnexion */}
               <button
                 onClick={logout}
