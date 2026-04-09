@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 import DossierSubNav from './DossierSubNav';
 import ResultatsTab from './ResultatsTab';
 import ChargesTab from './ChargesTab';
@@ -17,6 +18,7 @@ export function DossierTab() {
   const loadDemoGestion    = useStore(s => s.loadDemoGestion);
   const loadFecGestion     = useStore(s => s.loadFecGestion);
 
+  const canUploadFile = useAuthStore(s => s.canUploadFile);
   const [activeTab, setActiveTab] = useState('resultats');
   const [isDragging, setIsDragging] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -59,38 +61,40 @@ export function DossierTab() {
           Chargez le fichier Excel <strong>dossier_gestion.xlsx</strong> (feuille Publipostage) pour pré-remplir les tableaux.
         </p>
 
-        {/* Dropzone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            border: `2px dashed ${isDragging ? '#FF8200' : '#B1DCE2'}`,
-            borderRadius: '12px',
-            padding: '40px 24px',
-            textAlign: 'center',
-            cursor: 'pointer',
-            background: isDragging ? '#FFF3E0' : '#F8FAFB',
-            transition: 'all 150ms',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ fontSize: '32px', marginBottom: '12px' }}>📊</div>
-          <div style={{ fontSize: '15px', fontWeight: 600, color: '#1A202C', marginBottom: '6px' }}>
-            Glissez-déposez votre fichier Excel
+        {/* Dropzone — visible seulement si import autorisé */}
+        {canUploadFile() && (
+          <div
+            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${isDragging ? '#FF8200' : '#B1DCE2'}`,
+              borderRadius: '12px',
+              padding: '40px 24px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: isDragging ? '#FFF3E0' : '#F8FAFB',
+              transition: 'all 150ms',
+              marginBottom: '16px',
+            }}
+          >
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📊</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#1A202C', marginBottom: '6px' }}>
+              Glissez-déposez votre fichier Excel
+            </div>
+            <div style={{ fontSize: '13px', color: '#718096' }}>
+              ou cliquez pour parcourir — <strong>.xlsx</strong> uniquement
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: 'none' }}
+              onChange={e => e.target.files[0] && handleFile(e.target.files[0])}
+            />
           </div>
-          <div style={{ fontSize: '13px', color: '#718096' }}>
-            ou cliquez pour parcourir — <strong>.xlsx</strong> uniquement
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            style={{ display: 'none' }}
-            onChange={e => e.target.files[0] && handleFile(e.target.files[0])}
-          />
-        </div>
+        )}
 
         {/* Bouton démo */}
         <button
@@ -109,6 +113,12 @@ export function DossierTab() {
         >
           ⚡ Charger les données de démonstration
         </button>
+
+        {!canUploadFile() && (
+          <div style={{ marginTop: '10px', padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096' }}>
+            🔒 Import limité à la démonstration — droits non activés
+          </div>
+        )}
 
         {loadError && (
           <div style={{

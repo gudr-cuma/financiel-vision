@@ -9,7 +9,7 @@ import { json, error, notFound, forbidden, methodNotAllowed } from '../../../_li
 
 async function getUser(db, id) {
   return db.prepare(
-    'SELECT id, email, name, role, is_active, created_at, updated_at, last_login FROM users WHERE id = ?'
+    'SELECT id, email, name, role, is_active, created_at, updated_at, last_login, can_upload_file FROM users WHERE id = ?'
   ).bind(id).first();
 }
 
@@ -47,7 +47,7 @@ export async function onRequestPut(context) {
   try { body = await request.json(); }
   catch { return error('Corps de requête invalide'); }
 
-  const { name, role, is_active } = body ?? {};
+  const { name, role, is_active, can_upload_file } = body ?? {};
   const updates = [];
   const values  = [];
 
@@ -66,6 +66,9 @@ export async function onRequestPut(context) {
     updates.push('is_active = ?'); values.push(is_active ? 1 : 0);
     // Si on désactive, révoquer toutes les sessions
     if (!is_active) await revokeAllSessions(env.DB, id);
+  }
+  if (can_upload_file !== undefined) {
+    updates.push('can_upload_file = ?'); values.push(can_upload_file ? 1 : 0);
   }
 
   if (updates.length === 0) return error('Aucun champ à modifier');

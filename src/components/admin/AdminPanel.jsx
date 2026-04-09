@@ -35,6 +35,7 @@ function UserForm({ onSuccess, onCancel }) {
   const [role, setRole]         = useState('user');
   const [perms, setPerms]       = useState([]);     // sections avec can_access
   const [editPerms, setEditPerms] = useState([]);   // sections avec can_edit
+  const [canUploadFile, setCanUploadFile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]       = useState('');
 
@@ -56,7 +57,7 @@ function UserForm({ onSuccess, onCancel }) {
     }));
     const { ok, data } = await apiFetch('/api/admin/users', {
       method: 'POST',
-      body: JSON.stringify({ email, name, password, role, permissions }),
+      body: JSON.stringify({ email, name, password, role, permissions, can_upload_file: canUploadFile ? 1 : 0 }),
     });
     setIsLoading(false);
     if (ok) { onSuccess(data.user); }
@@ -91,7 +92,16 @@ function UserForm({ onSuccess, onCancel }) {
       </div>
 
       {role === 'user' && (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ padding: '12px 14px', background: '#F8FAFB', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#4A5568', marginBottom: '8px' }}>Import de fichiers</div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#2D3748' }}>
+              <input type="checkbox" checked={canUploadFile} onChange={e => setCanUploadFile(e.target.checked)} style={{ accentColor: '#31B700', width: '14px', height: '14px' }} />
+              <span>📥 Autoriser l'import de fichiers réels</span>
+              <span style={{ fontSize: '11px', color: '#A0AEC0' }}>(FEC, Dossier, Bilan&CR, Analytique)</span>
+            </label>
+          </div>
+          <div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Sections accessibles</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {ALL_SECTIONS.map(s => (
@@ -109,6 +119,7 @@ function UserForm({ onSuccess, onCancel }) {
                 )}
               </div>
             ))}
+          </div>
           </div>
         </div>
       )}
@@ -134,9 +145,10 @@ function UserForm({ onSuccess, onCancel }) {
 }
 
 // ── Éditeur de permissions inline ────────────────────────────────────────────
-function PermissionsEditor({ userId, initialPerms, initialEditPerms, onSaved }) {
+function PermissionsEditor({ userId, initialPerms, initialEditPerms, initialCanUploadFile, onSaved }) {
   const [perms, setPerms]         = useState(initialPerms);
   const [editPerms, setEditPerms] = useState(initialEditPerms ?? []);
+  const [canUploadFile, setCanUploadFile] = useState(!!initialCanUploadFile);
   const [isLoading, setIsLoading] = useState(false);
 
   const togglePerm = (id) => {
@@ -153,16 +165,28 @@ function PermissionsEditor({ userId, initialPerms, initialEditPerms, onSaved }) 
     const permissions = perms.map(section => ({
       section, can_access: 1, can_edit_param_bilan: editPerms.includes(section) ? 1 : 0,
     }));
-    const { ok } = await apiFetch(`/api/admin/users/${userId}/permissions`, {
-      method: 'PUT', body: JSON.stringify({ permissions }),
-    });
+    const [{ ok: okPerms }, { ok: okUser }] = await Promise.all([
+      apiFetch(`/api/admin/users/${userId}/permissions`, {
+        method: 'PUT', body: JSON.stringify({ permissions }),
+      }),
+      apiFetch(`/api/admin/users/${userId}`, {
+        method: 'PUT', body: JSON.stringify({ can_upload_file: canUploadFile ? 1 : 0 }),
+      }),
+    ]);
     setIsLoading(false);
-    if (ok) onSaved(perms, editPerms);
+    if (okPerms && okUser) onSaved(perms, editPerms, canUploadFile);
   };
 
   return (
     <div style={{ padding: '12px', background: '#F8FAFB', borderRadius: '8px', marginTop: '8px' }}>
-      <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Permissions :</div>
+      <div style={{ marginBottom: '10px', padding: '8px 10px', background: '#fff', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '12px', color: '#2D3748' }}>
+          <input type="checkbox" checked={canUploadFile} onChange={e => setCanUploadFile(e.target.checked)} style={{ accentColor: '#31B700', width: '13px', height: '13px' }} />
+          <span>📥 Import de fichiers réels</span>
+          <span style={{ fontSize: '10px', color: '#A0AEC0' }}>(FEC, Dossier, Bilan&CR, Analytique)</span>
+        </label>
+      </div>
+      <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Sections accessibles :</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '10px' }}>
         {ALL_SECTIONS.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px', borderRadius: '5px',
@@ -250,6 +274,7 @@ function UserRow({ user: initialUser, currentUserId, onDeleted }) {
           <div style={{ fontSize: '12px', color: '#718096' }}>{user.email}</div>
           {!isAdmin && user.permissions && (
             <div style={{ fontSize: '11px', color: '#A0AEC0', marginTop: '2px' }}>
+              {user.can_upload_file ? <span style={{ marginRight: '6px' }}>📥</span> : null}
               {user.permissions.length === 0 ? 'Aucun accès' : user.permissions.map(p => {
                 const s = ALL_SECTIONS.find(s => s.id === p);
                 const label = s?.label ?? p;
@@ -296,8 +321,9 @@ function UserRow({ user: initialUser, currentUserId, onDeleted }) {
             userId={user.id}
             initialPerms={user.permissions ?? []}
             initialEditPerms={user.editPermissions ?? []}
-            onSaved={(newPerms, newEditPerms) => {
-              setUser(u => ({ ...u, permissions: newPerms, editPermissions: newEditPerms }));
+            initialCanUploadFile={user.can_upload_file}
+            onSaved={(newPerms, newEditPerms, newCanUpload) => {
+              setUser(u => ({ ...u, permissions: newPerms, editPermissions: newEditPerms, can_upload_file: newCanUpload ? 1 : 0 }));
               setExpanded(false);
             }}
           />

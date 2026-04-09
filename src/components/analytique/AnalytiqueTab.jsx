@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal, CHARGE_CATEGORIES } from '../../engine/computeAnalytique';
 import { formatAmountFull } from '../../engine/formatUtils';
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -256,6 +257,7 @@ function DetailPanel({ m, onClose }) {
 // ---------------------------------------------------------------------------
 export function AnalytiqueTab() {
   const setAnalytiqueData = useStore(s => s.setAnalytiqueData);
+  const canUploadFile = useAuthStore(s => s.canUploadFile);
   const [materiels, setMateriels] = useState(null);
   const [global, setGlobal] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -350,32 +352,35 @@ export function AnalytiqueTab() {
           </div>
         )}
 
-        <div
-          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => document.getElementById('analytique-file-input').click()}
-          style={{
-            border: `2px dashed ${isDragging ? '#FF8200' : '#B1DCE2'}`,
-            borderRadius: '12px',
-            padding: '40px 24px',
-            cursor: 'pointer',
-            background: isDragging ? '#FFF3E0' : '#F8FAFB',
-            transition: 'all 0.2s',
-          }}
-        >
-          {isLoading ? (
-            <div style={{ color: '#718096', fontSize: '14px' }}>⏳ Chargement en cours…</div>
-          ) : (
-            <>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📂</div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D3748' }}>Déposez votre Balance Analytique ici</div>
-              <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>Format .xlsx — ligne 4 = en-têtes</div>
-            </>
-          )}
-        </div>
-
-        <input id="analytique-file-input" type="file" accept=".xlsx,.xls" onChange={handleFileInput} style={{ display: 'none' }} />
+        {canUploadFile() && (
+          <>
+            <div
+              onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('analytique-file-input').click()}
+              style={{
+                border: `2px dashed ${isDragging ? '#FF8200' : '#B1DCE2'}`,
+                borderRadius: '12px',
+                padding: '40px 24px',
+                cursor: 'pointer',
+                background: isDragging ? '#FFF3E0' : '#F8FAFB',
+                transition: 'all 0.2s',
+              }}
+            >
+              {isLoading ? (
+                <div style={{ color: '#718096', fontSize: '14px' }}>⏳ Chargement en cours…</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📂</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#2D3748' }}>Déposez votre Balance Analytique ici</div>
+                  <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>Format .xlsx — ligne 4 = en-têtes</div>
+                </>
+              )}
+            </div>
+            <input id="analytique-file-input" type="file" accept=".xlsx,.xls" onChange={handleFileInput} style={{ display: 'none' }} />
+          </>
+        )}
 
         <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
           <div style={{ height: '1px', flex: 1, background: '#E2E8F0' }} />
@@ -398,6 +403,11 @@ export function AnalytiqueTab() {
         >
           ⚡ Charger les données de démonstration
         </button>
+        {!canUploadFile() && (
+          <div style={{ marginTop: '8px', padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
+            🔒 Import limité à la démonstration — droits non activés
+          </div>
+        )}
         <div style={{ marginTop: '8px', fontSize: '12px', color: '#A0AEC0' }}>
           🔒 Vos données restent dans votre navigateur
         </div>

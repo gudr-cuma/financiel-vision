@@ -19,7 +19,7 @@ export async function onRequestPost(context) {
   try { body = await request.json(); }
   catch { return error('Corps de requête invalide'); }
 
-  const { email, name, password, role = 'user', permissions = [] } = body ?? {};
+  const { email, name, password, role = 'user', permissions = [], can_upload_file = 0 } = body ?? {};
 
   // Validation
   const emailCheck = validateEmail(email ?? '');
@@ -47,8 +47,8 @@ export async function onRequestPost(context) {
   const userId = crypto.randomUUID();
   const pwHash = await hashPassword(password);
   await env.DB.prepare(
-    'INSERT INTO users (id, email, name, role, password_hash) VALUES (?, ?, ?, ?, ?)'
-  ).bind(userId, email.trim().toLowerCase(), name.trim(), role, pwHash).run();
+    'INSERT INTO users (id, email, name, role, password_hash, can_upload_file) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(userId, email.trim().toLowerCase(), name.trim(), role, pwHash, can_upload_file ? 1 : 0).run();
 
   // Créer les permissions
   if (normalized.length > 0) {

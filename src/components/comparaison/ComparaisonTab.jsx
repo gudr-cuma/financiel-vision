@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 import { formatAmount } from '../../engine/formatUtils';
 import { CHARGE_CATEGORIES } from '../../engine/computeCharges';
 
@@ -388,6 +389,7 @@ function UploadN1Zone() {
   const isLoadingN1 = useStore(s => s.isLoadingN1);
   const errorN1     = useStore(s => s.errorN1);
   const isDemo      = useStore(s => s.isDemo);
+  const canUploadFile = useAuthStore(s => s.canUploadFile);
   const inputRef    = useRef(null);
 
   function handleFiles(files) { if (files?.length === 1) loadFecN1(files[0]); }
@@ -404,16 +406,18 @@ function UploadN1Zone() {
             Déposez le FEC N-1 pour activer les graphiques de comparaison.
           </p>
         </div>
-        <div
-          onDragOver={e => e.preventDefault()} onDrop={handleDrop}
-          onClick={() => !isLoadingN1 && inputRef.current?.click()}
-          style={{ border: '2px dashed #B1DCE2', borderRadius: '12px', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: isLoadingN1 ? 'not-allowed' : 'pointer', backgroundColor: '#F7FEFF', opacity: isLoadingN1 ? 0.6 : 1 }}
-        >
-          <span style={{ fontSize: '28px' }}>📂</span>
-          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1A202C' }}>{isLoadingN1 ? 'Chargement…' : 'Déposez votre FEC N-1 ici'}</p>
-          <p style={{ margin: 0, fontSize: '12px', color: '#718096' }}>Glissez-déposez ou cliquez pour sélectionner</p>
-          <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleChange} style={{ display: 'none' }} />
-        </div>
+        {canUploadFile() && (
+          <div
+            onDragOver={e => e.preventDefault()} onDrop={handleDrop}
+            onClick={() => !isLoadingN1 && inputRef.current?.click()}
+            style={{ border: '2px dashed #B1DCE2', borderRadius: '12px', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: isLoadingN1 ? 'not-allowed' : 'pointer', backgroundColor: '#F7FEFF', opacity: isLoadingN1 ? 0.6 : 1 }}
+          >
+            <span style={{ fontSize: '28px' }}>📂</span>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1A202C' }}>{isLoadingN1 ? 'Chargement…' : 'Déposez votre FEC N-1 ici'}</p>
+            <p style={{ margin: 0, fontSize: '12px', color: '#718096' }}>Glissez-déposez ou cliquez pour sélectionner</p>
+            <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleChange} style={{ display: 'none' }} />
+          </div>
+        )}
         {isDemo && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -428,6 +432,11 @@ function UploadN1Zone() {
               ⚡ Charger les données de démonstration N-1
             </button>
           </>
+        )}
+        {!canUploadFile() && !isDemo && (
+          <div style={{ padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
+            🔒 Import limité à la démonstration — droits non activés
+          </div>
         )}
         {errorN1 && <div style={{ padding: '10px 14px', backgroundColor: '#FFF5F5', border: '1px solid #FEB2B2', borderRadius: '8px', fontSize: '13px', color: '#C53030' }}>⚠️ {errorN1}</div>}
         <p style={{ margin: 0, fontSize: '12px', color: '#A0AEC0', textAlign: 'center' }}>🔒 Les données restent dans votre navigateur</p>
@@ -445,6 +454,7 @@ function UploadN2Zone() {
   const isLoadingN2 = useStore(s => s.isLoadingN2);
   const errorN2     = useStore(s => s.errorN2);
   const isDemo      = useStore(s => s.isDemo);
+  const canUploadFile = useAuthStore(s => s.canUploadFile);
   const inputRef    = useRef(null);
 
   function handleFiles(files) { if (files?.length === 1) loadFecN2(files[0]); }
@@ -465,13 +475,15 @@ function UploadN2Zone() {
         {errorN2 && <div style={{ fontSize: '12px', color: '#E53935', marginTop: '4px' }}>⚠️ {errorN2}</div>}
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => inputRef.current?.click()}
-          disabled={isLoadingN2}
-          style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #B1DCE2', background: '#fff', cursor: isLoadingN2 ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 500, color: '#2D3748' }}
-        >
-          {isLoadingN2 ? '⏳ Chargement…' : '📂 Parcourir'}
-        </button>
+        {canUploadFile() && (
+          <button
+            onClick={() => inputRef.current?.click()}
+            disabled={isLoadingN2}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #B1DCE2', background: '#fff', cursor: isLoadingN2 ? 'wait' : 'pointer', fontSize: '13px', fontWeight: 500, color: '#2D3748' }}
+          >
+            {isLoadingN2 ? '⏳ Chargement…' : '📂 Parcourir'}
+          </button>
+        )}
         {isDemo && (
           <button
             onClick={loadDemoN2}
@@ -482,6 +494,9 @@ function UploadN2Zone() {
           >
             ⚡ Démo N-2
           </button>
+        )}
+        {!canUploadFile() && !isDemo && (
+          <span style={{ fontSize: '12px', color: '#A0AEC0', alignSelf: 'center' }}>🔒 Droits non activés</span>
         )}
       </div>
       <input ref={inputRef} type="file" accept=".csv,.txt" onChange={handleChange} style={{ display: 'none' }} />

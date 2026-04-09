@@ -7,7 +7,7 @@
  */
 export async function getUserByEmail(db, email) {
   return db.prepare(
-    'SELECT id, email, name, role, is_active, password_hash, failed_login_attempts, locked_until FROM users WHERE email = ?'
+    'SELECT id, email, name, role, is_active, password_hash, failed_login_attempts, locked_until, can_upload_file FROM users WHERE email = ?'
   ).bind(email.trim().toLowerCase()).first();
 }
 
@@ -16,7 +16,7 @@ export async function getUserByEmail(db, email) {
  */
 export async function getUserById(db, id) {
   return db.prepare(
-    'SELECT id, email, name, role, is_active, created_at, updated_at, last_login FROM users WHERE id = ?'
+    'SELECT id, email, name, role, is_active, created_at, updated_at, last_login, can_upload_file FROM users WHERE id = ?'
   ).bind(id).first();
 }
 
@@ -101,7 +101,7 @@ export async function revokeAllSessions(db, userId) {
  */
 export async function getAllUsers(db) {
   const users = await db.prepare(
-    'SELECT id, email, name, role, is_active, created_at, last_login FROM users ORDER BY created_at DESC'
+    'SELECT id, email, name, role, is_active, created_at, last_login, can_upload_file FROM users ORDER BY created_at DESC'
   ).all();
 
   const perms = await db.prepare(

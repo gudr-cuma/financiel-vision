@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import useStore from '../../store/useStore';
+import useAuthStore from '../../store/useAuthStore';
 import BilanCRSubNav from './BilanCRSubNav';
 import ActifView from './ActifView';
 import PassifView from './PassifView';
@@ -11,6 +12,7 @@ export function BilanCRTab() {
   const loadDemoBilanCR  = useStore(s => s.loadDemoBilanCR);
   const loadFileBilanCR  = useStore(s => s.loadFileBilanCR);
 
+  const canUploadFile = useAuthStore(s => s.canUploadFile);
   const [activeTab, setActiveTab]   = useState('actif');
   const [isDragging, setIsDragging] = useState(false);
   const [loadError, setLoadError]   = useState(null);
@@ -52,39 +54,41 @@ export function BilanCRTab() {
           complet (Brut / Amort. / Net) et le compte de résultat avec comparatif N-1.
         </p>
 
-        {/* Dropzone */}
-        <div
-          onDragOver={e => { if (!isLoading) { e.preventDefault(); setIsDragging(true); } }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={isLoading ? e => e.preventDefault() : handleDrop}
-          onClick={() => !isLoading && fileInputRef.current?.click()}
-          style={{
-            border: `2px dashed ${isDragging ? '#31B700' : '#B1DCE2'}`,
-            borderRadius: '12px',
-            padding: '40px 24px',
-            textAlign: 'center',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            background: isDragging ? '#E8F5E0' : '#F8FAFB',
-            transition: 'all 150ms',
-            marginBottom: '16px',
-            opacity: isLoading ? 0.6 : 1,
-          }}
-        >
-          <div style={{ fontSize: '32px', marginBottom: '12px' }}>📈</div>
-          <div style={{ fontSize: '15px', fontWeight: 600, color: '#1A202C', marginBottom: '6px' }}>
-            Glissez-déposez votre fichier BilanCR
+        {/* Dropzone — visible seulement si import autorisé */}
+        {canUploadFile() && (
+          <div
+            onDragOver={e => { if (!isLoading) { e.preventDefault(); setIsDragging(true); } }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={isLoading ? e => e.preventDefault() : handleDrop}
+            onClick={() => !isLoading && fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${isDragging ? '#31B700' : '#B1DCE2'}`,
+              borderRadius: '12px',
+              padding: '40px 24px',
+              textAlign: 'center',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              background: isDragging ? '#E8F5E0' : '#F8FAFB',
+              transition: 'all 150ms',
+              marginBottom: '16px',
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📈</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#1A202C', marginBottom: '6px' }}>
+              Glissez-déposez votre fichier BilanCR
+            </div>
+            <div style={{ fontSize: '13px', color: '#718096' }}>
+              ou cliquez pour parcourir — <strong>BilanCR.xlsx</strong> uniquement
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: 'none' }}
+              onChange={e => e.target.files[0] && handleFile(e.target.files[0])}
+            />
           </div>
-          <div style={{ fontSize: '13px', color: '#718096' }}>
-            ou cliquez pour parcourir — <strong>BilanCR.xlsx</strong> uniquement
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            style={{ display: 'none' }}
-            onChange={e => e.target.files[0] && handleFile(e.target.files[0])}
-          />
-        </div>
+        )}
 
         {/* Indicateur de chargement */}
         {isLoading && (
@@ -136,6 +140,12 @@ export function BilanCRTab() {
         >
           ⚡ Charger les données de démonstration
         </button>
+
+        {!canUploadFile() && (
+          <div style={{ marginTop: '10px', padding: '9px 14px', background: '#FFF3E0', borderRadius: '8px', fontSize: '12px', color: '#718096' }}>
+            🔒 Import limité à la démonstration — droits non activés
+          </div>
+        )}
 
         {loadError && (
           <div style={{

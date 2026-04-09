@@ -87,6 +87,14 @@ const useAuthStore = create((set, get) => ({
     return editPermissions.includes(section);
   },
 
+  // ── Helper : l'utilisateur peut-il importer des fichiers réels ? ───────────
+  canUploadFile: () => {
+    const { currentUser } = get();
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    return !!currentUser.can_upload_file;
+  },
+
   clearError: () => set({ authError: null }),
 }));
 
