@@ -22,6 +22,7 @@ import DossierTab from './components/dossier/DossierTab';
 import BilanCRTab from './components/bilanCR/BilanCRTab';
 import BilanParamTab from './components/bilanParam/BilanParamTab';
 import ExportTab from './components/export/ExportTab';
+import AccueilTab from './components/accueil/AccueilTab';
 
 export default function App() {
   const activeSection = useStore(s => s.activeSection);
@@ -106,6 +107,7 @@ export default function App() {
           <TabNav />
 
           <main>
+            {activeSection === 'accueil'   && <AccueilTab />}
             {activeSection === 'analyseur' && <AnalyseurTab />}
 
             {activeSection === 'dashboard' && (

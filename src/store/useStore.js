@@ -34,7 +34,7 @@ const useStore = create((set, get) => ({
   analyseIAText: '',     // texte markdown du rapport IA généré
   dossierData: null,     // { cumaList, selectedCumaIndex, variables, overrides, comments }
   bilanCRData: null,     // { nomCuma, dateDebut, dateFin, actif[], passif[], resultat[] }
-  activeSection: 'analyseur', // 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
+  activeSection: 'accueil',   // 'accueil' | 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
@@ -373,7 +373,7 @@ const useStore = create((set, get) => ({
     analyseIAText: '',
     dossierData: null,
     bilanCRData: null,
-    activeSection: 'analyseur',
+    activeSection: 'accueil',
     activeTab: 'sig',
     activeSubTab: 'mensuel',
     detailPanel: null,

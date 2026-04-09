@@ -2,6 +2,7 @@ import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 
 const SECTIONS = [
+  { id: 'accueil',    icon: '🏠', label: 'Accueil', alwaysVisible: true },
   { id: 'analyseur',  icon: '🔎', label: 'Analyseur FEC' },
   { id: 'dashboard',  icon: '📊', label: 'Tableaux de bord' },
   { id: 'dossier',    icon: '📋', label: 'Dossier de gestion' },
@@ -18,7 +19,7 @@ export function MainNav() {
   const hasPermission    = useAuthStore((s) => s.hasPermission);
 
   // Filtrer les sections selon les permissions de l'utilisateur
-  const visibleSections = SECTIONS.filter(s => hasPermission(s.id));
+  const visibleSections = SECTIONS.filter(s => s.alwaysVisible || hasPermission(s.id));
 
   return (
     <nav
@@ -44,7 +45,7 @@ export function MainNav() {
             tabIndex={isActive ? 0 : -1}
             onClick={() => setActiveSection(section.id)}
             style={{
-              padding: '13px 20px',
+              padding: '10px 16px',
               fontSize: '14px',
               fontWeight: isActive ? 700 : 500,
               color: isActive ? '#1A202C' : '#718096',
