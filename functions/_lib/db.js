@@ -105,14 +105,93 @@ export async function getAllUsers(db) {
   ).all();
 
   const perms = await db.prepare(
-    'SELECT user_id, section FROM permissions WHERE can_access = 1'
+    'SELECT user_id, section, can_edit FROM permissions WHERE can_access = 1'
   ).all();
 
   const permMap = {};
+  const editMap = {};
   for (const p of perms.results) {
     if (!permMap[p.user_id]) permMap[p.user_id] = [];
     permMap[p.user_id].push(p.section);
+    if (p.can_edit) {
+      if (!editMap[p.user_id]) editMap[p.user_id] = [];
+      editMap[p.user_id].push(p.section);
+    }
   }
 
-  return users.results.map(u => ({ ...u, permissions: permMap[u.id] ?? [] }));
+  return users.results.map(u => ({
+    ...u,
+    permissions: permMap[u.id] ?? [],
+    editPermissions: editMap[u.id] ?? [],
+  }));
+}
+
+/**
+ * Retourne les permissions complètes (can_access + can_edit) pour un user.
+ * @param {D1Database} db
+ * @param {string} userId
+ * @returns {Promise<{section: string, can_access: number, can_edit: number}[]>}
+ */
+export async function getUserPermissionsFull(db, userId) {
+  const result = await db.prepare(
+    'SELECT section, can_access, can_edit FROM permissions WHERE user_id = ?'
+  ).bind(userId).all();
+  return result.results;
+}
+
+/**
+ * Retourne les sections éditables (can_edit=1) pour un user.
+ * @param {D1Database} db
+ * @param {string} userId
+ * @returns {Promise<string[]>}
+ */
+export async function getUserEditPermissions(db, userId) {
+  const result = await db.prepare(
+    'SELECT section FROM permissions WHERE user_id = ? AND can_access = 1 AND can_edit = 1'
+  ).bind(userId).all();
+  return result.results.map(r => r.section);
+}
+
+/**
+ * Retourne toute la configuration bilan ordonnée.
+ * @param {D1Database} db
+ * @returns {Promise<object[]>}
+ */
+export async function getBilanConfig(db) {
+  const result = await db.prepare(
+    'SELECT id, doc, type, parent_id, position, label, code_ranges, credit_sign, formula_refs, bold FROM bilan_config ORDER BY doc, position'
+  ).all();
+  return result.results;
+}
+
+/**
+ * Remplace toute la configuration bilan (atomique).
+ * @param {D1Database} db
+ * @param {object[]} items
+ * @param {string} userId
+ */
+export async function saveBilanConfig(db, items, userId) {
+  const now = new Date().toISOString().replace('T', ' ').replace('Z', '');
+  const stmts = [
+    db.prepare('DELETE FROM bilan_config'),
+    ...items.map((item, i) =>
+      db.prepare(
+        'INSERT INTO bilan_config (id, doc, type, parent_id, position, label, code_ranges, credit_sign, formula_refs, bold, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        item.id,
+        item.doc,
+        item.type,
+        item.parent_id ?? null,
+        item.position ?? i,
+        item.label,
+        item.code_ranges ? JSON.stringify(item.code_ranges) : null,
+        item.credit_sign ?? 1,
+        item.formula_refs ? JSON.stringify(item.formula_refs) : null,
+        item.bold ? 1 : 0,
+        now,
+        userId
+      )
+    ),
+  ];
+  await db.batch(stmts);
 }

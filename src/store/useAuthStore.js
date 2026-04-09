@@ -17,6 +17,7 @@ async function apiFetch(path, options = {}) {
 const useAuthStore = create((set, get) => ({
   currentUser:     null,   // { id, email, name, role }
   permissions:     [],     // string[] — sections autorisées
+  editPermissions: [],     // string[] — sections éditables (can_edit)
   isAuthenticated: false,
   isLoading:       true,   // true pendant le check initial /api/auth/me
   authError:       null,
@@ -27,12 +28,12 @@ const useAuthStore = create((set, get) => ({
     try {
       const { ok, data } = await apiFetch('/api/auth/me');
       if (ok) {
-        set({ currentUser: data.user, permissions: data.permissions, isAuthenticated: true });
+        set({ currentUser: data.user, permissions: data.permissions ?? [], editPermissions: data.editPermissions ?? [], isAuthenticated: true });
       } else {
-        set({ currentUser: null, permissions: [], isAuthenticated: false });
+        set({ currentUser: null, permissions: [], editPermissions: [], isAuthenticated: false });
       }
     } catch {
-      set({ currentUser: null, permissions: [], isAuthenticated: false });
+      set({ currentUser: null, permissions: [], editPermissions: [], isAuthenticated: false });
     } finally {
       set({ isLoading: false });
     }
@@ -46,7 +47,7 @@ const useAuthStore = create((set, get) => ({
       body: JSON.stringify({ email, password }),
     });
     if (ok) {
-      set({ currentUser: data.user, permissions: data.permissions, isAuthenticated: true });
+      set({ currentUser: data.user, permissions: data.permissions ?? [], editPermissions: data.editPermissions ?? [], isAuthenticated: true });
       return { ok: true };
     } else {
       const msg = data.error ?? 'Identifiants invalides';
@@ -58,7 +59,7 @@ const useAuthStore = create((set, get) => ({
   // ── Logout ─────────────────────────────────────────────────────────────────
   logout: async () => {
     await apiFetch('/api/auth/logout', { method: 'POST' });
-    set({ currentUser: null, permissions: [], isAuthenticated: false, authError: null });
+    set({ currentUser: null, permissions: [], editPermissions: [], isAuthenticated: false, authError: null });
   },
 
   // ── Changement de mot de passe ─────────────────────────────────────────────
@@ -76,6 +77,14 @@ const useAuthStore = create((set, get) => ({
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
     return permissions.includes(section);
+  },
+
+  // ── Helper : l'utilisateur peut-il éditer le paramétrage d'une section ? ──
+  canEdit: (section) => {
+    const { currentUser, editPermissions } = get();
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    return editPermissions.includes(section);
   },
 
   clearError: () => set({ authError: null }),

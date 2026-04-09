@@ -20,19 +20,28 @@ export async function onRequestPut(context) {
   const { permissions } = body ?? {};
   if (!Array.isArray(permissions)) return error('permissions doit être un tableau');
 
-  const validPerms = permissions.filter(isValidSection);
+  // Accepte deux formats :
+  // - string[] (rétrocompatible) : [{ section, can_access?, can_edit? }] ou 'sectionId'
+  // - object[] : [{ section, can_access, can_edit }]
+  const normalized = permissions.map(p =>
+    typeof p === 'string'
+      ? { section: p, can_access: 1, can_edit: 0 }
+      : { section: p.section, can_access: p.can_access ?? 1, can_edit: p.can_edit ?? 0 }
+  ).filter(p => isValidSection(p.section));
 
   // Transaction : supprimer tout puis réinsérer
   const stmts = [
     env.DB.prepare('DELETE FROM permissions WHERE user_id = ?').bind(id),
-    ...validPerms.map(section =>
-      env.DB.prepare('INSERT INTO permissions (id, user_id, section) VALUES (?, ?, ?)')
-        .bind(crypto.randomUUID(), id, section)
+    ...normalized.map(({ section, can_access, can_edit }) =>
+      env.DB.prepare('INSERT INTO permissions (id, user_id, section, can_access, can_edit) VALUES (?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), id, section, can_access ? 1 : 0, can_edit ? 1 : 0)
     ),
   ];
   await env.DB.batch(stmts);
 
-  return json({ permissions: validPerms });
+  const resultPerms = normalized.filter(p => p.can_access).map(p => p.section);
+  const resultEdit  = normalized.filter(p => p.can_edit).map(p => p.section);
+  return json({ permissions: resultPerms, editPermissions: resultEdit });
 }
 
 export async function onRequest(context) {

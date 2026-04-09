@@ -7,13 +7,14 @@ import useStore    from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 
 const ALL_SECTIONS = [
-  { id: 'analyseur', label: 'Analyseur FEC' },
-  { id: 'dashboard', label: 'Tableaux de bord' },
-  { id: 'dossier',   label: 'Dossier de gestion' },
-  { id: 'bilanCR',   label: 'Bilan & CR' },
-  { id: 'editions',  label: 'Éditions' },
-  { id: 'export',    label: 'Export PDF' },
-  { id: 'analyse',   label: 'Rapport IA' },
+  { id: 'analyseur',  label: 'Analyseur FEC' },
+  { id: 'dashboard',  label: 'Tableaux de bord' },
+  { id: 'dossier',    label: 'Dossier de gestion' },
+  { id: 'bilanCR',    label: 'Bilan & CR' },
+  { id: 'bilanParam', label: 'Bilan paramétré', hasEditPerm: true },
+  { id: 'editions',   label: 'Éditions' },
+  { id: 'export',     label: 'Export PDF' },
+  { id: 'analyse',    label: 'Rapport IA' },
 ];
 
 async function apiFetch(path, options = {}) {
@@ -32,18 +33,30 @@ function UserForm({ onSuccess, onCancel }) {
   const [name, setName]         = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole]         = useState('user');
-  const [perms, setPerms]       = useState([]);
+  const [perms, setPerms]       = useState([]);     // sections avec can_access
+  const [editPerms, setEditPerms] = useState([]);   // sections avec can_edit
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]       = useState('');
 
-  const togglePerm = (id) => setPerms(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const togglePerm = (id) => {
+    setPerms(p => {
+      const next = p.includes(id) ? p.filter(x => x !== id) : [...p, id];
+      // Si on retire l'accès, retirer aussi l'édition
+      if (!next.includes(id)) setEditPerms(e => e.filter(x => x !== id));
+      return next;
+    });
+  };
+  const toggleEdit = (id) => setEditPerms(e => e.includes(id) ? e.filter(x => x !== id) : [...e, id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true); setError('');
+    const permissions = role === 'admin' ? [] : perms.map(section => ({
+      section, can_access: 1, can_edit: editPerms.includes(section) ? 1 : 0,
+    }));
     const { ok, data } = await apiFetch('/api/admin/users', {
       method: 'POST',
-      body: JSON.stringify({ email, name, password, role, permissions: role === 'admin' ? [] : perms }),
+      body: JSON.stringify({ email, name, password, role, permissions }),
     });
     setIsLoading(false);
     if (ok) { onSuccess(data.user); }
@@ -80,16 +93,21 @@ function UserForm({ onSuccess, onCancel }) {
       {role === 'user' && (
         <div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Sections accessibles</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {ALL_SECTIONS.map(s => (
-              <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer',
-                padding: '5px 10px', borderRadius: '6px',
-                background: perms.includes(s.id) ? '#E8F5E0' : '#F8FAFB',
-                border: `1px solid ${perms.includes(s.id) ? '#B7DFB7' : '#E2E8F0'}`,
-              }}>
-                <input type="checkbox" checked={perms.includes(s.id)} onChange={() => togglePerm(s.id)} style={{ accentColor: '#31B700' }} />
-                {s.label}
-              </label>
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '6px 10px', borderRadius: '6px',
+                background: perms.includes(s.id) ? '#E8F5E0' : '#F8FAFB', border: `1px solid ${perms.includes(s.id) ? '#B7DFB7' : '#E2E8F0'}` }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', flex: 1 }}>
+                  <input type="checkbox" checked={perms.includes(s.id)} onChange={() => togglePerm(s.id)} style={{ accentColor: '#31B700' }} />
+                  {s.label}
+                </label>
+                {s.hasEditPerm && perms.includes(s.id) && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', color: '#718096', whiteSpace: 'nowrap' }}>
+                    <input type="checkbox" checked={editPerms.includes(s.id)} onChange={() => toggleEdit(s.id)} style={{ accentColor: '#FF8200' }} />
+                    Édition paramétrage
+                  </label>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -116,34 +134,51 @@ function UserForm({ onSuccess, onCancel }) {
 }
 
 // ── Éditeur de permissions inline ────────────────────────────────────────────
-function PermissionsEditor({ userId, initialPerms, onSaved }) {
-  const [perms, setPerms]       = useState(initialPerms);
+function PermissionsEditor({ userId, initialPerms, initialEditPerms, onSaved }) {
+  const [perms, setPerms]         = useState(initialPerms);
+  const [editPerms, setEditPerms] = useState(initialEditPerms ?? []);
   const [isLoading, setIsLoading] = useState(false);
 
-  const togglePerm = (id) => setPerms(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const togglePerm = (id) => {
+    setPerms(p => {
+      const next = p.includes(id) ? p.filter(x => x !== id) : [...p, id];
+      if (!next.includes(id)) setEditPerms(e => e.filter(x => x !== id));
+      return next;
+    });
+  };
+  const toggleEdit = (id) => setEditPerms(e => e.includes(id) ? e.filter(x => x !== id) : [...e, id]);
 
   const save = async () => {
     setIsLoading(true);
+    const permissions = perms.map(section => ({
+      section, can_access: 1, can_edit: editPerms.includes(section) ? 1 : 0,
+    }));
     const { ok } = await apiFetch(`/api/admin/users/${userId}/permissions`, {
-      method: 'PUT', body: JSON.stringify({ permissions: perms }),
+      method: 'PUT', body: JSON.stringify({ permissions }),
     });
     setIsLoading(false);
-    if (ok) onSaved(perms);
+    if (ok) onSaved(perms, editPerms);
   };
 
   return (
     <div style={{ padding: '12px', background: '#F8FAFB', borderRadius: '8px', marginTop: '8px' }}>
       <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Permissions :</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '10px' }}>
         {ALL_SECTIONS.map(s => (
-          <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer',
-            padding: '4px 8px', borderRadius: '5px',
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px', borderRadius: '5px',
             background: perms.includes(s.id) ? '#E8F5E0' : '#FFFFFF',
-            border: `1px solid ${perms.includes(s.id) ? '#B7DFB7' : '#E2E8F0'}`,
-          }}>
-            <input type="checkbox" checked={perms.includes(s.id)} onChange={() => togglePerm(s.id)} style={{ accentColor: '#31B700' }} />
-            {s.label}
-          </label>
+            border: `1px solid ${perms.includes(s.id) ? '#B7DFB7' : '#E2E8F0'}` }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', cursor: 'pointer', flex: 1 }}>
+              <input type="checkbox" checked={perms.includes(s.id)} onChange={() => togglePerm(s.id)} style={{ accentColor: '#31B700' }} />
+              {s.label}
+            </label>
+            {s.hasEditPerm && perms.includes(s.id) && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', cursor: 'pointer', color: '#718096', whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={editPerms.includes(s.id)} onChange={() => toggleEdit(s.id)} style={{ accentColor: '#FF8200' }} />
+                Édition paramétrage
+              </label>
+            )}
+          </div>
         ))}
       </div>
       <button onClick={save} disabled={isLoading}
@@ -215,7 +250,12 @@ function UserRow({ user: initialUser, currentUserId, onDeleted }) {
           <div style={{ fontSize: '12px', color: '#718096' }}>{user.email}</div>
           {!isAdmin && user.permissions && (
             <div style={{ fontSize: '11px', color: '#A0AEC0', marginTop: '2px' }}>
-              {user.permissions.length === 0 ? 'Aucun accès' : user.permissions.map(p => ALL_SECTIONS.find(s => s.id === p)?.label ?? p).join(' · ')}
+              {user.permissions.length === 0 ? 'Aucun accès' : user.permissions.map(p => {
+                const s = ALL_SECTIONS.find(s => s.id === p);
+                const label = s?.label ?? p;
+                const canEdit = user.editPermissions?.includes(p);
+                return label + (canEdit ? ' ✏️' : '');
+              }).join(' · ')}
             </div>
           )}
         </div>
@@ -255,8 +295,9 @@ function UserRow({ user: initialUser, currentUserId, onDeleted }) {
           <PermissionsEditor
             userId={user.id}
             initialPerms={user.permissions ?? []}
-            onSaved={(newPerms) => {
-              setUser(u => ({ ...u, permissions: newPerms }));
+            initialEditPerms={user.editPermissions ?? []}
+            onSaved={(newPerms, newEditPerms) => {
+              setUser(u => ({ ...u, permissions: newPerms, editPermissions: newEditPerms }));
               setExpanded(false);
             }}
           />

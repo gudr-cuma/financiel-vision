@@ -5,7 +5,7 @@
 import { verifyPassword, dummyVerify } from '../../_lib/password.js';
 import { buildSessionCookie, getClientIp } from '../../_lib/session.js';
 import { checkRateLimit, incrementRateLimit, resetRateLimit } from '../../_lib/ratelimit.js';
-import { getUserByEmail, getUserPermissions, createSession } from '../../_lib/db.js';
+import { getUserByEmail, getUserPermissions, getUserEditPermissions, createSession } from '../../_lib/db.js';
 import { validateEmail } from '../../_lib/validate.js';
 import { json, error, tooManyRequests } from '../../_lib/responses.js';
 
@@ -91,13 +91,20 @@ export async function onRequestPost(context) {
     ip, request.headers.get('User-Agent') ?? ''
   );
 
-  // Permissions
-  const permissions = user.role === 'admin'
-    ? ['analyseur', 'dashboard', 'dossier', 'bilanCR', 'editions', 'export', 'analyse']
-    : await getUserPermissions(env.DB, user.id);
+  const ALL_SECTIONS = ['analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions', 'export', 'analyse'];
+  let permissions, editPermissions;
+  if (user.role === 'admin') {
+    permissions     = ALL_SECTIONS;
+    editPermissions = ALL_SECTIONS;
+  } else {
+    [permissions, editPermissions] = await Promise.all([
+      getUserPermissions(env.DB, user.id),
+      getUserEditPermissions(env.DB, user.id),
+    ]);
+  }
 
   return json(
-    { user: { id: user.id, email: user.email, name: user.name, role: user.role }, permissions },
+    { user: { id: user.id, email: user.email, name: user.name, role: user.role }, permissions, editPermissions },
     200,
     { 'Set-Cookie': buildSessionCookie(sessionId, durationHours) }
   );

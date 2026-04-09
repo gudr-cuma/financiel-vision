@@ -2,7 +2,7 @@
  * validate.js — Validation des inputs côté serveur
  */
 
-const VALID_SECTIONS = ['analyseur', 'dashboard', 'dossier', 'bilanCR', 'editions', 'export', 'analyse'];
+const VALID_SECTIONS = ['analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions', 'export', 'analyse'];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

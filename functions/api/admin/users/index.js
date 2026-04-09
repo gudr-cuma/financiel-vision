@@ -31,7 +31,12 @@ export async function onRequestPost(context) {
   if (!name?.trim()) return error('Le nom est requis');
   if (!isValidRole(role)) return error('Rôle invalide');
 
-  const validPerms = permissions.filter(isValidSection);
+  // Normaliser : accepte string[] ou {section, can_access, can_edit}[]
+  const normalized = permissions.map(p =>
+    typeof p === 'string'
+      ? { section: p, can_access: 1, can_edit: 0 }
+      : { section: p.section, can_access: p.can_access ?? 1, can_edit: p.can_edit ?? 0 }
+  ).filter(p => isValidSection(p.section));
 
   // Vérifier unicité email
   const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?')
@@ -39,18 +44,17 @@ export async function onRequestPost(context) {
   if (existing) return error('Un compte avec cet email existe déjà', 409);
 
   // Créer l'utilisateur
-  const userId   = crypto.randomUUID();
-  const pwHash   = await hashPassword(password);
-  await env.DB.prepare(`
-    INSERT INTO users (id, email, name, role, password_hash)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(userId, email.trim().toLowerCase(), name.trim(), role, pwHash).run();
+  const userId = crypto.randomUUID();
+  const pwHash = await hashPassword(password);
+  await env.DB.prepare(
+    'INSERT INTO users (id, email, name, role, password_hash) VALUES (?, ?, ?, ?, ?)'
+  ).bind(userId, email.trim().toLowerCase(), name.trim(), role, pwHash).run();
 
   // Créer les permissions
-  if (validPerms.length > 0) {
-    const stmts = validPerms.map(section =>
-      env.DB.prepare('INSERT INTO permissions (id, user_id, section) VALUES (?, ?, ?)')
-        .bind(crypto.randomUUID(), userId, section)
+  if (normalized.length > 0) {
+    const stmts = normalized.map(({ section, can_access, can_edit }) =>
+      env.DB.prepare('INSERT INTO permissions (id, user_id, section, can_access, can_edit) VALUES (?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), userId, section, can_access ? 1 : 0, can_edit ? 1 : 0)
     );
     await env.DB.batch(stmts);
   }
@@ -59,7 +63,9 @@ export async function onRequestPost(context) {
     'SELECT id, email, name, role, is_active, created_at FROM users WHERE id = ?'
   ).bind(userId).first();
 
-  return json({ user: { ...user, permissions: validPerms } }, 201);
+  const resultPerms = normalized.filter(p => p.can_access).map(p => p.section);
+  const resultEdit  = normalized.filter(p => p.can_edit).map(p => p.section);
+  return json({ user: { ...user, permissions: resultPerms, editPermissions: resultEdit } }, 201);
 }
 
 export async function onRequest(context) {
