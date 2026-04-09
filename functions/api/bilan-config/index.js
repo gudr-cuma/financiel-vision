@@ -1,6 +1,6 @@
 /**
  * GET  /api/bilan-config  — Lire la configuration bilan complète
- * PUT  /api/bilan-config  — Sauvegarder la configuration (can_edit requis)
+ * PUT  /api/bilan-config  — Sauvegarder la configuration (can_edit_param_bilan requis)
  */
 import { getBilanConfig, saveBilanConfig } from '../../_lib/db.js';
 import { json, error, forbidden, methodNotAllowed } from '../../_lib/responses.js';
@@ -37,7 +37,7 @@ export async function onRequestPut(context) {
   // Vérifier permission d'édition
   if (data.user.role !== 'admin') {
     const hasEdit = await env.DB.prepare(
-      'SELECT 1 FROM permissions WHERE user_id = ? AND section = ? AND can_access = 1 AND can_edit = 1'
+      'SELECT 1 FROM permissions WHERE user_id = ? AND section = ? AND can_access = 1 AND can_edit_param_bilan = 1'
     ).bind(data.user.id, 'bilanParam').first();
     if (!hasEdit) return forbidden();
   }

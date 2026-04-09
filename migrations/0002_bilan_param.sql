@@ -1,8 +1,8 @@
 -- Migration 0002 : Bilan paramétrable
 -- Exécuter ces 3 instructions SÉPARÉMENT dans la D1 Console
 
--- 1. Ajouter can_edit à la table permissions
-ALTER TABLE permissions ADD COLUMN can_edit INTEGER NOT NULL DEFAULT 0;
+-- 1. Ajouter can_edit_param_bilan à la table permissions
+ALTER TABLE permissions ADD COLUMN can_edit_param_bilan INTEGER NOT NULL DEFAULT 0;
 
 -- 2. Créer la table bilan_config
 CREATE TABLE IF NOT EXISTS bilan_config (

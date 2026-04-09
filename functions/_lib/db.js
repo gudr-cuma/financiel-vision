@@ -105,7 +105,7 @@ export async function getAllUsers(db) {
   ).all();
 
   const perms = await db.prepare(
-    'SELECT user_id, section, can_edit FROM permissions WHERE can_access = 1'
+    'SELECT user_id, section, can_edit_param_bilan FROM permissions WHERE can_access = 1'
   ).all();
 
   const permMap = {};
@@ -113,7 +113,7 @@ export async function getAllUsers(db) {
   for (const p of perms.results) {
     if (!permMap[p.user_id]) permMap[p.user_id] = [];
     permMap[p.user_id].push(p.section);
-    if (p.can_edit) {
+    if (p.can_edit_param_bilan) {
       if (!editMap[p.user_id]) editMap[p.user_id] = [];
       editMap[p.user_id].push(p.section);
     }
@@ -127,27 +127,27 @@ export async function getAllUsers(db) {
 }
 
 /**
- * Retourne les permissions complètes (can_access + can_edit) pour un user.
+ * Retourne les permissions complètes (can_access + can_edit_param_bilan) pour un user.
  * @param {D1Database} db
  * @param {string} userId
- * @returns {Promise<{section: string, can_access: number, can_edit: number}[]>}
+ * @returns {Promise<{section: string, can_access: number, can_edit_param_bilan: number}[]>}
  */
 export async function getUserPermissionsFull(db, userId) {
   const result = await db.prepare(
-    'SELECT section, can_access, can_edit FROM permissions WHERE user_id = ?'
+    'SELECT section, can_access, can_edit_param_bilan FROM permissions WHERE user_id = ?'
   ).bind(userId).all();
   return result.results;
 }
 
 /**
- * Retourne les sections éditables (can_edit=1) pour un user.
+ * Retourne les sections éditables (can_edit_param_bilan=1) pour un user.
  * @param {D1Database} db
  * @param {string} userId
  * @returns {Promise<string[]>}
  */
 export async function getUserEditPermissions(db, userId) {
   const result = await db.prepare(
-    'SELECT section FROM permissions WHERE user_id = ? AND can_access = 1 AND can_edit = 1'
+    'SELECT section FROM permissions WHERE user_id = ? AND can_access = 1 AND can_edit_param_bilan = 1'
   ).bind(userId).all();
   return result.results.map(r => r.section);
 }

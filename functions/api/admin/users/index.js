@@ -31,11 +31,11 @@ export async function onRequestPost(context) {
   if (!name?.trim()) return error('Le nom est requis');
   if (!isValidRole(role)) return error('Rôle invalide');
 
-  // Normaliser : accepte string[] ou {section, can_access, can_edit}[]
+  // Normaliser : accepte string[] ou {section, can_access, can_edit_param_bilan}[]
   const normalized = permissions.map(p =>
     typeof p === 'string'
-      ? { section: p, can_access: 1, can_edit: 0 }
-      : { section: p.section, can_access: p.can_access ?? 1, can_edit: p.can_edit ?? 0 }
+      ? { section: p, can_access: 1, can_edit_param_bilan: 0 }
+      : { section: p.section, can_access: p.can_access ?? 1, can_edit_param_bilan: p.can_edit_param_bilan ?? 0 }
   ).filter(p => isValidSection(p.section));
 
   // Vérifier unicité email
@@ -52,9 +52,9 @@ export async function onRequestPost(context) {
 
   // Créer les permissions
   if (normalized.length > 0) {
-    const stmts = normalized.map(({ section, can_access, can_edit }) =>
-      env.DB.prepare('INSERT INTO permissions (id, user_id, section, can_access, can_edit) VALUES (?, ?, ?, ?, ?)')
-        .bind(crypto.randomUUID(), userId, section, can_access ? 1 : 0, can_edit ? 1 : 0)
+    const stmts = normalized.map(({ section, can_access, can_edit_param_bilan }) =>
+      env.DB.prepare('INSERT INTO permissions (id, user_id, section, can_access, can_edit_param_bilan) VALUES (?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), userId, section, can_access ? 1 : 0, can_edit_param_bilan ? 1 : 0)
     );
     await env.DB.batch(stmts);
   }
@@ -64,7 +64,7 @@ export async function onRequestPost(context) {
   ).bind(userId).first();
 
   const resultPerms = normalized.filter(p => p.can_access).map(p => p.section);
-  const resultEdit  = normalized.filter(p => p.can_edit).map(p => p.section);
+  const resultEdit  = normalized.filter(p => p.can_edit_param_bilan).map(p => p.section);
   return json({ user: { ...user, permissions: resultPerms, editPermissions: resultEdit } }, 201);
 }
 

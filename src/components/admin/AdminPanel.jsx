@@ -52,7 +52,7 @@ function UserForm({ onSuccess, onCancel }) {
     e.preventDefault();
     setIsLoading(true); setError('');
     const permissions = role === 'admin' ? [] : perms.map(section => ({
-      section, can_access: 1, can_edit: editPerms.includes(section) ? 1 : 0,
+      section, can_access: 1, can_edit_param_bilan: editPerms.includes(section) ? 1 : 0,
     }));
     const { ok, data } = await apiFetch('/api/admin/users', {
       method: 'POST',
@@ -151,7 +151,7 @@ function PermissionsEditor({ userId, initialPerms, initialEditPerms, onSaved }) 
   const save = async () => {
     setIsLoading(true);
     const permissions = perms.map(section => ({
-      section, can_access: 1, can_edit: editPerms.includes(section) ? 1 : 0,
+      section, can_access: 1, can_edit_param_bilan: editPerms.includes(section) ? 1 : 0,
     }));
     const { ok } = await apiFetch(`/api/admin/users/${userId}/permissions`, {
       method: 'PUT', body: JSON.stringify({ permissions }),
