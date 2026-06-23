@@ -50,3 +50,19 @@ export function validatePlanFinancement(financements, lignesBudget) {
 
   return { valid: errors.length === 0, errors };
 }
+
+const STATUT_TRANSITIONS = {
+  brouillon: ['soumis'],
+  soumis: ['valide', 'brouillon'],
+  valide: ['cloture', 'revise', 'soumis'],
+  cloture: ['valide'],
+  revise: ['valide'],
+};
+
+export function getTransitionsPossibles(statutActuel) {
+  return STATUT_TRANSITIONS[statutActuel] ?? [];
+}
+
+export function peutTransitionner(statutActuel, statutCible) {
+  return getTransitionsPossibles(statutActuel).includes(statutCible);
+}
