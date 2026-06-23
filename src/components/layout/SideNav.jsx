@@ -8,6 +8,7 @@ const SECTIONS = [
   { id: 'dashboard',  icon: '📊', label: 'Tableaux de bord' },
   { id: 'dossier',    icon: '📋', label: 'Dossier de gestion' },
   { id: 'budget',     icon: '💶', label: 'Suivi budgétaire' },
+  { id: 'treasury',   icon: '💰', label: 'Trésorerie' },
   { id: 'bilanCR',    icon: '📈', label: 'Bilan & CR' },
   { id: 'bilanParam', icon: '⚖️',  label: 'Bilan paramétré' },
   { id: 'emprunts',              icon: '🏦', label: 'Emprunts' },

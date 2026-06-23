@@ -92,7 +92,7 @@ export async function onRequestPost(context) {
   );
 
   const ALL_SECTIONS = [
-    'analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions',
+    'analyseur', 'dashboard', 'dossier', 'treasury', 'bilanCR', 'bilanParam', 'editions',
     'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
     'export', 'analyse',
   ];

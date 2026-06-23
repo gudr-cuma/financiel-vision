@@ -459,9 +459,12 @@ const useStore = create((set, get) => ({
     }
 
     // Naviguer vers la section sauvegardée
+    // (anciens .clario : l'onglet Trésorerie vivait sous Tableaux de bord)
+    const restoredSection = session.activeTab === 'treasury' ? 'treasury' : (session.activeSection ?? 'analyseur');
+    const restoredTab      = session.activeTab === 'treasury' ? 'sig' : (session.activeTab ?? 'sig');
     set({
-      activeSection:  session.activeSection ?? 'analyseur',
-      activeTab:      session.activeTab     ?? 'sig',
+      activeSection:  restoredSection,
+      activeTab:      restoredTab,
       pendingSession: null,
     });
   },

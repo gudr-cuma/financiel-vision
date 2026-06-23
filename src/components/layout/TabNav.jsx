@@ -3,7 +3,6 @@ import useStore from '../../store/useStore';
 const TABS = [
   { id: 'sig',         icon: '📋', label: 'SIG' },
   { id: 'monthly',     icon: '📈', label: 'Analyses' },
-  { id: 'treasury',    icon: '💰', label: 'Trésorerie' },
   { id: 'charges',     icon: '🥧', label: 'Charges' },
   { id: 'balance',     icon: '⚖️', label: 'Bilan' },
   { id: 'comparaison', icon: '📊', label: 'Comparaison N/N-1' },

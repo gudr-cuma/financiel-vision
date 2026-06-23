@@ -168,7 +168,6 @@ export default function App() {
                   <>
                     {activeTab === 'sig'         && <SigTable />}
                     {activeTab === 'monthly'     && <MonthlyTab />}
-                    {activeTab === 'treasury'    && <TreasuryTab />}
                     {activeTab === 'charges'     && <ChargesTab />}
                     {activeTab === 'balance'     && <BalanceTab />}
                     {activeTab === 'comparaison' && <ComparaisonTab />}
@@ -178,6 +177,7 @@ export default function App() {
 
                 {activeSection === 'dossier'    && <DossierTab />}
                 {activeSection === 'budget'     && <BudgetTab />}
+                {activeSection === 'treasury'   && <TreasuryTab />}
                 {activeSection === 'bilanCR'    && <BilanCRTab />}
                 {activeSection === 'bilanParam' && <BilanParamTab />}
                 {activeSection === 'emprunts'              && <EmpruntsTab />}
