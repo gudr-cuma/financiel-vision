@@ -1,9 +1,21 @@
 import { Fragment, useState } from 'react';
 import useStore from '../../store/useStore';
-import { ecart, ecartPct, tauxConso, resteAEngager, totalBudgetePoste, sortPostesByCode, groupKeyForCode } from '../../domain/budget/calculs';
+import { ecart, ecartPct, tauxConso, resteAEngager, totalBudgetePoste, sortPostesByCode, groupRowsByNatureAndCode, sumRows, prorataRatio } from '../../domain/budget/calculs';
 import { realiseFromFec } from '../../domain/budget/realiseFromFec';
 import { formatAmountFull, formatPercent, signColor } from '../../engine/formatUtils';
 import PosteDrillDown from './PosteDrillDown';
+
+const AGG_FIELDS = ['budgete', 'engage', 'realise'];
+
+function withDerived(totals) {
+  return {
+    ...totals,
+    ecart: ecart(totals.realise, totals.budgete),
+    ecartPct: ecartPct(ecart(totals.realise, totals.budgete), totals.budgete),
+    tauxConso: tauxConso(totals.realise, totals.engage, totals.budgete),
+    resteAEngager: resteAEngager(totals.budgete, totals.engage, totals.realise),
+  };
+}
 
 export function TableauEcarts({ budget, activeScenarioId }) {
   const parsedFec = useStore(s => s.parsedFec);
@@ -11,9 +23,13 @@ export function TableauEcarts({ budget, activeScenarioId }) {
   const [expandedCompte, setExpandedCompte] = useState(null);
   const [grouped, setGrouped] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const [collapsedNatures, setCollapsedNatures] = useState(new Set());
+  const [prorata, setProrata] = useState(false);
+
+  const ratio = prorata ? prorataRatio(new Date(budget.dateDebut), new Date(budget.dateFin)) : 1;
 
   const rows = sortPostesByCode(budget.postes).map(poste => {
-    const budgete = totalBudgetePoste(poste, budget.scenarios, activeScenarioId);
+    const budgete = totalBudgetePoste(poste, budget.scenarios, activeScenarioId) * ratio;
     const engage = budget.engagements
       .filter(e => e.posteId === poste.id)
       .reduce((sum, e) => sum + e.montant, 0);
@@ -21,46 +37,31 @@ export function TableauEcarts({ budget, activeScenarioId }) {
       ? realiseFromFec(parsedFec, poste).reduce((sum, r) => sum + r.montant, 0)
       : 0;
 
-    return {
-      poste, budgete, engage, realise,
-      ecart: ecart(realise, budgete),
-      ecartPct: ecartPct(ecart(realise, budgete), budgete),
-      tauxConso: tauxConso(realise, engage, budgete),
-      resteAEngager: resteAEngager(budgete, engage, realise),
-    };
+    return withDerived({ poste, budgete, engage, realise });
   });
 
-  const totals = rows.reduce((acc, r) => ({
-    budgete: acc.budgete + r.budgete, engage: acc.engage + r.engage, realise: acc.realise + r.realise,
-  }), { budgete: 0, engage: 0, realise: 0 });
+  const totals = withDerived(sumRows(rows, AGG_FIELDS));
 
-  const groups = [];
-  if (grouped) {
-    const byKey = new Map();
-    for (const row of rows) {
-      const key = groupKeyForCode(row.poste.code);
-      if (!byKey.has(key)) byKey.set(key, []);
-      byKey.get(key).push(row);
-    }
-    for (const [key, groupRows] of byKey) {
-      const groupTotals = groupRows.reduce((acc, r) => ({
-        budgete: acc.budgete + r.budgete, engage: acc.engage + r.engage, realise: acc.realise + r.realise,
-      }), { budgete: 0, engage: 0, realise: 0 });
-      groups.push({
-        key, rows: groupRows,
-        ecart: ecart(groupTotals.realise, groupTotals.budgete),
-        ecartPct: ecartPct(ecart(groupTotals.realise, groupTotals.budgete), groupTotals.budgete),
-        tauxConso: tauxConso(groupTotals.realise, groupTotals.engage, groupTotals.budgete),
-        resteAEngager: resteAEngager(groupTotals.budgete, groupTotals.engage, groupTotals.realise),
-        ...groupTotals,
-      });
-    }
-  }
+  const natureGroups = grouped
+    ? groupRowsByNatureAndCode(rows).map(ng => ({
+      ...ng,
+      ...withDerived(sumRows(ng.rows, AGG_FIELDS)),
+      codeGroups: ng.codeGroups.map(cg => ({ ...cg, ...withDerived(sumRows(cg.rows, AGG_FIELDS)) })),
+    }))
+    : [];
 
   const toggleGroup = (key) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleNature = (nature) => {
+    setCollapsedNatures(prev => {
+      const next = new Set(prev);
+      if (next.has(nature)) next.delete(nature); else next.add(nature);
       return next;
     });
   };
@@ -96,6 +97,25 @@ export function TableauEcarts({ budget, activeScenarioId }) {
     </Fragment>
   );
 
+  const renderCodeGroupRow = (natureKey, g) => {
+    const compositeKey = `${natureKey}|${g.key}`;
+    return (
+      <Fragment key={compositeKey}>
+        <tr style={{ cursor: 'pointer', background: '#F0F7D4' }} onClick={() => toggleGroup(compositeKey)}>
+          <td style={{ ...cellStyle, fontWeight: 700, paddingLeft: '24px' }}>{collapsedGroups.has(compositeKey) ? '▸' : '▾'} {g.key}</td>
+          <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.budgete)}</td>
+          <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.engage)}</td>
+          <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.realise)}</td>
+          <td style={{ ...cellStyle, fontWeight: 700, color: signColor(g.ecart) }}>{formatAmountFull(g.ecart)}</td>
+          <td style={{ ...cellStyle, fontWeight: 700, color: signColor(g.ecart) }}>{formatPercent(g.ecartPct * 100)}</td>
+          <td style={{ ...cellStyle, fontWeight: 700 }}>{formatPercent(g.tauxConso * 100)}</td>
+          <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.resteAEngager)}</td>
+        </tr>
+        {!collapsedGroups.has(compositeKey) && g.rows.map(renderPosteRow)}
+      </Fragment>
+    );
+  };
+
   return (
     <div style={{ paddingTop: '16px' }}>
       {!parsedFec && (
@@ -104,7 +124,7 @@ export function TableauEcarts({ budget, activeScenarioId }) {
         </div>
       )}
 
-      <div style={{ marginBottom: '12px' }}>
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setGrouped(g => !g)}
           style={{
@@ -115,6 +135,18 @@ export function TableauEcarts({ budget, activeScenarioId }) {
           }}
         >
           {grouped ? '✓ ' : ''}Regroupement postes
+        </button>
+        <button
+          onClick={() => setProrata(p => !p)}
+          title="Proratise le Budgété en fonction des jours écoulés depuis le début de l'exercice"
+          style={{
+            padding: '6px 12px', fontSize: '13px', fontWeight: 600, borderRadius: '6px', cursor: 'pointer',
+            border: `1px solid ${prorata ? '#FF8200' : '#E2E8F0'}`,
+            background: prorata ? '#FFF3E0' : '#FFFFFF',
+            color: prorata ? '#E57300' : '#718096',
+          }}
+        >
+          {prorata ? '✓ ' : ''}Calcul au prorata temporis
         </button>
       </div>
 
@@ -128,19 +160,19 @@ export function TableauEcarts({ budget, activeScenarioId }) {
         </thead>
         <tbody>
           {grouped ? (
-            groups.map(g => (
-              <Fragment key={g.key}>
-                <tr style={{ cursor: 'pointer', background: '#F0F7D4' }} onClick={() => toggleGroup(g.key)}>
-                  <td style={{ ...cellStyle, fontWeight: 700 }}>{collapsedGroups.has(g.key) ? '▸' : '▾'} {g.key}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.budgete)}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.engage)}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.realise)}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700, color: signColor(g.ecart) }}>{formatAmountFull(g.ecart)}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700, color: signColor(g.ecart) }}>{formatPercent(g.ecartPct * 100)}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatPercent(g.tauxConso * 100)}</td>
-                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(g.resteAEngager)}</td>
+            natureGroups.map(ng => (
+              <Fragment key={ng.nature ?? 'sans-nature'}>
+                <tr style={{ cursor: 'pointer', background: '#E3F2F5' }} onClick={() => toggleNature(ng.nature)}>
+                  <td style={{ ...cellStyle, fontWeight: 700 }}>{collapsedNatures.has(ng.nature) ? '▸' : '▾'} {ng.label}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(ng.budgete)}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(ng.engage)}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(ng.realise)}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700, color: signColor(ng.ecart) }}>{formatAmountFull(ng.ecart)}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700, color: signColor(ng.ecart) }}>{formatPercent(ng.ecartPct * 100)}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatPercent(ng.tauxConso * 100)}</td>
+                  <td style={{ ...cellStyle, fontWeight: 700 }}>{formatAmountFull(ng.resteAEngager)}</td>
                 </tr>
-                {!collapsedGroups.has(g.key) && g.rows.map(renderPosteRow)}
+                {!collapsedNatures.has(ng.nature) && ng.codeGroups.map(g => renderCodeGroupRow(ng.nature, g))}
               </Fragment>
             ))
           ) : (

@@ -21,7 +21,7 @@ const useBudgetStore = create((set, get) => ({
 
   setBudgetActif: (id) => set({ budgetActifId: id }),
 
-  createBudget: ({ nom, type, exercice, dateDebut, dateFin, devise = 'EUR' }) => {
+  createBudget: ({ nom, type, exercice, dateDebut, dateFin, devise = 'EUR', description = '' }) => {
     const budget = {
       id: newId('bud'),
       nom,
@@ -32,6 +32,7 @@ const useBudgetStore = create((set, get) => ({
       statut: 'brouillon',
       version: 1,
       devise,
+      description,
       postes: [],
       scenarios: [
         { id: newId('sce'), type: 'bas', coefficient: 0.9 },
@@ -73,7 +74,7 @@ const useBudgetStore = create((set, get) => ({
   },
 
   addPoste: (budgetId, posteData) => {
-    const poste = { id: newId('p'), comptesMappes: [], lignes: [], ...posteData };
+    const poste = { id: newId('p'), comptesMappes: [], lignes: [], commentaire: '', ...posteData };
     applyToBudget(get, set, budgetId, (budget) => ({ ...budget, postes: [...budget.postes, poste] }));
     return poste;
   },
@@ -112,6 +113,16 @@ const useBudgetStore = create((set, get) => ({
     applyToBudget(get, set, budgetId, (budget) => ({
       ...budget,
       scenarios: budget.scenarios.map(s => (s.id === scenarioId ? { ...s, ...patch } : s)),
+    }));
+  },
+
+  updatePosteScenarioCoefficient: (budgetId, posteId, scenarioId, coefficient) => {
+    applyToBudget(get, set, budgetId, (budget) => ({
+      ...budget,
+      postes: budget.postes.map(p => (p.id !== posteId ? p : {
+        ...p,
+        scenarioCoefficients: { ...(p.scenarioCoefficients ?? {}), [scenarioId]: coefficient },
+      })),
     }));
   },
 

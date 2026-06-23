@@ -10,6 +10,11 @@ export function PosteDrillDown({ poste, entries, expandedCompte, onToggleCompte 
 
   return (
     <div>
+      {poste.commentaire && (
+        <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#718096', marginBottom: '8px' }}>
+          {poste.commentaire}
+        </div>
+      )}
       {accounts.map(acc => (
         <div key={acc.compteNum} style={{ marginBottom: '8px' }}>
           <div

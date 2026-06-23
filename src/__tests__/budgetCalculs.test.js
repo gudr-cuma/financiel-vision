@@ -10,9 +10,13 @@ import {
   controleEquilibre,
   repartirMontantAnnuel,
   resolveMontantPrevu,
+  resolveCoefficient,
   totalBudgetePoste,
   sortPostesByCode,
   groupKeyForCode,
+  groupRowsByNatureAndCode,
+  sumRows,
+  prorataRatio,
 } from '../domain/budget/calculs';
 
 describe('ecart', () => {
@@ -195,6 +199,24 @@ describe('sortPostesByCode', () => {
     expect(sorted).not.toBe(postes);
     expect(postes.map(p => p.id)).toEqual(['p1', 'p2']);
   });
+
+  it('trie d\'abord par nature (charge, puis produit, puis invest) avant le code', () => {
+    const postes = [
+      { id: 'p1', code: 'POS001', libelle: 'Vente', nature: 'produit' },
+      { id: 'p2', code: 'INV001', libelle: 'Matériel', nature: 'invest' },
+      { id: 'p3', code: 'ACH002', libelle: 'Engrais', nature: 'charge' },
+      { id: 'p4', code: 'ACH001', libelle: 'Semences', nature: 'charge' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p4', 'p3', 'p1', 'p2']);
+  });
+
+  it('traite les postes sans nature comme un groupe homogène (rétro-compatibilité)', () => {
+    const postes = [
+      { id: 'p1', code: 'B' },
+      { id: 'p2', code: 'A' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p2', 'p1']);
+  });
 });
 
 describe('groupKeyForCode', () => {
@@ -207,5 +229,70 @@ describe('groupKeyForCode', () => {
     expect(groupKeyForCode('')).toBe('AUTRE');
     expect(groupKeyForCode(undefined)).toBe('AUTRE');
     expect(groupKeyForCode('AB')).toBe('AUTRE');
+  });
+});
+
+describe('resolveCoefficient', () => {
+  const scenario = { id: 'sce_bas', type: 'bas', coefficient: 0.9 };
+
+  it('renvoie le coefficient global du scénario par défaut', () => {
+    const poste = { id: 'p1' };
+    expect(resolveCoefficient(poste, scenario)).toBe(0.9);
+  });
+
+  it('renvoie la surcharge propre au poste quand elle existe', () => {
+    const poste = { id: 'p1', scenarioCoefficients: { sce_bas: 0.8 } };
+    expect(resolveCoefficient(poste, scenario)).toBe(0.8);
+  });
+});
+
+describe('sumRows', () => {
+  it('additionne les champs demandés sur une liste de lignes', () => {
+    const rows = [{ budgete: 100, realise: 80 }, { budgete: 200, realise: 150 }];
+    expect(sumRows(rows, ['budgete', 'realise'])).toEqual({ budgete: 300, realise: 230 });
+  });
+
+  it('renvoie 0 pour une liste vide', () => {
+    expect(sumRows([], ['budgete'])).toEqual({ budgete: 0 });
+  });
+});
+
+describe('groupRowsByNatureAndCode', () => {
+  it('regroupe par nature (dans l\'ordre charge, produit, invest) puis par préfixe de code', () => {
+    const rows = [
+      { poste: { code: 'ACH001', nature: 'charge' } },
+      { poste: { code: 'ACH002', nature: 'charge' } },
+      { poste: { code: 'POS001', nature: 'produit' } },
+    ];
+    const groups = groupRowsByNatureAndCode(rows);
+    expect(groups.map(g => g.nature)).toEqual(['charge', 'produit']);
+    expect(groups[0].label).toBe('Charges');
+    expect(groups[0].codeGroups.map(g => g.key)).toEqual(['ACH']);
+    expect(groups[0].codeGroups[0].rows).toHaveLength(2);
+    expect(groups[1].codeGroups.map(g => g.key)).toEqual(['POS']);
+  });
+
+  it('ne renvoie pas de groupe pour une nature absente des lignes', () => {
+    const rows = [{ poste: { code: 'ACH001', nature: 'charge' } }];
+    expect(groupRowsByNatureAndCode(rows).map(g => g.nature)).toEqual(['charge']);
+  });
+});
+
+describe('prorataRatio', () => {
+  it('renvoie 0 avant le début de l\'exercice', () => {
+    expect(prorataRatio('2026-01-01', '2026-12-31', new Date('2025-12-15'))).toBe(0);
+  });
+
+  it('renvoie 1 après la fin de l\'exercice', () => {
+    expect(prorataRatio('2026-01-01', '2026-12-31', new Date('2027-01-15'))).toBe(1);
+  });
+
+  it('renvoie 1 le dernier jour de l\'exercice', () => {
+    expect(prorataRatio('2026-01-01', '2026-12-31', new Date('2026-12-31'))).toBe(1);
+  });
+
+  it('renvoie le ratio de jours écoulés (inclus) sur la durée totale', () => {
+    // Exercice de 100 jours, on est au 50e jour inclus -> 50/100
+    expect(prorataRatio('2026-01-01', '2026-04-10', new Date('2026-02-19'))).toBeCloseTo(0.5, 2);
   });
 });

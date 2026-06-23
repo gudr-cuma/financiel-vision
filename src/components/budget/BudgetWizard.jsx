@@ -6,6 +6,7 @@ import { validateDatesBudget } from '../../domain/budget/regles';
 
 const schema = z.object({
   nom: z.string().min(1, 'Le nom est requis.'),
+  description: z.string().optional(),
   type: z.enum(['projet', 'fonctionnement']),
   exercice: z.coerce.number().int().min(2000).max(2100),
   dateDebut: z.string().min(1, 'La date de début est requise.'),
@@ -26,7 +27,7 @@ export function BudgetWizard({ onClose, onCreated }) {
   const { register, handleSubmit, watch, control, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      nom: '', type: 'fonctionnement', exercice: new Date().getFullYear(),
+      nom: '', description: '', type: 'fonctionnement', exercice: new Date().getFullYear(),
       dateDebut: `${new Date().getFullYear()}-01-01`,
       dateFin: `${new Date().getFullYear()}-12-31`,
       methode: 'vierge', sourceBudgetId: '',
@@ -40,12 +41,12 @@ export function BudgetWizard({ onClose, onCreated }) {
     if (data.methode === 'copie' && data.sourceBudgetId) {
       budget = duplicateBudget(data.sourceBudgetId);
       updateBudget(budget.id, {
-        nom: data.nom, type: data.type, exercice: data.exercice,
+        nom: data.nom, description: data.description ?? '', type: data.type, exercice: data.exercice,
         dateDebut: data.dateDebut, dateFin: data.dateFin,
       });
     } else {
       budget = createBudget({
-        nom: data.nom, type: data.type, exercice: data.exercice,
+        nom: data.nom, description: data.description ?? '', type: data.type, exercice: data.exercice,
         dateDebut: data.dateDebut, dateFin: data.dateFin,
       });
     }
@@ -62,6 +63,10 @@ export function BudgetWizard({ onClose, onCreated }) {
         <form onSubmit={handleSubmit(onSubmit)}>
           <Field label="Nom du budget" error={errors.nom?.message}>
             <input {...register('nom')} placeholder="Ex. Animation réseau 2026" style={inputStyle} />
+          </Field>
+
+          <Field label="Description (optionnel)">
+            <textarea {...register('description')} placeholder="Notes sur ce budget…" rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
 
           <Field label="Type">

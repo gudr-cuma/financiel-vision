@@ -2,13 +2,12 @@ import { useMemo, useState } from 'react';
 import { createColumnHelper, useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import useBudgetStore from '../../store/useBudgetStore';
 import { buildExerciceMonths } from '../../engine/exerciceUtils';
-import { repartirMontantAnnuel, resolveMontantPrevu, sortPostesByCode } from '../../domain/budget/calculs';
+import { repartirMontantAnnuel, resolveMontantPrevu, sortPostesByCode, NATURE_LABELS } from '../../domain/budget/calculs';
 import { formatAmountFull } from '../../engine/formatUtils';
 import AnnualEntryToggle from './AnnualEntryToggle';
 
-const NATURE_LABELS = { charge: 'Charge', produit: 'Produit', invest: 'Investissement' };
 const columnHelper = createColumnHelper();
-const COLUMN_WIDTHS = { code: '90px', libelle: '360px', total: '130px', actions: '100px' };
+const COLUMN_WIDTHS = { code: '90px', libelle: '180px', total: '130px', actions: '270px', commentaire: '400px' };
 const MONTH_COLUMN_WIDTH = '92px';
 
 function periodeKey(month, year) {
@@ -184,6 +183,19 @@ export function BudgetGrid({ budget, activeScenarioId }) {
         </div>
       ),
     }),
+    columnHelper.accessor(row => row.poste.commentaire, {
+      id: 'commentaire',
+      header: 'Commentaire',
+      cell: ({ row }) => (
+        <input
+          key={row.original.poste.commentaire}
+          defaultValue={row.original.poste.commentaire ?? ''}
+          placeholder="Commentaire…"
+          onBlur={e => updatePoste(budget.id, row.original.poste.id, { commentaire: e.target.value })}
+          style={{ width: '100%', padding: '5px 8px', fontSize: '12px', border: '1px solid #E2E8F0', borderRadius: '4px', boxSizing: 'border-box' }}
+        />
+      ),
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [months, budget.id, scenarioId, editingPosteId, editValues]);
 
@@ -266,7 +278,7 @@ export function BudgetGrid({ budget, activeScenarioId }) {
             </tr>
           ))}
           {data.length === 0 && (
-            <tr><td colSpan={months.length + 4} style={{ padding: '24px', textAlign: 'center', color: '#718096' }}>
+            <tr><td colSpan={months.length + 5} style={{ padding: '24px', textAlign: 'center', color: '#718096' }}>
               Aucun poste. Ajoutez-en un ci-dessus.
             </td></tr>
           )}

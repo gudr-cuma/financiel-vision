@@ -3,6 +3,14 @@
  * Fonctions pures, sans dépendance React — voir §8 du cadrage.
  */
 
+import { differenceInCalendarDays } from 'date-fns';
+
+export const NATURE_ORDER = ['charge', 'produit', 'invest'];
+// Libellé au singulier, pour qualifier un poste individuel (ex. "Charge · 601, 602").
+export const NATURE_LABELS = { charge: 'Charge', produit: 'Produit', invest: 'Investissement' };
+// Libellé au pluriel, pour les en-têtes de regroupement (ex. "Charges", "Produits").
+export const NATURE_GROUP_LABELS = { charge: 'Charges', produit: 'Produits', invest: 'Investissements' };
+
 export function ecart(realise, budgete) {
   return realise - budgete;
 }
@@ -54,9 +62,20 @@ export function repartirMontantAnnuel(montantAnnuel, nbMois) {
 }
 
 /**
+ * Résout le coefficient à appliquer pour un poste sur un scénario donné :
+ * une surcharge propre au poste (`poste.scenarioCoefficients[scenario.id]`) prime,
+ * sinon le coefficient global du scénario s'applique (héritage dynamique : si le
+ * coefficient global change, les postes sans surcharge suivent automatiquement).
+ */
+export function resolveCoefficient(poste, scenario) {
+  return poste.scenarioCoefficients?.[scenario.id] ?? scenario.coefficient;
+}
+
+/**
  * Résout le montant prévu d'un poste pour un scénario/période donnés :
  * - une ligne explicite (saisie ou surcharge) a toujours priorité
- * - à défaut, pour bas/haut, dérive médian × coefficient du scénario
+ * - à défaut, pour bas/haut, dérive médian × coefficient du scénario (ou de sa
+ *   surcharge par poste, voir resolveCoefficient)
  * - le médian sans ligne explicite vaut 0 (pas de calcul automatique sur le médian)
  */
 export function resolveMontantPrevu(poste, scenarios, scenarioId, periode) {
@@ -70,7 +89,7 @@ export function resolveMontantPrevu(poste, scenarios, scenarioId, periode) {
   const ligneMedian = (poste.lignes ?? []).find(l => l.scenarioId === median?.id && l.periode === periode);
   if (!ligneMedian) return 0;
 
-  return montantScenario(ligneMedian.montantPrevu, scenario.coefficient);
+  return montantScenario(ligneMedian.montantPrevu, resolveCoefficient(poste, scenario));
 }
 
 /**
@@ -83,11 +102,26 @@ export function totalBudgetePoste(poste, scenarios, scenarioId) {
 }
 
 /**
- * Trie des postes par code croissant (les postes sans code passent en fin de liste),
- * puis par libellé en cas d'égalité/absence de code.
+ * Index de tri d'une nature de poste (charge < produit < invest). Une nature
+ * absente ou inconnue est placée après les natures connues, mais reste stable
+ * entre elle (n'introduit pas de tri supplémentaire par nature dans ce cas).
+ */
+function natureSortIndex(nature) {
+  const idx = NATURE_ORDER.indexOf(nature);
+  return idx === -1 ? NATURE_ORDER.length : idx;
+}
+
+/**
+ * Trie des postes : d'abord par nature (charges, puis produits, puis
+ * investissements), puis par code croissant à l'intérieur de chaque nature
+ * (les postes sans code passent en fin de leur groupe de nature), puis par
+ * libellé en cas d'égalité/absence de code.
  */
 export function sortPostesByCode(postes) {
   return [...postes].sort((a, b) => {
+    const natureDiff = natureSortIndex(a.nature) - natureSortIndex(b.nature);
+    if (natureDiff !== 0) return natureDiff;
+
     const codeA = a.code?.trim() || '';
     const codeB = b.code?.trim() || '';
     if (!codeA && codeB) return 1;
@@ -104,4 +138,67 @@ export function sortPostesByCode(postes) {
 export function groupKeyForCode(code) {
   const trimmed = code?.trim().toUpperCase() || '';
   return trimmed.length >= 3 ? trimmed.slice(0, 3) : 'AUTRE';
+}
+
+/**
+ * Additionne un ensemble de champs numériques sur une liste de lignes
+ * (factorise les agrégations dupliquées entre TableauEcarts et SuiviEcartScenario).
+ */
+export function sumRows(rows, fields) {
+  const totals = {};
+  for (const field of fields) {
+    totals[field] = rows.reduce((sum, r) => sum + (r[field] ?? 0), 0);
+  }
+  return totals;
+}
+
+/**
+ * Regroupe des lignes (chacune portant un `row.poste`) à deux niveaux :
+ * nature (charge/produit/invest, dans cet ordre) puis préfixe de code
+ * (voir groupKeyForCode). Les lignes sont supposées déjà triées par
+ * sortPostesByCode. Ne renvoie que les groupes de nature non vides.
+ */
+export function groupRowsByNatureAndCode(rows) {
+  const byNature = new Map();
+  for (const row of rows) {
+    const nature = row.poste.nature;
+    if (!byNature.has(nature)) byNature.set(nature, []);
+    byNature.get(nature).push(row);
+  }
+
+  const orderedNatures = [...byNature.keys()].sort(
+    (a, b) => natureSortIndex(a) - natureSortIndex(b)
+  );
+
+  return orderedNatures.map(nature => {
+    const natureRows = byNature.get(nature);
+    const byCode = new Map();
+    for (const row of natureRows) {
+      const key = groupKeyForCode(row.poste.code);
+      if (!byCode.has(key)) byCode.set(key, []);
+      byCode.get(key).push(row);
+    }
+    return {
+      nature,
+      label: NATURE_GROUP_LABELS[nature] ?? (nature || 'Autre'),
+      rows: natureRows,
+      codeGroups: [...byCode.entries()].map(([key, codeRows]) => ({ key, rows: codeRows })),
+    };
+  });
+}
+
+/**
+ * Ratio de prorata temporis d'un budget à une date donnée :
+ * 0 avant le début de l'exercice, 1 après la fin, sinon le ratio de jours
+ * écoulés (inclus) sur la durée totale de l'exercice (inclus).
+ */
+export function prorataRatio(dateDebut, dateFin, today = new Date()) {
+  const totalDays = differenceInCalendarDays(dateFin, dateDebut) + 1;
+  if (totalDays <= 0) return 1;
+
+  const elapsedDays = differenceInCalendarDays(today, dateDebut) + 1;
+  if (elapsedDays <= 0) return 0;
+  if (elapsedDays >= totalDays) return 1;
+
+  return elapsedDays / totalDays;
 }

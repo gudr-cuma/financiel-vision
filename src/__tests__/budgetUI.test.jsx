@@ -8,9 +8,11 @@ const addPoste = vi.fn();
 const updatePoste = vi.fn();
 const removePoste = vi.fn();
 const setLigneBudget = vi.fn();
+const updatePosteScenarioCoefficient = vi.fn();
+const updateBudget = vi.fn();
 
 vi.mock('../store/useBudgetStore', () => ({
-  default: (selector) => selector({ addPoste, updatePoste, removePoste, setLigneBudget }),
+  default: (selector) => selector({ addPoste, updatePoste, removePoste, setLigneBudget, updatePosteScenarioCoefficient, updateBudget }),
 }));
 
 vi.mock('../store/useStore', () => ({
@@ -40,6 +42,7 @@ const posteSansCode = { id: 'p3', code: '', libelle: 'Divers', nature: 'charge',
 
 beforeEach(() => {
   addPoste.mockClear(); updatePoste.mockClear(); removePoste.mockClear(); setLigneBudget.mockClear();
+  updatePosteScenarioCoefficient.mockClear(); updateBudget.mockClear();
 });
 
 describe('BudgetGrid', () => {
@@ -67,6 +70,14 @@ describe('BudgetGrid', () => {
     fireEvent.click(screen.getByTitle('Valider'));
     expect(updatePoste).toHaveBeenCalledWith('bud_1', 'p1', expect.objectContaining({ libelle: 'Semences bio', code: 'ACH001' }));
   });
+
+  it('affiche une colonne Commentaire et sauvegarde sur perte de focus', () => {
+    render(<BudgetGrid budget={makeBudget([posteAch1])} activeScenarioId="sce_median" />);
+    const commentInput = screen.getByPlaceholderText('Commentaire…');
+    fireEvent.change(commentInput, { target: { value: 'Hausse prévue au printemps' } });
+    fireEvent.blur(commentInput);
+    expect(updatePoste).toHaveBeenCalledWith('bud_1', 'p1', { commentaire: 'Hausse prévue au printemps' });
+  });
 });
 
 describe('TableauEcarts', () => {
@@ -78,6 +89,35 @@ describe('TableauEcarts', () => {
 
     fireEvent.click(screen.getByText('Regroupement postes'));
     expect(screen.getByText(/ACH$/)).toBeInTheDocument(); // ligne de groupe "ACH"
+    expect(screen.getByText(/Charges$/)).toBeInTheDocument(); // ligne de groupe de nature
+  });
+
+  it('sépare les charges des produits avec les charges en premier', () => {
+    const posteProduit = { id: 'p4', code: 'POS001', libelle: 'Cotisations', nature: 'produit', comptesMappes: [], lignes: [] };
+    render(<TableauEcarts budget={makeBudget([posteProduit, posteAch1])} activeScenarioId="sce_median" />);
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText(/Semences/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/Cotisations/)).toBeInTheDocument();
+  });
+
+  it('proratise le Budgété quand le toggle prorata est activé', () => {
+    // Exercice centré sur aujourd'hui (±30 jours) : le ratio de prorata est nécessairement
+    // strictement entre 0 et 1, quelle que soit la date d'exécution du test.
+    const today = new Date();
+    const dateDebut = new Date(today); dateDebut.setDate(dateDebut.getDate() - 30);
+    const dateFin = new Date(today); dateFin.setDate(dateFin.getDate() + 30);
+    const budget = {
+      ...makeBudget([posteAch1]),
+      dateDebut: dateDebut.toISOString().slice(0, 10),
+      dateFin: dateFin.toISOString().slice(0, 10),
+    };
+    render(<TableauEcarts budget={budget} activeScenarioId="sce_median" />);
+    const budgeteCellBefore = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[1].textContent;
+    expect(budgeteCellBefore).toMatch(/^1.000 €$/);
+
+    fireEvent.click(screen.getByText('Calcul au prorata temporis'));
+    const budgeteCellAfter = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[1].textContent;
+    expect(budgeteCellAfter).not.toBe(budgeteCellBefore);
   });
 });
 
@@ -90,5 +130,22 @@ describe('SuiviEcartScenario', () => {
     expect(budgHaut).toBeInTheDocument();
     expect(budgBas.style.background).toBe('rgb(255, 243, 224)'); // #FFF3E0
     expect(budgHaut.style.background).toBe('rgb(177, 220, 226)'); // #B1DCE2
+  });
+
+  it('masque les coefficients par poste par défaut, et permet de les afficher via la case à cocher', () => {
+    render(<SuiviEcartScenario budget={makeBudget([posteAch1])} activeScenarioId="sce_median" />);
+    expect(screen.queryAllByTitle(/Coefficient hérité du scénario global/)).toHaveLength(0);
+
+    fireEvent.click(screen.getByLabelText('Afficher les coefficients par poste'));
+    expect(updateBudget).toHaveBeenCalledWith('bud_1', { afficherCoefficients: true });
+    expect(screen.getAllByTitle(/Coefficient hérité du scénario global/).length).toBeGreaterThan(0);
+  });
+
+  it('permet de surcharger le coefficient bas pour un seul poste', () => {
+    render(<SuiviEcartScenario budget={makeBudget([posteAch1])} activeScenarioId="sce_median" />);
+    fireEvent.click(screen.getByLabelText('Afficher les coefficients par poste'));
+    const coefficientInputs = screen.getAllByTitle(/Coefficient hérité du scénario global/);
+    fireEvent.change(coefficientInputs[0], { target: { value: '0.8' } });
+    expect(updatePosteScenarioCoefficient).toHaveBeenCalledWith('bud_1', 'p1', 'sce_bas', 0.8);
   });
 });
