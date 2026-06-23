@@ -4,6 +4,7 @@ import { formatDate } from '../../engine/formatUtils';
 import BudgetList from './BudgetList';
 import BudgetWizard from './BudgetWizard';
 import BudgetSubNav from './BudgetSubNav';
+import { StatutControl } from './StatutControl';
 import BudgetGrid from './BudgetGrid';
 import PlanFinancement from './PlanFinancement';
 import TableauEcarts from './TableauEcarts';
@@ -57,6 +58,10 @@ export function BudgetTab() {
         >
           ✕ Retour à la liste
         </button>
+      </div>
+
+      <div style={{ marginBottom: '8px' }}>
+        <StatutControl budget={budget} variant="full" />
       </div>
 
       <ScenarioSelector

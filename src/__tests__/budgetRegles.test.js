@@ -5,6 +5,8 @@ import {
   validateDatesBudget,
   validateFinancement,
   validatePlanFinancement,
+  getTransitionsPossibles,
+  peutTransitionner,
 } from '../domain/budget/regles';
 
 describe('validateMontantPositif', () => {
@@ -91,5 +93,42 @@ describe('validatePlanFinancement', () => {
     const result = validatePlanFinancement(financements, lignesBudget);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Le plan de financement n\'est pas équilibré (écart : -200,00 €).');
+  });
+});
+
+describe('getTransitionsPossibles', () => {
+  it('liste les transitions autorisées pour chaque statut', () => {
+    expect(getTransitionsPossibles('brouillon')).toEqual(['soumis']);
+    expect(getTransitionsPossibles('soumis')).toEqual(['valide', 'brouillon']);
+    expect(getTransitionsPossibles('valide')).toEqual(['cloture', 'revise', 'soumis']);
+    expect(getTransitionsPossibles('cloture')).toEqual(['valide']);
+    expect(getTransitionsPossibles('revise')).toEqual(['valide']);
+  });
+
+  it('renvoie un tableau vide pour un statut inconnu', () => {
+    expect(getTransitionsPossibles('inexistant')).toEqual([]);
+  });
+});
+
+describe('peutTransitionner', () => {
+  it('autorise les transitions déclarées dans le graphe', () => {
+    expect(peutTransitionner('brouillon', 'soumis')).toBe(true);
+    expect(peutTransitionner('soumis', 'valide')).toBe(true);
+    expect(peutTransitionner('soumis', 'brouillon')).toBe(true);
+    expect(peutTransitionner('valide', 'cloture')).toBe(true);
+    expect(peutTransitionner('valide', 'revise')).toBe(true);
+    expect(peutTransitionner('valide', 'soumis')).toBe(true);
+    expect(peutTransitionner('cloture', 'valide')).toBe(true);
+    expect(peutTransitionner('revise', 'valide')).toBe(true);
+  });
+
+  it('refuse les transitions qui sautent une étape ou n\'existent pas dans le graphe', () => {
+    expect(peutTransitionner('brouillon', 'valide')).toBe(false);
+    expect(peutTransitionner('brouillon', 'cloture')).toBe(false);
+    expect(peutTransitionner('soumis', 'cloture')).toBe(false);
+    expect(peutTransitionner('cloture', 'soumis')).toBe(false);
+    expect(peutTransitionner('cloture', 'brouillon')).toBe(false);
+    expect(peutTransitionner('revise', 'cloture')).toBe(false);
+    expect(peutTransitionner('revise', 'brouillon')).toBe(false);
   });
 });

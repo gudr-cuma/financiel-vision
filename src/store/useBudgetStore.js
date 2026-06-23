@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import * as budgetRepository from '../data/budgetRepository';
+import useAuthStore from './useAuthStore';
+import { peutTransitionner } from '../domain/budget/regles';
 
 function newId(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -38,6 +40,7 @@ const useBudgetStore = create((set, get) => ({
       ],
       financements: [],
       engagements: [],
+      historique: [],
     };
     budgetRepository.save(budget);
     set({ budgets: budgetRepository.getAll() });
@@ -53,6 +56,7 @@ const useBudgetStore = create((set, get) => ({
       nom: `${source.nom} (copie)`,
       statut: 'brouillon',
       version: 1,
+      historique: [],
     };
     budgetRepository.save(copy);
     set({ budgets: budgetRepository.getAll() });
@@ -152,6 +156,37 @@ const useBudgetStore = create((set, get) => ({
       ...budget,
       engagements: budget.engagements.filter(e => e.id !== engagementId),
     }));
+  },
+
+  changerStatutBudget: (budgetId, statutCible, commentaire = '') => {
+    const budget = get().budgets.find(b => b.id === budgetId);
+    if (!budget) return { ok: false, error: 'Budget introuvable.' };
+
+    if (!peutTransitionner(budget.statut, statutCible)) {
+      return { ok: false, error: `Transition de "${budget.statut}" vers "${statutCible}" non autorisée.` };
+    }
+
+    const currentUser = useAuthStore.getState().currentUser;
+    if (!currentUser) {
+      return { ok: false, error: 'Vous devez être connecté pour modifier le statut.' };
+    }
+
+    const entry = {
+      id: newId('hist'),
+      de: budget.statut,
+      vers: statutCible,
+      date: new Date().toISOString(),
+      auteur: { id: currentUser.id, nom: currentUser.name, email: currentUser.email },
+      commentaire,
+    };
+
+    applyToBudget(get, set, budgetId, (b) => ({
+      ...b,
+      statut: statutCible,
+      historique: [...(b.historique ?? []), entry],
+    }));
+
+    return { ok: true };
   },
 
   exportBudgets: () => budgetRepository.exportJson(),
