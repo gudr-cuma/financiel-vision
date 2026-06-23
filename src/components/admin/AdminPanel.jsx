@@ -104,7 +104,6 @@ function UserForm({ onSuccess, onCancel }) {
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#2D3748' }}>
               <input type="checkbox" checked={canUploadFile} onChange={e => setCanUploadFile(e.target.checked)} style={{ accentColor: '#31B700', width: '14px', height: '14px' }} />
               <span>📥 Autoriser l'import de fichiers réels</span>
-              <span style={{ fontSize: '11px', color: '#A0AEC0' }}>(FEC, Dossier, Bilan&CR, Analytique)</span>
             </label>
           </div>
           <div>
@@ -189,7 +188,6 @@ function PermissionsEditor({ userId, initialPerms, initialEditPerms, initialCanU
         <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '12px', color: '#2D3748' }}>
           <input type="checkbox" checked={canUploadFile} onChange={e => setCanUploadFile(e.target.checked)} style={{ accentColor: '#31B700', width: '13px', height: '13px' }} />
           <span>📥 Import de fichiers réels</span>
-          <span style={{ fontSize: '10px', color: '#A0AEC0' }}>(FEC, Dossier, Bilan&CR, Analytique)</span>
         </label>
       </div>
       <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Sections accessibles :</div>

@@ -108,7 +108,7 @@ export async function onRequestPost(context) {
   }
 
   return json(
-    { user: { id: user.id, email: user.email, name: user.name, role: user.role }, permissions, editPermissions },
+    { user: { id: user.id, email: user.email, name: user.name, role: user.role, can_upload_file: user.can_upload_file }, permissions, editPermissions },
     200,
     { 'Set-Cookie': buildSessionCookie(sessionId, durationHours) }
   );

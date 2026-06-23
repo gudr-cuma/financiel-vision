@@ -29,7 +29,7 @@ export async function getValidSession(db, sessionId) {
   return db.prepare(`
     SELECT
       s.id as session_id, s.expires_at, s.is_revoked,
-      u.id, u.email, u.name, u.role, u.is_active
+      u.id, u.email, u.name, u.role, u.is_active, u.can_upload_file
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.id = ?
