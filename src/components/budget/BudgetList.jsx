@@ -1,33 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import useBudgetStore from '../../store/useBudgetStore';
-
-const STATUT_LABELS = {
-  brouillon: 'Brouillon',
-  soumis: 'Soumis',
-  valide: 'Validé',
-  cloture: 'Clôturé',
-  revise: 'Révisé',
-};
-
-const STATUT_COLORS = {
-  brouillon: { bg: '#F8FAFB', color: '#718096' },
-  soumis: { bg: '#FFF3E0', color: '#E57300' },
-  valide: { bg: '#E8F5E0', color: '#268E00' },
-  cloture: { bg: '#E3F2F5', color: '#1A202C' },
-  revise: { bg: '#FFF3E0', color: '#E57300' },
-};
-
-function StatutBadge({ statut }) {
-  const c = STATUT_COLORS[statut] ?? STATUT_COLORS.brouillon;
-  return (
-    <span style={{
-      display: 'inline-block', padding: '2px 10px', borderRadius: '999px',
-      fontSize: '12px', fontWeight: 600, background: c.bg, color: c.color,
-    }}>
-      {STATUT_LABELS[statut] ?? statut}
-    </span>
-  );
-}
+import { StatutControl, STATUT_LABELS } from './StatutControl';
 
 export function BudgetList({ onOpen, onCreate }) {
   const budgets = useBudgetStore(s => s.budgets);
@@ -147,7 +120,9 @@ export function BudgetList({ onOpen, onCreate }) {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <StatutBadge statut={b.statut} />
+                <div onClick={e => e.stopPropagation()}>
+                  <StatutControl budget={b} variant="compact" />
+                </div>
                 <button
                   onClick={e => { e.stopPropagation(); duplicateBudget(b.id); }}
                   title="Dupliquer"
