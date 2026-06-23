@@ -42,7 +42,15 @@ export default function TreasuryTab() {
     return getTreasuryEntries(parsedFec, selectedAccounts);
   }, [parsedFec, selectedAccounts]);
 
-  if (!parsedFec) return null;
+  if (!parsedFec) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#718096' }}>
+        <div style={{ fontSize: '40px', marginBottom: '16px' }}>💰</div>
+        <p style={{ fontSize: '15px', fontWeight: 600, color: '#4A5568' }}>Chargez un fichier FEC pour afficher la trésorerie.</p>
+        <p style={{ fontSize: '13px', marginTop: '8px' }}>Utilisez l'onglet "Analyseur FEC" pour importer votre fichier.</p>
+      </div>
+    );
+  }
 
   return (
     <div>

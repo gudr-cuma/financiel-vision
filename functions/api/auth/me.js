@@ -7,7 +7,7 @@ import { getUserPermissions, getUserEditPermissions } from '../../_lib/db.js';
 import { json, methodNotAllowed } from '../../_lib/responses.js';
 
 const ALL_SECTIONS = [
-  'analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions',
+  'analyseur', 'dashboard', 'dossier', 'treasury', 'bilanCR', 'bilanParam', 'editions',
   'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
   'export', 'analyse',
 ];

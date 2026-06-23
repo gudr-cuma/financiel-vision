@@ -37,6 +37,14 @@ const MODULES = [
     description: 'Suivez vos budgets prévisionnels par poste et comparez-les aux réalisés du FEC.',
   },
   {
+    id: 'treasury',
+    icon: '💰',
+    label: 'Trésorerie',
+    color: '#0077A8',
+    bg: '#E3F2F5',
+    description: 'Suivez le solde quotidien, les KPIs de trésorerie et les principaux mouvements.',
+  },
+  {
     id: 'bilanCR',
     icon: '📈',
     label: 'Bilan & CR',

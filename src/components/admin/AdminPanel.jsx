@@ -11,6 +11,7 @@ const ALL_SECTIONS = [
   { id: 'dashboard',  label: 'Tableaux de bord' },
   { id: 'dossier',    label: 'Dossier de gestion' },
   { id: 'budget',     label: 'Suivi budgétaire' },
+  { id: 'treasury',   label: 'Trésorerie' },
   { id: 'bilanCR',    label: 'Bilan & CR' },
   { id: 'bilanParam', label: 'Bilan paramétré', hasEditPerm: true },
   { id: 'editions',   label: 'Éditions' },
