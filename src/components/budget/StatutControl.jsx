@@ -126,7 +126,7 @@ export function StatutControl({ budget, variant = 'compact' }) {
 
       {variant === 'full' && showHistorique && (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {budget.historique.map((h) => (
+          {(budget.historique ?? []).map((h) => (
             <li key={h.id} style={{ fontSize: '12px', color: '#718096' }}>
               {STATUT_LABELS[h.de] ?? h.de} → {STATUT_LABELS[h.vers] ?? h.vers} · {formatDateHeure(h.date)} · {h.auteur?.nom ?? h.auteur?.email}
               {h.commentaire ? ` · « ${h.commentaire} »` : ''}
