@@ -41,17 +41,6 @@ export function EntryFilter({ value, onChange }) {
   );
 }
 
-/**
- * Normalise une chaîne pour comparaison insensible à la casse et aux accents.
- * @param {string} str
- * @returns {string}
- */
-export function normalizeText(str) {
-  if (!str) return '';
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
+export { normalizeText } from '../../engine/formatUtils';
 
 export default EntryFilter;

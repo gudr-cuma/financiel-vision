@@ -91,7 +91,11 @@ export async function onRequestPost(context) {
     ip, request.headers.get('User-Agent') ?? ''
   );
 
-  const ALL_SECTIONS = ['analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions', 'export', 'analyse'];
+  const ALL_SECTIONS = [
+    'analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions',
+    'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
+    'export', 'analyse',
+  ];
   let permissions, editPermissions;
   if (user.role === 'admin') {
     permissions     = ALL_SECTIONS;
