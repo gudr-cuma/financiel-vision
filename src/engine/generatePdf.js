@@ -9,7 +9,7 @@ import {
   COLORS,
   makeFooter, makeHeader,
   makeCoverPage, makeSommaire, makeSectionTitle, makeAnnexesSeparator,
-  pdfFmt,
+  pdfFmt, fitTableWidths,
 } from './pdfLayouts';
 import { formatDate } from './formatUtils';
 import { sortRows, groupRows, sumColumn, yearOf } from './tableUtils';
@@ -1200,7 +1200,7 @@ const CAPITAL_SOCIAL_PDF_COLUMNS = [
   { key: 'montant',          label: 'Montant',           type: 'amount', width: 65 },
 ];
 
-function buildCapitalSocialContent(exploitationData, docOpts) {
+function buildCapitalSocialContent(exploitationData, docOpts, chartW = 781) {
   const rows = exploitationData?.capitalSocial ?? [];
   if (!rows.length) return [];
   const groupBy = docOpts?.groupBy ?? 'none';
@@ -1248,7 +1248,7 @@ function buildCapitalSocialContent(exploitationData, docOpts) {
       { label: 'Montant (total)', value: fmtEur(totalMontant), color: COLORS.orange },
     ]),
     {
-      table: { headerRows: 1, widths: CAPITAL_SOCIAL_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      table: { headerRows: 1, widths: fitTableWidths(CAPITAL_SOCIAL_PDF_COLUMNS, chartW), body: tableBody },
       layout: tableLayout(),
     },
     { text: ' ', pageBreak: 'after' },
@@ -1271,7 +1271,7 @@ const IMMOBILISATIONS_PDF_COLUMNS = [
   { key: 'codeNational',     label: 'Code National',       type: 'text',   width: 60 },
 ];
 
-function buildImmobilisationsContent(exploitationData) {
+function buildImmobilisationsContent(exploitationData, chartW = 781) {
   const all = exploitationData?.immobilisations ?? [];
   if (!all.length) return [];
   const ETAT_ACTIF = 1;
@@ -1301,7 +1301,7 @@ function buildImmobilisationsContent(exploitationData) {
       { label: "Valeur d'entrée (actives)", value: fmtEur(valeurEntreeActives), color: COLORS.orange },
     ]),
     {
-      table: { headerRows: 1, widths: IMMOBILISATIONS_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      table: { headerRows: 1, widths: fitTableWidths(IMMOBILISATIONS_PDF_COLUMNS, chartW), body: tableBody },
       layout: tableLayout(),
     },
     { text: ' ', pageBreak: 'after' },
@@ -1323,7 +1323,7 @@ const EMPRUNTS_PDF_COLUMNS = [
   { key: 'annuite',          label: 'Annuité',        type: 'text',    width: 60 },
 ];
 
-function buildEmpruntsContent(exploitationData) {
+function buildEmpruntsContent(exploitationData, chartW = 781) {
   const emprunts = exploitationData?.emprunts ?? [];
   const lignesEmprunt = exploitationData?.lignesEmprunt ?? [];
   if (!emprunts.length) return [];
@@ -1349,7 +1349,7 @@ function buildEmpruntsContent(exploitationData) {
       { label: 'Emprunts en cours', value: String(nbEnCours) },
     ]),
     {
-      table: { headerRows: 1, widths: EMPRUNTS_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      table: { headerRows: 1, widths: fitTableWidths(EMPRUNTS_PDF_COLUMNS, chartW), body: tableBody },
       layout: tableLayout(),
     },
     { text: ' ', pageBreak: 'after' },
@@ -1371,7 +1371,7 @@ const MATERIELS_PDF_COLUMNS = [
   { key: 'codeAnalytique', label: 'Code Analytique', type: 'text',   width: 65 },
 ];
 
-function buildMaterielsContent(exploitationData, docOpts) {
+function buildMaterielsContent(exploitationData, docOpts, chartW = 781) {
   const all = exploitationData?.materiels ?? [];
   if (!all.length) return [];
   const enUsage = all.filter(m => !m.dateVente);
@@ -1404,7 +1404,7 @@ function buildMaterielsContent(exploitationData, docOpts) {
   return [
     makeSectionTitle(DOC_LABELS.materiels, 'materiels'),
     {
-      table: { headerRows: 1, widths: MATERIELS_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      table: { headerRows: 1, widths: fitTableWidths(MATERIELS_PDF_COLUMNS, chartW), body: tableBody },
       layout: tableLayout(),
     },
     { text: ' ', pageBreak: 'after' },
@@ -2576,10 +2576,10 @@ export async function generateExport(
     rapport_ia:        () => buildRapportIAContent(storeData.analyseIAText),
     comparaison_nn1:   () => buildComparaisonNN1Content(storeData, chartW),
     fiche_synthese:    () => buildFicheSyntheseContent(storeData.exploitationData, storeData.syntheseOverrides, chartW),
-    capital_social:    () => buildCapitalSocialContent(storeData.exploitationData, storeData.docOptions?.capital_social),
-    immobilisations:   () => buildImmobilisationsContent(storeData.exploitationData),
-    emprunts:          () => buildEmpruntsContent(storeData.exploitationData),
-    materiels:         () => buildMaterielsContent(storeData.exploitationData, storeData.docOptions?.materiels),
+    capital_social:    () => buildCapitalSocialContent(storeData.exploitationData, storeData.docOptions?.capital_social, chartW),
+    immobilisations:   () => buildImmobilisationsContent(storeData.exploitationData, chartW),
+    emprunts:          () => buildEmpruntsContent(storeData.exploitationData, chartW),
+    materiels:         () => buildMaterielsContent(storeData.exploitationData, storeData.docOptions?.materiels, chartW),
     budget_suivi:      () => buildBudgetSuiviContent({ ...storeData, parsedFec }, chartW),
   };
 

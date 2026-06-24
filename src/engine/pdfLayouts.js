@@ -244,5 +244,25 @@ export function pdfFmt(n) {
   if (!n) return '';
   return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     .format(n)
-    .replace(/[\u00A0\u202F]/g, ' '); // espace insécable/fine → espace normale (compatibilité police pdfmake)
+    .replace(/[  ]/g, ' '); // espace insécable/fine → espace normale (compatibilité police pdfmake)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Largeurs de colonnes pdfmake adaptées à la largeur de page disponible
+// ─────────────────────────────────────────────────────────────
+/**
+ * Calcule des largeurs de colonnes (en pt) qui tiennent toujours dans
+ * `availableWidth`, quelle que soit l'orientation de page. Les colonnes
+ * fixes (`width: <number>`) sont dimensionnées pour le mode paysage ; en
+ * portrait (largeur réduite), elles sont réduites proportionnellement pour
+ * laisser au moins `minStarWidth` à la colonne flexible (`width: '*'`).
+ */
+export function fitTableWidths(columns, availableWidth, minStarWidth = 60) {
+  const hasStar  = columns.some((c) => c.width === '*');
+  const fixedSum = columns.reduce((sum, c) => sum + (c.width === '*' ? 0 : c.width), 0);
+  const starWidth = hasStar ? Math.max(minStarWidth, availableWidth - fixedSum) : 0;
+  const budget = availableWidth - starWidth;
+  const scale  = fixedSum > budget ? budget / fixedSum : 1;
+
+  return columns.map((c) => (c.width === '*' ? '*' : Math.round(c.width * scale)));
 }

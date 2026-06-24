@@ -7,12 +7,9 @@ export const IMMOBILISATIONS_COLUMNS = [
   { key: 'axe1', label: 'Axe 1', type: 'text' },
   { key: 'libelle', label: 'Libellé', type: 'text' },
   { key: 'dateAcquisition', label: 'Date Acquisition', type: 'date' },
-  { key: 'dateMiseEnService', label: 'Date Mise en Service', type: 'date' },
   { key: 'valeurEntree', label: 'Valeur Entrée', type: 'amount' },
   { key: 'dateDebutAmort', label: 'Date Début Amort', type: 'date' },
   { key: 'valeurResiduelle', label: 'Valeur Résiduelle', type: 'amount' },
-  { key: 'typeImmoCOG', label: 'Type Immo COG', type: 'text' },
-  { key: 'codeNational', label: 'Code National', type: 'text' },
 ];
 
 /**
@@ -21,6 +18,9 @@ export const IMMOBILISATIONS_COLUMNS = [
  */
 export const IMMOBILISATION_FICHE_FIELDS = [
   ...IMMOBILISATIONS_COLUMNS,
+  { key: 'dateMiseEnService', label: 'Date Mise en Service', type: 'date' },
+  { key: 'typeImmoCOG', label: 'Type Immo COG', type: 'text' },
+  { key: 'codeNational', label: 'Code National', type: 'text' },
   { key: 'dateEffetAmort', label: 'Date Effet Amort', type: 'date' },
   { key: 'axe2', label: 'Axe 2', type: 'text' },
   { key: 'cptFournisseur', label: 'Fournisseur', type: 'text' },
@@ -42,12 +42,8 @@ export const IMMOBILISATION_FICHE_FIELDS = [
   { key: 'dateFinExo', label: 'Date Fin Exo', type: 'date' },
   { key: 'natureImmo', label: 'Nature Immo', type: 'text' },
   { key: 'codeMateriel', label: 'Code Matériel', type: 'number' },
-  { key: 'uoCode', label: 'UO Code', type: 'text' },
   { key: 'etat', label: 'État', type: 'number' },
   { key: 'position', label: 'Position', type: 'number' },
-  { key: 'cumReeval', label: 'Cumul Réévaluation', type: 'amount' },
-  { key: 'cumDeprec', label: 'Cumul Dépréciation', type: 'amount' },
-  { key: 'dotEcoManuelle', label: 'Dot. Éco Manuelle', type: 'amount' },
 ];
 
 function formatCell(value, type) {

@@ -2,15 +2,13 @@ import { SortableTh } from '../shared/SortableTh';
 import { formatAmountFull, formatPercent, formatDate } from '../../engine/formatUtils';
 
 export const EMPRUNTS_COLUMNS = [
-  { key: 'nEmprunt', label: 'N. Emprunt', type: 'text' },
+  { key: 'nEmprunt', label: 'N. Emprunt', type: 'text', width: 94 },
   { key: 'designation', label: 'Désignation', type: 'text' },
   { key: 'montant', label: 'Montant', type: 'amount' },
-  { key: 'taux', label: 'Taux', type: 'percent' },
-  { key: 'dateRealisation', label: 'Date Réalisation', type: 'date' },
-  { key: 'premiereEcheance', label: '1ère Échéance', type: 'date' },
+  { key: 'taux', label: 'Taux', type: 'percent', width: 65 },
+  { key: 'dateRealisation', label: 'Date Réalisation', type: 'date', width: 124 },
+  { key: 'premiereEcheance', label: '1ère Échéance', type: 'date', width: 109 },
   { key: 'duree', label: 'Durée', type: 'number' },
-  { key: 'dureeMois', label: 'Durée (mois)', type: 'number' },
-  { key: 'annuite', label: 'Annuité', type: 'text' },
 ];
 
 /**
@@ -19,6 +17,8 @@ export const EMPRUNTS_COLUMNS = [
  */
 export const EMPRUNT_FICHE_FIELDS = [
   ...EMPRUNTS_COLUMNS,
+  { key: 'dureeMois', label: 'Durée (mois)', type: 'number' },
+  { key: 'annuite', label: 'Annuité', type: 'text' },
   { key: 'modeRemb', label: 'Mode Remb.', type: 'text' },
   { key: 'situation', label: 'Situation', type: 'text' },
   { key: 'banque', label: 'Banque', type: 'text' },
@@ -52,7 +52,7 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1600px', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1400px', fontSize: '13px' }}>
         <thead>
           <tr>
             {EMPRUNTS_COLUMNS.map((col) => (
@@ -63,6 +63,7 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
                 currentSort={sort}
                 onSort={onSort}
                 align={col.type === 'text' ? 'left' : 'right'}
+                width={col.width}
               />
             ))}
           </tr>
@@ -89,6 +90,7 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
                       color: '#2D3748',
                       whiteSpace: 'nowrap',
                       fontVariantNumeric: 'tabular-nums',
+                      ...(col.width ? { width: col.width, boxSizing: 'border-box' } : {}),
                     }}
                   >
                     {formatCellValue(row[col.key], col.type)}
