@@ -21,7 +21,7 @@ const useBudgetStore = create((set, get) => ({
 
   setBudgetActif: (id) => set({ budgetActifId: id }),
 
-  createBudget: ({ nom, type, exercice, dateDebut, dateFin, devise = 'EUR', description = '' }) => {
+  createBudget: ({ nom, type, exercice, dateDebut, dateFin, devise = 'EUR', description = '', periodicite = 'mensuel' }) => {
     const budget = {
       id: newId('bud'),
       nom,
@@ -29,6 +29,7 @@ const useBudgetStore = create((set, get) => ({
       exercice,
       dateDebut,
       dateFin,
+      periodicite, // 'mensuel' | 'trimestriel' | 'semestriel' | 'annuel'
       statut: 'brouillon',
       version: 1,
       devise,

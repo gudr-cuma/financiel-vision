@@ -68,6 +68,16 @@ function fallbackStart(closingDate) {
 }
 
 /**
+ * Construit la clé de période `YYYY-MM` d'un mois donné.
+ * @param {number} month - 1 à 12
+ * @param {number} year
+ * @returns {string}
+ */
+export function periodeKey(month, year) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/**
  * Construit le tableau des mois de l'exercice dans l'ordre chronologique.
  * Ex. exercice Jan–Déc → [{ month: 1, year: 2024, label: 'Janvier 2024' }, ...]
  * Ex. exercice Avr–Mars → [{ month: 4, year: 2024, label: 'Avril 2024' }, ..., { month: 3, year: 2025, label: 'Mars 2025' }]

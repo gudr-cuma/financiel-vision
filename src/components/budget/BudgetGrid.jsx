@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { createColumnHelper, useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import useBudgetStore from '../../store/useBudgetStore';
-import { buildExerciceMonths } from '../../engine/exerciceUtils';
-import { repartirMontantAnnuel, resolveMontantPrevu, sortPostesByCode, NATURE_LABELS } from '../../domain/budget/calculs';
+import { buildExerciceMonths, getExerciceLabel } from '../../engine/exerciceUtils';
+import { repartirMontantAnnuel, resolveMontantPrevu, sortPostesByCode, buildPeriodColumns, NATURE_LABELS } from '../../domain/budget/calculs';
 import { formatAmountFull } from '../../engine/formatUtils';
 import AnnualEntryToggle from './AnnualEntryToggle';
 
@@ -10,8 +10,12 @@ const columnHelper = createColumnHelper();
 const COLUMN_WIDTHS = { code: '90px', libelle: '180px', total: '130px', actions: '270px', commentaire: '400px' };
 const MONTH_COLUMN_WIDTH = '92px';
 
-function periodeKey(month, year) {
-  return `${year}-${String(month).padStart(2, '0')}`;
+function columnLabel(column, index, periodicite, budget) {
+  if (periodicite === 'trimestriel') return `T${index + 1} ${column.months[0].year}`;
+  if (periodicite === 'semestriel') return `S${index + 1} ${column.months[0].year}`;
+  if (periodicite === 'annuel') return getExerciceLabel(new Date(budget.dateDebut), new Date(budget.dateFin));
+  const { shortLabel, year } = column.months[0];
+  return `${shortLabel} ${year}`;
 }
 
 export function BudgetGrid({ budget, activeScenarioId }) {
@@ -24,16 +28,21 @@ export function BudgetGrid({ budget, activeScenarioId }) {
   const [editingPosteId, setEditingPosteId] = useState(null);
   const [editValues, setEditValues] = useState({ code: '', libelle: '', comptesMappes: '' });
 
+  const periodicite = budget.periodicite ?? 'mensuel';
+
   const months = useMemo(
     () => buildExerciceMonths(new Date(budget.dateDebut), new Date(budget.dateFin)),
     [budget.dateDebut, budget.dateFin]
+  );
+  const periodColumns = useMemo(
+    () => buildPeriodColumns(months, periodicite),
+    [months, periodicite]
   );
   const scenarioId = activeScenarioId;
 
   const data = useMemo(() => sortPostesByCode(budget.postes).map(poste => {
     const valuesByPeriode = {};
-    for (const { month, year } of months) {
-      const key = periodeKey(month, year);
+    for (const { key } of periodColumns) {
       const isExplicit = (poste.lignes ?? []).some(l => l.scenarioId === scenarioId && l.periode === key);
       valuesByPeriode[key] = {
         montant: resolveMontantPrevu(poste, budget.scenarios, scenarioId, key),
@@ -42,7 +51,7 @@ export function BudgetGrid({ budget, activeScenarioId }) {
     }
     const total = Object.values(valuesByPeriode).reduce((a, b) => a + b.montant, 0);
     return { poste, valuesByPeriode, total };
-  }), [budget.postes, budget.scenarios, months, scenarioId]);
+  }), [budget.postes, budget.scenarios, periodColumns, scenarioId]);
 
   const handleChange = (posteId, key, rawValue) => {
     const montant = parseFloat(rawValue);
@@ -50,9 +59,9 @@ export function BudgetGrid({ budget, activeScenarioId }) {
   };
 
   const handleRepartir = (posteId) => (montantAnnuel) => {
-    const repartis = repartirMontantAnnuel(montantAnnuel, months.length);
-    months.forEach(({ month, year }, i) => {
-      setLigneBudget(budget.id, posteId, scenarioId, periodeKey(month, year), repartis[i]);
+    const repartis = repartirMontantAnnuel(montantAnnuel, periodColumns.length);
+    periodColumns.forEach(({ key }, i) => {
+      setLigneBudget(budget.id, posteId, scenarioId, key, repartis[i]);
     });
   };
 
@@ -138,11 +147,11 @@ export function BudgetGrid({ budget, activeScenarioId }) {
         );
       },
     }),
-    ...months.map(({ month, year, shortLabel }) => {
-      const key = periodeKey(month, year);
+    ...periodColumns.map((column, index) => {
+      const { key } = column;
       return columnHelper.accessor(row => row.valuesByPeriode[key].montant, {
         id: key,
-        header: `${shortLabel} ${year}`,
+        header: columnLabel(column, index, periodicite, budget),
         cell: ({ row }) => {
           const cellValue = row.original.valuesByPeriode[key];
           return (
@@ -174,7 +183,7 @@ export function BudgetGrid({ budget, activeScenarioId }) {
       header: '',
       cell: ({ row }) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <AnnualEntryToggle onApply={handleRepartir(row.original.poste.id)} />
+          {periodicite !== 'annuel' && <AnnualEntryToggle onApply={handleRepartir(row.original.poste.id)} />}
           <button
             onClick={() => removePoste(budget.id, row.original.poste.id)}
             title="Supprimer le poste"
@@ -197,7 +206,7 @@ export function BudgetGrid({ budget, activeScenarioId }) {
       ),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [months, budget.id, scenarioId, editingPosteId, editValues]);
+  ], [periodColumns, periodicite, budget.id, budget.dateDebut, budget.dateFin, scenarioId, editingPosteId, editValues]);
 
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
@@ -278,7 +287,7 @@ export function BudgetGrid({ budget, activeScenarioId }) {
             </tr>
           ))}
           {data.length === 0 && (
-            <tr><td colSpan={months.length + 5} style={{ padding: '24px', textAlign: 'center', color: '#718096' }}>
+            <tr><td colSpan={periodColumns.length + 5} style={{ padding: '24px', textAlign: 'center', color: '#718096' }}>
               Aucun poste. Ajoutez-en un ci-dessus.
             </td></tr>
           )}

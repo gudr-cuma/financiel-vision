@@ -11,6 +11,7 @@ const schema = z.object({
   exercice: z.coerce.number().int().min(2000).max(2100),
   dateDebut: z.string().min(1, 'La date de début est requise.'),
   dateFin: z.string().min(1, 'La date de fin est requise.'),
+  periodicite: z.enum(['mensuel', 'trimestriel', 'semestriel', 'annuel']),
   methode: z.enum(['vierge', 'copie']),
   sourceBudgetId: z.string().optional(),
 }).refine(
@@ -30,6 +31,7 @@ export function BudgetWizard({ onClose, onCreated }) {
       nom: '', description: '', type: 'fonctionnement', exercice: new Date().getFullYear(),
       dateDebut: `${new Date().getFullYear()}-01-01`,
       dateFin: `${new Date().getFullYear()}-12-31`,
+      periodicite: 'mensuel',
       methode: 'vierge', sourceBudgetId: '',
     },
   });
@@ -42,12 +44,12 @@ export function BudgetWizard({ onClose, onCreated }) {
       budget = duplicateBudget(data.sourceBudgetId);
       updateBudget(budget.id, {
         nom: data.nom, description: data.description ?? '', type: data.type, exercice: data.exercice,
-        dateDebut: data.dateDebut, dateFin: data.dateFin,
+        dateDebut: data.dateDebut, dateFin: data.dateFin, periodicite: data.periodicite,
       });
     } else {
       budget = createBudget({
         nom: data.nom, description: data.description ?? '', type: data.type, exercice: data.exercice,
-        dateDebut: data.dateDebut, dateFin: data.dateFin,
+        dateDebut: data.dateDebut, dateFin: data.dateFin, periodicite: data.periodicite,
       });
     }
     onCreated(budget.id);
@@ -89,6 +91,15 @@ export function BudgetWizard({ onClose, onCreated }) {
             </Field>
           </div>
 
+          <Field label="Périodicité de saisie" htmlFor="periodicite">
+            <select id="periodicite" {...register('periodicite')} style={inputStyle}>
+              <option value="mensuel">Mensuel (12 colonnes)</option>
+              <option value="trimestriel">Trimestriel (4 colonnes)</option>
+              <option value="semestriel">Semestriel (2 colonnes)</option>
+              <option value="annuel">Annuel (1 colonne)</option>
+            </select>
+          </Field>
+
           <Field label="Initialisation">
             <Controller
               name="methode"
@@ -123,10 +134,10 @@ export function BudgetWizard({ onClose, onCreated }) {
   );
 }
 
-function Field({ label, error, children }) {
+function Field({ label, error, children, htmlFor }) {
   return (
     <div style={{ marginBottom: '14px', flex: 1 }}>
-      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#718096', marginBottom: '4px' }}>
+      <label htmlFor={htmlFor} style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#718096', marginBottom: '4px' }}>
         {label}
       </label>
       {children}

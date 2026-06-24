@@ -17,7 +17,9 @@ import {
   groupRowsByNatureAndCode,
   sumRows,
   prorataRatio,
+  buildPeriodColumns,
 } from '../domain/budget/calculs';
+import { buildExerciceMonths } from '../engine/exerciceUtils';
 
 describe('ecart', () => {
   it('renvoie realise - budgete', () => {
@@ -275,6 +277,52 @@ describe('groupRowsByNatureAndCode', () => {
   it('ne renvoie pas de groupe pour une nature absente des lignes', () => {
     const rows = [{ poste: { code: 'ACH001', nature: 'charge' } }];
     expect(groupRowsByNatureAndCode(rows).map(g => g.nature)).toEqual(['charge']);
+  });
+});
+
+describe('buildPeriodColumns', () => {
+  const months = buildExerciceMonths(new Date(2026, 0, 1), new Date(2026, 11, 31));
+
+  it('renvoie 12 colonnes (une par mois) en mensuel, clé = mois lui-même', () => {
+    const columns = buildPeriodColumns(months, 'mensuel');
+    expect(columns).toHaveLength(12);
+    expect(columns[0].key).toBe('2026-01');
+    expect(columns[11].key).toBe('2026-12');
+  });
+
+  it('renvoie 4 colonnes en trimestriel, clé = premier mois de chaque trimestre', () => {
+    const columns = buildPeriodColumns(months, 'trimestriel');
+    expect(columns).toHaveLength(4);
+    expect(columns.map(c => c.key)).toEqual(['2026-01', '2026-04', '2026-07', '2026-10']);
+    expect(columns[0].months).toHaveLength(3);
+  });
+
+  it('renvoie 2 colonnes en semestriel, clé = premier mois de chaque semestre', () => {
+    const columns = buildPeriodColumns(months, 'semestriel');
+    expect(columns).toHaveLength(2);
+    expect(columns.map(c => c.key)).toEqual(['2026-01', '2026-07']);
+    expect(columns[0].months).toHaveLength(6);
+  });
+
+  it('renvoie 1 colonne en annuel, couvrant tous les mois', () => {
+    const columns = buildPeriodColumns(months, 'annuel');
+    expect(columns).toHaveLength(1);
+    expect(columns[0].key).toBe('2026-01');
+    expect(columns[0].months).toHaveLength(12);
+  });
+
+  it('respecte l\'ordre d\'un exercice décalé (Avr–Mars) pour le découpage trimestriel', () => {
+    const decale = buildExerciceMonths(new Date(2026, 3, 1), new Date(2027, 2, 31));
+    const columns = buildPeriodColumns(decale, 'trimestriel');
+    expect(columns.map(c => c.key)).toEqual(['2026-04', '2026-07', '2026-10', '2027-01']);
+  });
+
+  it('le dernier groupe est plus court si la durée n\'est pas un multiple exact de la taille de groupe', () => {
+    const courte = months.slice(0, 5); // 5 mois : Jan-Mai
+    const columns = buildPeriodColumns(courte, 'trimestriel');
+    expect(columns).toHaveLength(2);
+    expect(columns[0].months).toHaveLength(3);
+    expect(columns[1].months).toHaveLength(2); // groupe incomplet
   });
 });
 

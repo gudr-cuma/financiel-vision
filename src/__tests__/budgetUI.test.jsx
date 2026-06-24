@@ -80,6 +80,54 @@ describe('BudgetGrid', () => {
   });
 });
 
+describe('BudgetGrid — périodicité', () => {
+  const budgetAnnuelComplet = (periodicite) => ({
+    ...makeBudget([posteAch1]),
+    dateDebut: '2026-01-01',
+    dateFin: '2026-12-31',
+    periodicite,
+  });
+
+  it('affiche 12 colonnes de saisie en mensuel (périodicité par défaut)', () => {
+    render(<BudgetGrid budget={budgetAnnuelComplet(undefined)} activeScenarioId="sce_median" />);
+    expect(screen.getAllByTitle(/Calculé automatiquement|Valeur saisie/)).toHaveLength(12);
+  });
+
+  it('affiche 4 colonnes de saisie en trimestriel', () => {
+    render(<BudgetGrid budget={budgetAnnuelComplet('trimestriel')} activeScenarioId="sce_median" />);
+    expect(screen.getAllByTitle(/Calculé automatiquement|Valeur saisie/)).toHaveLength(4);
+  });
+
+  it('affiche 2 colonnes de saisie en semestriel', () => {
+    render(<BudgetGrid budget={budgetAnnuelComplet('semestriel')} activeScenarioId="sce_median" />);
+    expect(screen.getAllByTitle(/Calculé automatiquement|Valeur saisie/)).toHaveLength(2);
+  });
+
+  it('affiche 1 colonne de saisie en annuel, et masque le bouton Répartir', () => {
+    render(<BudgetGrid budget={budgetAnnuelComplet('annuel')} activeScenarioId="sce_median" />);
+    expect(screen.getAllByTitle(/Calculé automatiquement|Valeur saisie/)).toHaveLength(1);
+    expect(screen.queryByPlaceholderText('Montant annuel')).not.toBeInTheDocument();
+  });
+
+  it('la saisie dans une colonne trimestrielle crée une seule ligne (une seule clé de période)', () => {
+    render(<BudgetGrid budget={budgetAnnuelComplet('trimestriel')} activeScenarioId="sce_median" />);
+    const inputs = screen.getAllByTitle(/Calculé automatiquement|Valeur saisie/);
+    fireEvent.change(inputs[0], { target: { value: '900' } });
+    fireEvent.blur(inputs[0]);
+    expect(setLigneBudget).toHaveBeenCalledTimes(1);
+    expect(setLigneBudget).toHaveBeenCalledWith('bud_1', 'p1', 'sce_median', '2026-01', 900);
+  });
+
+  it('le bouton Répartir divise le montant saisi par le nombre de colonnes affichées (4 en trimestriel)', () => {
+    render(<BudgetGrid budget={budgetAnnuelComplet('trimestriel')} activeScenarioId="sce_median" />);
+    fireEvent.change(screen.getByPlaceholderText('Montant annuel'), { target: { value: '4000' } });
+    fireEvent.click(screen.getByText('Répartir'));
+    expect(setLigneBudget).toHaveBeenCalledTimes(4);
+    expect(setLigneBudget).toHaveBeenCalledWith('bud_1', 'p1', 'sce_median', '2026-01', 1000);
+    expect(setLigneBudget).toHaveBeenCalledWith('bud_1', 'p1', 'sce_median', '2026-10', 1000);
+  });
+});
+
 describe('TableauEcarts', () => {
   it('trie par code et propose le regroupement postes', () => {
     render(<TableauEcarts budget={makeBudget([posteAch2, posteAch1])} activeScenarioId="sce_median" />);

@@ -4,6 +4,9 @@
  */
 
 import { differenceInCalendarDays } from 'date-fns';
+import { periodeKey } from '../../engine/exerciceUtils';
+
+export const PERIODICITE_GROUP_SIZE = { mensuel: 1, trimestriel: 3, semestriel: 6, annuel: 12 };
 
 export const NATURE_ORDER = ['charge', 'produit', 'invest'];
 // Libellé au singulier, pour qualifier un poste individuel (ex. "Charge · 601, 602").
@@ -185,6 +188,25 @@ export function groupRowsByNatureAndCode(rows) {
       codeGroups: [...byCode.entries()].map(([key, codeRows]) => ({ key, rows: codeRows })),
     };
   });
+}
+
+/**
+ * Découpe le tableau de mois d'un exercice (buildExerciceMonths) en colonnes de
+ * saisie selon la périodicité du budget : une colonne = un groupe séquentiel de
+ * mois, identifié par la clé de période (YYYY-MM) de son premier mois. Cette clé
+ * sert directement de `LigneBudget.periode` : une colonne ne correspond jamais à
+ * plusieurs lignes. Le dernier groupe peut être plus court si la durée totale
+ * n'est pas un multiple exact de la taille de groupe.
+ */
+export function buildPeriodColumns(months, periodicite) {
+  const size = PERIODICITE_GROUP_SIZE[periodicite] ?? 1;
+  const columns = [];
+  for (let i = 0; i < months.length; i += size) {
+    const slice = months.slice(i, i + size);
+    const first = slice[0];
+    columns.push({ key: periodeKey(first.month, first.year), months: slice });
+  }
+  return columns;
 }
 
 /**
