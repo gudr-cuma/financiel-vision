@@ -89,3 +89,16 @@ export function signColor(amount) {
   if (amount < 0) return '#E53935';
   return '#268E00';
 }
+
+/**
+ * Normalise une chaîne pour comparaison insensible à la casse et aux accents.
+ * @param {string} str
+ * @returns {string}
+ */
+export function normalizeText(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}

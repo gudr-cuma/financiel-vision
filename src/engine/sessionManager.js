@@ -16,7 +16,7 @@ const MAX_RECENT  = 10;
 export function exportSession(storeState) {
   const {
     parsedFec, dossierData, analyseIAText,
-    bilanCRData, activeSection, activeTab,
+    bilanCRData, activeSection, activeTab, syntheseOverrides,
   } = storeState;
 
   const selectedIdx = dossierData?.selectedCumaIndex ?? 0;
@@ -51,6 +51,7 @@ export function exportSession(storeState) {
     session: {
       dossierOverrides:    dossierData?.overrides ?? {},
       dossierComments:     dossierData?.comments  ?? {},
+      syntheseOverrides:   syntheseOverrides ?? {},
       selectedCumaIndex:   dossierData?.selectedCumaIndex ?? 0,
       analyseIAText:       analyseIAText ?? '',
       activeSection:       activeSection ?? 'analyseur',

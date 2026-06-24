@@ -1,6 +1,9 @@
-import { useState, Fragment } from 'react';
+import { useState, useRef, Fragment } from 'react';
 import useStore from '../../store/useStore';
+import useBudgetStore from '../../store/useBudgetStore';
 import { generateExport, DOC_LABELS, COMP_SUBTABLE_IDS } from '../../engine/generatePdf';
+import { exportConfigJson, importConfigJson } from './exportConfigRepository';
+import GranularityToggle from '../treasury/GranularityToggle';
 
 // ── Sous-tableaux Comparaison N/N-1 ─────────────────────────────────────────
 const COMP_SUBTABLES = [
@@ -23,27 +26,58 @@ const COMP_SUBTABLES = [
 ];
 
 // ── Catalogue complet des documents ──────────────────────────────────────────
-// requiresFec        → nécessite un FEC chargé
-// requiresDossier    → nécessite dossierData
-// requiresAnalytique → nécessite analytiqueData
-// requiresBilanCR    → nécessite bilanCRData
+// requiresFec          → nécessite un FEC chargé
+// requiresDossier      → nécessite dossierData
+// requiresAnalytique   → nécessite analytiqueData
+// requiresBilanCR      → nécessite bilanCRData
+// requiresExploitation → nécessite exploitationData (Export_Multi chargé)
+// requiresBudget       → nécessite au moins un budget créé
 const ALL_DOCS = [
-  { id: 'dossier_gestion',   requiresDossier: true },
-  { id: 'sig',               requiresFec: true },
+  { id: 'fiche_synthese',    requiresExploitation: true },
   { id: 'bilan',             requiresFec: true },
-  { id: 'bilan_cr',          requiresBilanCR: true },
+  { id: 'dossier_gestion',   requiresDossier: true },
+  { id: 'comparaison_nn1',   requiresComparaisonNN1: true },
+  { id: 'treasury_curve',    requiresFec: true },
+  { id: 'charges_charts',    requiresFec: true },
+  { id: 'sig',               requiresFec: true },
   { id: 'balance',           requiresFec: true },
   { id: 'balance_aux',       requiresFec: true },
   { id: 'grand_livre',       requiresFec: true, warn: true },
-  { id: 'treasury_curve',    requiresFec: true },
-  { id: 'charges_charts',    requiresFec: true },
-  { id: 'analytique_table',  requiresAnalytique: true },
+  { id: 'bilan_cr',          requiresBilanCR: true },
+  { id: 'capital_social',    requiresExploitation: true },
+  { id: 'emprunts',          requiresExploitation: true },
+  { id: 'immobilisations',   requiresExploitation: true },
+  { id: 'materiels',         requiresExploitation: true },
   { id: 'analytique_podium', requiresAnalytique: true },
+  { id: 'analytique_table',  requiresAnalytique: true },
+  { id: 'budget_suivi',      requiresBudget: true },
   { id: 'rapport_ia',        requiresRapportIA: true },
-  { id: 'comparaison_nn1',  requiresComparaisonNN1: true },
 ];
 
-const DEFAULT_SELECTED = ['sig', 'bilan', 'balance', 'balance_aux', 'treasury_curve', 'charges_charts'];
+const DEFAULT_SELECTED = [
+  'fiche_synthese', 'dossier_gestion', 'treasury_curve', 'charges_charts',
+  'sig', 'balance', 'balance_aux', 'bilan_cr',
+  'capital_social', 'emprunts', 'immobilisations', 'materiels',
+];
+
+const DEFAULT_DOC_OPTIONS = {
+  treasury_curve: { chartType: 'courbe', granularity: 'mois', showSolde: true, showTop10: false },
+  capital_social: { groupBy: 'none' },
+  materiels:      { groupBy: 'none' },
+  budget_suivi:   { budgetId: null, tableType: 'ecarts', scenarioId: null },
+};
+
+function isDocAvailable(doc, ctx) {
+  if (doc.requiresFec             && !ctx.parsedFec)        return false;
+  if (doc.requiresDossier         && !ctx.dossierData)      return false;
+  if (doc.requiresBilanCR         && !ctx.bilanCRData)      return false;
+  if (doc.requiresAnalytique      && !ctx.analytiqueData)   return false;
+  if (doc.requiresRapportIA       && !ctx.analyseIAText)    return false;
+  if (doc.requiresComparaisonNN1  && !ctx.sigResultN1)      return false;
+  if (doc.requiresExploitation    && !ctx.exploitationData) return false;
+  if (doc.requiresBudget          && !(ctx.budgets && ctx.budgets.length > 0)) return false;
+  return true;
+}
 
 // ── Bouton ↑ / ↓ ──────────────────────────────────────────────────────────────
 function ArrowBtn({ dir, disabled, onClick }) {
@@ -78,6 +112,8 @@ export function ExportTab() {
   const dossierData    = useStore(s => s.dossierData);
   const bilanCRData    = useStore(s => s.bilanCRData);
   const analyseIAText  = useStore(s => s.analyseIAText);
+  const exploitationData  = useStore(s => s.exploitationData);
+  const syntheseOverrides = useStore(s => s.syntheseOverrides);
   // N-1 / N-2 pour la comparaison
   const sigResultN1    = useStore(s => s.sigResultN1);
   const sigResultN2    = useStore(s => s.sigResultN2);
@@ -85,40 +121,38 @@ export function ExportTab() {
   const bilanDataN2    = useStore(s => s.bilanDataN2);
   const treasuryDataN1 = useStore(s => s.treasuryDataN1);
   const chargesDataN1  = useStore(s => s.chargesDataN1);
+  // Suivi budgétaire — store indépendant (aucun "budget actif" global, on lit juste la liste)
+  const budgets = useBudgetStore(s => s.budgets);
+
+  const availabilityCtx = {
+    parsedFec, dossierData, bilanCRData, analytiqueData, analyseIAText,
+    sigResultN1, exploitationData, budgets,
+  };
 
   // orderedSelection = tableau ordonné des IDs cochés (ordre = ordre d'export)
   const [orderedSelection, setOrderedSelection] = useState(
     DEFAULT_SELECTED.filter(id => {
       // ne pré-cocher que ce qui est disponible
       const doc = ALL_DOCS.find(d => d.id === id);
-      if (!doc) return false;
-      if (doc.requiresFec        && !parsedFec)      return false;
-      if (doc.requiresDossier    && !dossierData)    return false;
-      if (doc.requiresBilanCR    && !bilanCRData)    return false;
-      if (doc.requiresAnalytique && !analytiqueData) return false;
-      if (doc.requiresRapportIA       && !analyseIAText)  return false;
-      if (doc.requiresComparaisonNN1  && !sigResultN1)    return false;
-      return true;
+      return doc ? isDocAvailable(doc, availabilityCtx) : false;
     })
   );
   const [comparaisonSubTables, setComparaisonSubTables] = useState(COMP_SUBTABLE_IDS);
+  const [docOptions, setDocOptions]   = useState(DEFAULT_DOC_OPTIONS);
   const [mode, setMode]               = useState('global');
   const [orientation, setOrientation] = useState('landscape');
   const [annexes, setAnnexes]         = useState([]);
   const [logoDataUrl, setLogoDataUrl] = useState(null);
   const [progress, setProgress]       = useState(null);
   const [error, setError]             = useState(null);
+  const [importConfigError, setImportConfigError] = useState(null);
+  const fileInputConfigRef = useRef(null);
+
+  const setDocOption = (docId, patch) =>
+    setDocOptions(prev => ({ ...prev, [docId]: { ...prev[docId], ...patch } }));
 
   // Docs disponibles selon les données chargées
-  const availableDocs = ALL_DOCS.filter(d => {
-    if (d.requiresFec        && !parsedFec)      return false;
-    if (d.requiresDossier    && !dossierData)    return false;
-    if (d.requiresBilanCR    && !bilanCRData)    return false;
-    if (d.requiresAnalytique && !analytiqueData) return false;
-    if (d.requiresRapportIA       && !analyseIAText)  return false;
-    if (d.requiresComparaisonNN1  && !sigResultN1)    return false;
-    return true;
-  });
+  const availableDocs = ALL_DOCS.filter(d => isDocAvailable(d, availabilityCtx));
 
   const nothingLoaded = availableDocs.length === 0;
 
@@ -163,6 +197,7 @@ export function ExportTab() {
       analyseIAText, logoDataUrl,
       sigResultN1, sigResultN2, bilanDataN1, bilanDataN2, treasuryDataN1, chargesDataN1,
       comparaisonSubTables,
+      docOptions, exploitationData, syntheseOverrides, budgets,
     };
 
     try {
@@ -181,6 +216,33 @@ export function ExportTab() {
       return;
     }
     setTimeout(() => setProgress(null), 1500);
+  };
+
+  // ── Configuration de l'export (export/import JSON) ─────────────────────────
+  const handleExportConfig = () => {
+    const json = exportConfigJson({ orderedSelection, docOptions, mode, orientation, comparaisonSubTables });
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `export_pdf_config_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportConfigFile = async (file) => {
+    setImportConfigError(null);
+    try {
+      const text = await file.text();
+      const parsed = importConfigJson(text);
+      setOrderedSelection(parsed.orderedSelection.filter(id => availableDocs.some(d => d.id === id)));
+      if (parsed.docOptions) setDocOptions(prev => ({ ...prev, ...parsed.docOptions }));
+      if (parsed.mode) setMode(parsed.mode);
+      if (parsed.orientation) setOrientation(parsed.orientation);
+      if (parsed.comparaisonSubTables) setComparaisonSubTables(parsed.comparaisonSubTables);
+    } catch (err) {
+      setImportConfigError(err.message);
+    }
   };
 
   const grandLivreChecked = orderedSelection.includes('grand_livre');
@@ -320,6 +382,169 @@ export function ExportTab() {
                     </div>
                   </div>
                 )}
+
+                {/* ── Options Trésorerie : courbe/histogramme + top10 ────────── */}
+                {doc.id === 'treasury_curve' && checked && (
+                  <div style={{
+                    marginLeft: '44px', marginTop: '-2px',
+                    padding: '12px 14px', background: '#F8FAFB',
+                    borderRadius: '8px', border: '1px solid #E2E8F0',
+                    display: 'flex', flexDirection: 'column', gap: '10px',
+                  }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {[
+                        { value: 'courbe',      label: 'Courbe' },
+                        { value: 'histogramme', label: 'Histogramme' },
+                      ].map(opt => {
+                        const active = (docOptions.treasury_curve?.chartType ?? 'courbe') === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            onClick={() => setDocOption('treasury_curve', { chartType: opt.value })}
+                            style={{
+                              padding: '5px 12px', fontSize: '12px', fontWeight: 600,
+                              borderRadius: '6px', cursor: 'pointer',
+                              border: active ? '2px solid #FF8200' : '1px solid #E2E8F0',
+                              background: active ? '#FFF3E0' : '#fff',
+                              color: active ? '#E57300' : '#718096',
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(docOptions.treasury_curve?.chartType ?? 'courbe') === 'histogramme' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                        <GranularityToggle
+                          value={docOptions.treasury_curve?.granularity ?? 'mois'}
+                          onChange={(g) => setDocOption('treasury_curve', { granularity: g })}
+                        />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#2D3748', cursor: 'pointer' }}>
+                          <input type="checkbox"
+                            checked={docOptions.treasury_curve?.showSolde ?? true}
+                            onChange={() => setDocOption('treasury_curve', { showSolde: !(docOptions.treasury_curve?.showSolde ?? true) })}
+                            style={{ accentColor: '#FF8200', cursor: 'pointer' }} />
+                          Avec courbe de solde
+                        </label>
+                      </div>
+                    )}
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#2D3748', cursor: 'pointer' }}>
+                      <input type="checkbox"
+                        checked={docOptions.treasury_curve?.showTop10 ?? false}
+                        onChange={() => setDocOption('treasury_curve', { showTop10: !(docOptions.treasury_curve?.showTop10 ?? false) })}
+                        style={{ accentColor: '#FF8200', cursor: 'pointer' }} />
+                      Imprimer le Top 10 encaissements/décaissements
+                    </label>
+                  </div>
+                )}
+
+                {/* ── Option Capital social : regroupement ──────────────────── */}
+                {doc.id === 'capital_social' && checked && (
+                  <div style={{
+                    marginLeft: '44px', marginTop: '-2px',
+                    padding: '12px 14px', background: '#F8FAFB',
+                    borderRadius: '8px', border: '1px solid #E2E8F0',
+                  }}>
+                    <label style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '6px' }}>Regroupement :</label>
+                    <select
+                      value={docOptions.capital_social?.groupBy ?? 'none'}
+                      onChange={(e) => setDocOption('capital_social', { groupBy: e.target.value })}
+                      style={{ border: '1px solid #CBD5E0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', color: '#1A202C', background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="none">Aucun regroupement</option>
+                      <option value="adherent">Adhérent</option>
+                      <option value="baseSouscription">Base Souscription</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* ── Option Matériels : regroupement ───────────────────────── */}
+                {doc.id === 'materiels' && checked && (
+                  <div style={{
+                    marginLeft: '44px', marginTop: '-2px',
+                    padding: '12px 14px', background: '#F8FAFB',
+                    borderRadius: '8px', border: '1px solid #E2E8F0',
+                  }}>
+                    <label style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '6px' }}>Regroupement :</label>
+                    <select
+                      value={docOptions.materiels?.groupBy ?? 'none'}
+                      onChange={(e) => setDocOption('materiels', { groupBy: e.target.value })}
+                      style={{ border: '1px solid #CBD5E0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', color: '#1A202C', background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="none">Aucun regroupement</option>
+                      <option value="marque">Marque</option>
+                      <option value="yearDateAchat">Année d'achat</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* ── Options Suivi budgétaire : budget / type de tableau / scénario ── */}
+                {doc.id === 'budget_suivi' && checked && (() => {
+                  const opts = docOptions.budget_suivi ?? {};
+                  const selectedBudget = budgets.find(b => b.id === opts.budgetId);
+                  const scenarios = selectedBudget?.scenarios ?? [];
+                  return (
+                    <div style={{
+                      marginLeft: '44px', marginTop: '-2px',
+                      padding: '12px 14px', background: '#F8FAFB',
+                      borderRadius: '8px', border: '1px solid #E2E8F0',
+                      display: 'flex', flexDirection: 'column', gap: '10px',
+                    }}>
+                      <div>
+                        <label style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '6px' }}>Budget :</label>
+                        <select
+                          value={opts.budgetId ?? ''}
+                          onChange={(e) => setDocOption('budget_suivi', { budgetId: e.target.value || null })}
+                          style={{ border: '1px solid #CBD5E0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', color: '#1A202C', background: '#fff', cursor: 'pointer', minWidth: '220px' }}
+                        >
+                          <option value="">— Choisir un budget —</option>
+                          {budgets.map(b => <option key={b.id} value={b.id}>{b.nom}</option>)}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {[
+                          { value: 'ecarts',          label: 'Suivi & écart' },
+                          { value: 'ecarts_scenario', label: 'Suivi & écart avec scénario' },
+                        ].map(opt => {
+                          const active = (opts.tableType ?? 'ecarts') === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              onClick={() => setDocOption('budget_suivi', { tableType: opt.value })}
+                              style={{
+                                padding: '5px 12px', fontSize: '12px', fontWeight: 600,
+                                borderRadius: '6px', cursor: 'pointer',
+                                border: active ? '2px solid #FF8200' : '1px solid #E2E8F0',
+                                background: active ? '#FFF3E0' : '#fff',
+                                color: active ? '#E57300' : '#718096',
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {opts.tableType === 'ecarts_scenario' && scenarios.length > 1 && (
+                        <div>
+                          <label style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '6px' }}>Scénario :</label>
+                          <select
+                            value={opts.scenarioId ?? ''}
+                            onChange={(e) => setDocOption('budget_suivi', { scenarioId: e.target.value || null })}
+                            style={{ border: '1px solid #CBD5E0', borderRadius: '6px', padding: '6px 10px', fontSize: '13px', color: '#1A202C', background: '#fff', cursor: 'pointer' }}
+                          >
+                            <option value="">Médian (par défaut)</option>
+                            {scenarios.map(s => <option key={s.id} value={s.id}>{s.type}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 </Fragment>
               );
             })}
@@ -524,6 +749,42 @@ export function ExportTab() {
           )}
         </section>
       )}
+
+      {/* ── Configuration de l'export ── */}
+      <section style={{ marginBottom: '28px' }}>
+        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#1A202C', marginBottom: '4px' }}>
+          Configuration de l'export
+        </h2>
+        <p style={{ fontSize: '12px', color: '#718096', margin: '0 0 12px' }}>
+          Sauvegardez vos réglages (documents, options, mode, orientation) ou rechargez une configuration précédente.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleExportConfig}
+            style={{ padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#1A202C', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            ⬇️ Exporter la configuration
+          </button>
+          <button
+            onClick={() => fileInputConfigRef.current?.click()}
+            style={{ padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#1A202C', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            ⬆️ Importer une configuration
+          </button>
+          <input
+            ref={fileInputConfigRef}
+            type="file"
+            accept="application/json"
+            style={{ display: 'none' }}
+            onChange={e => e.target.files[0] && handleImportConfigFile(e.target.files[0])}
+          />
+        </div>
+        {importConfigError && (
+          <div style={{ marginTop: '10px', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #F87171', borderRadius: '8px', fontSize: '13px', color: '#991B1B' }}>
+            {importConfigError}
+          </div>
+        )}
+      </section>
 
       {/* ── Bouton Générer ── */}
       <button

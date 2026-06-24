@@ -72,7 +72,16 @@ export function computeTreasury(parsedFec) {
   let totalEntrees = 0;
   let totalSorties = 0;
 
-  for (let ts = startTs; ts <= endTs; ts += 86400000) {
+  // Avance jour calendaire par jour calendaire (et non +86400000ms) : un
+  // incrément en millisecondes désynchronise le pointeur du calendrier local
+  // aux passages heure d'été/hiver (jour de 23h ou 25h), faisant manquer ou
+  // dupliquer les clés de `mouvementsParJour` sur plusieurs mois.
+  for (
+    let cursor = new Date(startTs);
+    cursor.getTime() <= endTs;
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1)
+  ) {
+    const ts = cursor.getTime();
     const jour = mouvementsParJour.get(ts);
     const entrees = jour?.entrees ?? 0;
     const sorties = jour?.sorties ?? 0;
@@ -171,4 +180,152 @@ export function computeTreasury(parsedFec) {
     top10Sorties,
     filterByPeriod,
   };
+}
+
+/**
+ * Liste des écritures de trésorerie (hors ANC) pour les comptes sélectionnés,
+ * avec solde cumulé calculé indépendamment par compte (amorcé par le solde
+ * d'ouverture ANC de ce compte). Sert à afficher le détail des écritures qui
+ * alimentent la courbe de trésorerie.
+ *
+ * @param {import('./types').ParsedFEC} parsedFec
+ * @param {string[]} compteNums - Comptes à inclure (ex. ['51211000', '53100000'])
+ * @returns {Array<{ecritureDate: Date, journalCode: string, journalLib: string,
+ *   compteNum: string, compteLib: string, ecritureLib: string, pieceRef: string,
+ *   debit: number, credit: number, soldeCumule: number}>}
+ */
+export function getTreasuryEntries(parsedFec, compteNums) {
+  const selected = new Set(compteNums);
+  const { entries } = parsedFec;
+
+  const ouvertureParCompte = new Map();
+  const mouvementsParCompte = new Map();
+
+  for (const entry of entries) {
+    if (!selected.has(entry.compteNum)) continue;
+
+    if (entry.journalCode === 'ANC') {
+      const prev = ouvertureParCompte.get(entry.compteNum) ?? 0;
+      ouvertureParCompte.set(entry.compteNum, prev + entry.debit - entry.credit);
+      continue;
+    }
+
+    if (!mouvementsParCompte.has(entry.compteNum)) {
+      mouvementsParCompte.set(entry.compteNum, []);
+    }
+    mouvementsParCompte.get(entry.compteNum).push(entry);
+  }
+
+  const result = [];
+  for (const [compteNum, mouvements] of mouvementsParCompte) {
+    mouvements.sort((a, b) => a.ecritureDate - b.ecritureDate);
+    let running = ouvertureParCompte.get(compteNum) ?? 0;
+    for (const entry of mouvements) {
+      running += entry.debit - entry.credit;
+      result.push({
+        ecritureDate: entry.ecritureDate,
+        journalCode: entry.journalCode,
+        journalLib: entry.journalLib,
+        compteNum: entry.compteNum,
+        compteLib: entry.compteLib,
+        ecritureLib: entry.ecritureLib,
+        pieceRef: entry.pieceRef,
+        debit: entry.debit,
+        credit: entry.credit,
+        soldeCumule: Math.round(running * 100) / 100,
+      });
+    }
+  }
+
+  return result;
+}
+
+const MONTHS_FR_SHORT = [
+  'Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin',
+  'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc',
+];
+
+function sumBucket(days) {
+  const last = days[days.length - 1];
+  return {
+    entrees: Math.round(days.reduce((s, d) => s + d.entrees, 0) * 100) / 100,
+    sorties: Math.round(days.reduce((s, d) => s + d.sorties, 0) * 100) / 100,
+    solde: last.solde,
+    startDate: days[0].date,
+    endDate: last.date,
+  };
+}
+
+function chunkArray(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Regroupe la courbe quotidienne par mois calendaire, en conservant l'ordre
+// chronologique de l'exercice (gère naturellement les exercices décalés).
+function bucketByMonth(dailyCurve) {
+  const buckets = [];
+  let current = null;
+  let currentKey = null;
+  for (const day of dailyCurve) {
+    const key = `${day.date.getFullYear()}-${day.date.getMonth()}`;
+    if (key !== currentKey) {
+      if (current) buckets.push(current);
+      current = [];
+      currentKey = key;
+    }
+    current.push(day);
+  }
+  if (current && current.length) buckets.push(current);
+  return buckets;
+}
+
+/**
+ * Agrège la courbe quotidienne de trésorerie par semaine, mois, trimestre ou
+ * semestre, pour l'affichage en histogramme (encaissements/décaissements +
+ * solde de clôture de la période).
+ *
+ * @param {Array} dailyCurve - `treasuryData.dailyCurve` (ordonné chronologiquement)
+ * @param {'semaine'|'mois'|'trimestre'|'semestre'} granularity
+ * @returns {Array<{label: string, entrees: number, sorties: number, solde: number,
+ *   startDate: Date, endDate: Date}>}
+ */
+export function aggregateTreasuryByGranularity(dailyCurve, granularity) {
+  if (!dailyCurve || dailyCurve.length === 0) return [];
+
+  if (granularity === 'semaine') {
+    return chunkArray(dailyCurve, 7).map((days, i) => ({
+      label: `S${i + 1}`,
+      ...sumBucket(days),
+    }));
+  }
+
+  const monthGroups = bucketByMonth(dailyCurve);
+
+  if (granularity === 'mois') {
+    return monthGroups.map((days) => {
+      const d0 = days[0].date;
+      return {
+        label: `${MONTHS_FR_SHORT[d0.getMonth()]} ${String(d0.getFullYear()).slice(2)}`,
+        ...sumBucket(days),
+      };
+    });
+  }
+
+  if (granularity === 'trimestre') {
+    return chunkArray(monthGroups, 3).map((group, i) => ({
+      label: `T${i + 1}`,
+      ...sumBucket(group.flat()),
+    }));
+  }
+
+  if (granularity === 'semestre') {
+    return chunkArray(monthGroups, 6).map((group, i) => ({
+      label: `Semestre ${i + 1}`,
+      ...sumBucket(group.flat()),
+    }));
+  }
+
+  return [];
 }

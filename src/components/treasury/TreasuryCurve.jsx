@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { formatAmount, formatAmountFull, formatDate } from '../../engine/formatUtils';
 import PeriodToggle from './PeriodToggle';
+import ToggleChip from './ToggleChip';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || payload.length === 0) return null;
@@ -54,6 +55,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function TreasuryCurve({ data }) {
   const [period, setPeriod] = useState('annee');
+  const [showMovingAvg, setShowMovingAvg] = useState(false);
 
   const filteredCurve = useMemo(() => {
     return data.filterByPeriod(data.dailyCurve, period);
@@ -88,7 +90,15 @@ export default function TreasuryCurve({ data }) {
         <span style={{ fontSize: 14, fontWeight: 600, color: '#718096' }}>
           Évolution de la trésorerie
         </span>
-        <PeriodToggle value={period} onChange={setPeriod} />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <ToggleChip
+            checked={showMovingAvg}
+            onChange={setShowMovingAvg}
+            label="Moyenne mobile 7j"
+            color="#FF8200"
+          />
+          <PeriodToggle value={period} onChange={setPeriod} />
+        </div>
       </div>
 
       <ResponsiveContainer width="100%" height={280}>
@@ -123,17 +133,19 @@ export default function TreasuryCurve({ data }) {
             dot={false}
             activeDot={{ r: 4, fill: '#B1DCE2', stroke: '#FFFFFF', strokeWidth: 2 }}
           />
-          <Area
-            type="monotone"
-            dataKey="moyenneMobile"
-            stroke="#FF8200"
-            strokeWidth={1.5}
-            strokeDasharray="4 4"
-            fill="none"
-            fillOpacity={0}
-            dot={false}
-            activeDot={{ r: 3, fill: '#FF8200', stroke: '#FFFFFF', strokeWidth: 2 }}
-          />
+          {showMovingAvg && (
+            <Area
+              type="monotone"
+              dataKey="moyenneMobile"
+              stroke="#FF8200"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              fill="none"
+              fillOpacity={0}
+              dot={false}
+              activeDot={{ r: 3, fill: '#FF8200', stroke: '#FFFFFF', strokeWidth: 2 }}
+            />
+          )}
         </AreaChart>
       </ResponsiveContainer>
 
@@ -152,17 +164,19 @@ export default function TreasuryCurve({ data }) {
           }} />
           <span>Solde</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#718096' }}>
-          <div style={{
-            width: 24,
-            height: 2,
-            background: '#FF8200',
-            borderRadius: 2,
-            borderTop: '2px dashed #FF8200',
-            boxSizing: 'border-box',
-          }} />
-          <span>Moyenne mobile 7j</span>
-        </div>
+        {showMovingAvg && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#718096' }}>
+            <div style={{
+              width: 24,
+              height: 2,
+              background: '#FF8200',
+              borderRadius: 2,
+              borderTop: '2px dashed #FF8200',
+              boxSizing: 'border-box',
+            }} />
+            <span>Moyenne mobile 7j</span>
+          </div>
+        )}
       </div>
     </div>
   );

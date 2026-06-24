@@ -32,7 +32,7 @@ export async function onRequest(context) {
   );
 
   // Injecter les données dans le contexte
-  context.data.user      = { id: row.id, email: row.email, name: row.name, role: row.role };
+  context.data.user      = { id: row.id, email: row.email, name: row.name, role: row.role, can_upload_file: row.can_upload_file };
   context.data.sessionId = sessionId;
 
   // Routes admin : vérifier le rôle

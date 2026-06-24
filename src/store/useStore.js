@@ -10,6 +10,7 @@ import { parseDossierGestion } from '../engine/parseDossierGestion';
 import { parseBilanCR } from '../engine/parseBilanCR';
 import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal } from '../engine/computeAnalytique';
 import { exportSession, parseSessionFile, addRecentSession } from '../engine/sessionManager';
+import { parseExportMulti } from '../engine/parseExportMulti';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -36,6 +37,10 @@ const useStore = create((set, get) => ({
   analyseIAText: '',     // texte markdown du rapport IA généré
   dossierData: null,     // { cumaList, selectedCumaIndex, variables, overrides, comments }
   bilanCRData: null,     // { nomCuma, dateDebut, dateFin, actif[], passif[], resultat[] }
+  exploitationData: null,       // ExportMultiData | null — voir engine/parseExportMulti.js
+  isLoadingExploitation: false,
+  errorExploitation: null,
+  syntheseOverrides: {},  // surcharges utilisateur de la Fiche de synthèse, persistées en .clario
   activeSection: 'accueil',   // 'accueil' | 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
@@ -352,6 +357,48 @@ const useStore = create((set, get) => ({
   clearError: () => set({ error: null }),
 
   // -------------------------------------------------------------------------
+  // Actions — Export Multi (Emprunts / Immobilisations / Capital social /
+  // Matériels / Fiche de synthèse) — import partagé entre les 5 sections
+  // -------------------------------------------------------------------------
+
+  /** Charge le fichier Excel Export_Multi déposé par l'utilisateur. Ne force
+   *  pas activeSection — le fichier peut être déposé depuis n'importe
+   *  laquelle des 5 sections qui le consomment. */
+  loadExportMulti: async (file) => {
+    set({ isLoadingExploitation: true, errorExploitation: null });
+    try {
+      const exploitationData = await parseExportMulti(file);
+      set({ exploitationData, isLoadingExploitation: false });
+    } catch (err) {
+      set({ isLoadingExploitation: false, errorExploitation: err.message });
+    }
+  },
+
+  clearExploitationError: () => set({ errorExploitation: null }),
+
+  /** Met à jour la valeur d'un champ de la Fiche de synthèse (override utilisateur) */
+  updateSyntheseOverride: (key, value) => set(state => ({
+    syntheseOverrides: { ...state.syntheseOverrides, [key]: value },
+  })),
+
+  /** Charge le fichier de démonstration Export Multi */
+  loadDemoExportMulti: async () => {
+    set({ isLoadingExploitation: true, errorExploitation: null });
+    try {
+      const response = await fetch('/demo/demo_export_multi.xlsx');
+      if (!response.ok) throw new Error('Impossible de charger la démo Export Multi.');
+      const blob = await response.blob();
+      const file = new File([blob], 'demo_export_multi.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const exploitationData = await parseExportMulti(file);
+      set({ exploitationData, isLoadingExploitation: false });
+    } catch (err) {
+      set({ isLoadingExploitation: false, errorExploitation: err.message });
+    }
+  },
+
+  // -------------------------------------------------------------------------
   // Actions — Session save / restore (.clario)
   // -------------------------------------------------------------------------
 
@@ -398,6 +445,11 @@ const useStore = create((set, get) => ({
       set({ analyseIAText: session.analyseIAText });
     }
 
+    // Restaurer les surcharges de la Fiche de synthèse
+    if (session.syntheseOverrides) {
+      set({ syntheseOverrides: session.syntheseOverrides });
+    }
+
     // Restaurer le diaporama
     if (session.diaporama) {
       set(state => ({
@@ -407,9 +459,12 @@ const useStore = create((set, get) => ({
     }
 
     // Naviguer vers la section sauvegardée
+    // (anciens .clario : l'onglet Trésorerie vivait sous Tableaux de bord)
+    const restoredSection = session.activeTab === 'treasury' ? 'treasury' : (session.activeSection ?? 'analyseur');
+    const restoredTab      = session.activeTab === 'treasury' ? 'sig' : (session.activeTab ?? 'sig');
     set({
-      activeSection:  session.activeSection ?? 'analyseur',
-      activeTab:      session.activeTab     ?? 'sig',
+      activeSection:  restoredSection,
+      activeTab:      restoredTab,
       pendingSession: null,
     });
   },
@@ -489,6 +544,7 @@ const useStore = create((set, get) => ({
         get().loadDemoGestion(),
         get().loadDemoBilanCR(),
         get().loadDemoAnalytique(),
+        get().loadDemoExportMulti(),
       ]);
     } finally {
       set({ isLoadingDemo: false });
@@ -507,6 +563,10 @@ const useStore = create((set, get) => ({
     analyseIAText: '',
     dossierData: null,
     bilanCRData: null,
+    exploitationData: null,
+    isLoadingExploitation: false,
+    errorExploitation: null,
+    syntheseOverrides: {},
     activeSection: 'accueil',
     activeTab: 'sig',
     activeSubTab: 'mensuel',

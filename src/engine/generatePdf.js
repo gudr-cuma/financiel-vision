@@ -12,6 +12,14 @@ import {
   pdfFmt,
 } from './pdfLayouts';
 import { formatDate } from './formatUtils';
+import { sortRows, groupRows, sumColumn, yearOf } from './tableUtils';
+import { aggregateTreasuryByGranularity } from './computeTreasury';
+import { getCapitalRestantDu, countEmpruntsEnCours } from './empruntsUtils';
+import {
+  ecart, ecartPct, tauxConso, resteAEngager, totalBudgetePoste,
+  sortPostesByCode, groupRowsByNatureAndCode,
+} from '../domain/budget/calculs';
+import { realiseFromFec } from '../domain/budget/realiseFromFec';
 
 // ─────────────────────────────────────────────────────────────
 // Libellés des documents
@@ -24,12 +32,18 @@ export const DOC_LABELS = {
   balance:           'Balance générale',
   balance_aux:       'Balance auxiliaire',
   grand_livre:       'Grand Livre général',
-  treasury_curve:    'Trésorerie — Courbe de solde',
+  treasury_curve:    'Trésorerie',
   charges_charts:    'Structure des charges',
   analytique_table:  'Analytique — Tous les matériels',
   analytique_podium: 'Analytique — Top 3 matériels',
   rapport_ia:        'Rapport IA',
   comparaison_nn1:   'Comparaison N/N-1',
+  fiche_synthese:    'Fiche de synthèse',
+  capital_social:    'Capital social (registre)',
+  immobilisations:   'Immobilisations',
+  emprunts:          'Emprunts',
+  materiels:         'Matériels',
+  budget_suivi:      'Suivi budgétaire',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -633,10 +647,14 @@ function buildGrandLivreContent(parsedFec) {
 // ─────────────────────────────────────────────────────────────
 // Trésorerie — courbe de solde → contenu pdfmake
 // ─────────────────────────────────────────────────────────────
-function buildTreasuryCurve(treasuryData, chartW = 781) {
+function buildTreasuryCurve(treasuryData, chartW = 781, docOpts = {}) {
   if (!treasuryData) return [];
 
-  const { soldeActuel, soldeMini, soldeMaxi, totalEntrees, totalSorties, soldeMoyen, dailyCurve } = treasuryData;
+  const { soldeActuel, soldeMini, soldeMaxi, totalEntrees, totalSorties, soldeMoyen, dailyCurve, top10Entrees, top10Sorties } = treasuryData;
+  const chartType   = docOpts.chartType ?? 'courbe';
+  const granularity  = docOpts.granularity ?? 'mois';
+  const showSolde    = docOpts.showSolde ?? true;
+  const showTop10    = docOpts.showTop10 ?? false;
 
   const kpiCells = [
     { label: 'Solde actuel',        value: pdfFmt(soldeActuel), color: soldeActuel >= 0 ? '#268E00' : COLORS.red },
@@ -655,9 +673,11 @@ function buildTreasuryCurve(treasuryData, chartW = 781) {
     margin: [6, 6, 6, 6],
   }));
 
-  const svgStr = buildTreasurySvg(dailyCurve, chartW);
+  const svgStr = chartType === 'histogramme'
+    ? buildTreasuryBarSvg(aggregateTreasuryByGranularity(dailyCurve, granularity), showSolde, chartW)
+    : buildTreasurySvg(dailyCurve, chartW);
 
-  return [
+  const blocks = [
     makeSectionTitle(DOC_LABELS.treasury_curve, 'treasury_curve'),
     {
       table: { widths: Array(6).fill('*'), body: [kpiCells] },
@@ -669,8 +689,140 @@ function buildTreasuryCurve(treasuryData, chartW = 781) {
       },
       margin: [0, 0, 0, 14],
     },
-    { svg: svgStr, width: chartW, margin: [0, 0, 0, 0] },
-    { text: ' ', pageBreak: 'after' },
+    { svg: svgStr, width: chartW, margin: [0, 0, 0, showTop10 ? 14 : 0] },
+  ];
+
+  if (showTop10) {
+    blocks.push(...buildTop10Block(top10Entrees, top10Sorties, chartW));
+  }
+  blocks.push({ text: ' ', pageBreak: 'after' });
+  return blocks;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Trésorerie — histogramme encaissements/décaissements (+ solde optionnel)
+// ─────────────────────────────────────────────────────────────
+function buildTreasuryBarSvg(buckets, showSolde, svgW = 781) {
+  const W = svgW, H = 200;
+  const padL = 65, padR = showSolde ? 50 : 20, padT = 24, padB = 32;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  if (!buckets?.length) {
+    return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#FAFAFA"/><text x="${W/2}" y="${H/2}" font-size="12" text-anchor="middle" fill="#A0AEC0">Aucune donnée</text></svg>`;
+  }
+
+  const maxBar = Math.max(...buckets.flatMap(b => [b.entrees, b.sorties]), 1);
+  const soldeVals  = buckets.map(b => b.solde);
+  const minSolde = Math.min(...soldeVals, 0);
+  const maxSolde = Math.max(...soldeVals, 0);
+  const rangeSolde = (maxSolde - minSolde) || 1;
+
+  const n = buckets.length;
+  const colW = chartW / n;
+  const barW = Math.max(2, Math.min(colW * 0.32, 40));
+
+  const toX0    = (i) => padL + i * colW;
+  const toYBar  = (v) => padT + chartH - (v / maxBar) * chartH;
+  const toYSolde = (v) => padT + (1 - (v - minSolde) / rangeSolde) * chartH;
+
+  const fmtAx = (v) => {
+    const abs = Math.abs(v);
+    if (abs >= 1000000) return `${(v / 1000000).toFixed(1)} M`;
+    if (abs >= 1000)    return `${(v / 1000).toFixed(0)} k`;
+    return String(Math.round(v));
+  };
+
+  const nTicks = 4;
+  const yLines = Array.from({ length: nTicks + 1 }, (_, i) => (i / nTicks) * maxBar).map(v => {
+    const y = toYBar(v).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${(padL + chartW).toFixed(1)}" y2="${y}" stroke="#E2E8F0" stroke-width="0.5"/>
+    <text x="${padL - 5}" y="${y}" dy="4" font-size="9" text-anchor="end" fill="#718096">${fmtAx(v)}</text>`;
+  });
+
+  const soldeAxis = showSolde
+    ? Array.from({ length: nTicks + 1 }, (_, i) => minSolde + (i / nTicks) * rangeSolde).map(v => {
+        const y = toYSolde(v).toFixed(1);
+        return `<text x="${(padL + chartW + 6).toFixed(1)}" y="${y}" dy="4" font-size="9" fill="#718096">${fmtAx(v)}</text>`;
+      })
+    : [];
+
+  const step = Math.max(1, Math.ceil(n / 14));
+  const bars = buckets.flatMap((b, i) => {
+    const x0 = toX0(i) + (colW - 2 * barW) / 2;
+    const hEntrees = chartH - (toYBar(b.entrees) - padT);
+    const hSorties = chartH - (toYBar(b.sorties) - padT);
+    return [
+      `<rect x="${x0.toFixed(1)}" y="${toYBar(b.entrees).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, hEntrees).toFixed(1)}" fill="#31B700" rx="1.5"/>`,
+      `<rect x="${(x0 + barW).toFixed(1)}" y="${toYBar(b.sorties).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, hSorties).toFixed(1)}" fill="${COLORS.red}" rx="1.5"/>`,
+      (i % step === 0 || i === n - 1)
+        ? `<text x="${(toX0(i) + colW / 2).toFixed(1)}" y="${(padT + chartH + 20).toFixed(1)}" font-size="9" text-anchor="middle" fill="#718096">${b.label}</text>`
+        : '',
+    ];
+  });
+
+  const soldeLine = showSolde
+    ? `<polyline points="${buckets.map((b, i) => `${(toX0(i) + colW / 2).toFixed(1)},${toYSolde(b.solde).toFixed(1)}`).join(' ')}" fill="none" stroke="${COLORS.blue}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+       ${buckets.map((b, i) => `<circle cx="${(toX0(i) + colW / 2).toFixed(1)}" cy="${toYSolde(b.solde).toFixed(1)}" r="2.5" fill="${COLORS.blue}"/>`).join('')}`
+    : '';
+
+  const legend = `
+    <rect x="${padL}" y="2" width="9" height="9" fill="#31B700" rx="1.5"/>
+    <text x="${padL + 13}" y="10" font-size="8" fill="#718096">Encaissements</text>
+    <rect x="${padL + 100}" y="2" width="9" height="9" fill="${COLORS.red}" rx="1.5"/>
+    <text x="${padL + 113}" y="10" font-size="8" fill="#718096">Décaissements</text>
+    ${showSolde ? `<line x1="${padL + 200}" y1="6" x2="${padL + 218}" y2="6" stroke="${COLORS.blue}" stroke-width="2"/>
+    <text x="${padL + 222}" y="10" font-size="8" fill="#718096">Solde</text>` : ''}
+  `;
+
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="#FAFAFA"/>
+    ${legend}
+    ${yLines.join('')}
+    ${soldeAxis.join('')}
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${(padT + chartH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>
+    <line x1="${padL}" y1="${(padT + chartH).toFixed(1)}" x2="${(padL + chartW).toFixed(1)}" y2="${(padT + chartH).toFixed(1)}" stroke="#CBD5E0" stroke-width="1"/>
+    ${bars.join('')}
+    ${soldeLine}
+  </svg>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Trésorerie — Top 10 encaissements / décaissements
+// ─────────────────────────────────────────────────────────────
+function buildTop10Block(top10Entrees, top10Sorties, chartW = 781) {
+  const buildCol = (title, items, color) => ({
+    width: '*',
+    stack: [
+      { text: title, fontSize: 9, bold: true, color: COLORS.secondary, margin: [0, 0, 0, 6] },
+      {
+        table: {
+          widths: [50, '*', 60],
+          body: (items?.length ? items : []).map(item => [
+            { text: formatDate(item.date instanceof Date ? item.date : new Date(item.date)), fontSize: 7 },
+            { text: item.ecritureLib ?? '', fontSize: 7 },
+            { text: fmtEur(item.montant), fontSize: 7, alignment: 'right', color },
+          ]),
+        },
+        layout: {
+          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0 : 0.3,
+          vLineWidth: () => 0,
+          hLineColor: () => COLORS.border,
+          paddingLeft: () => 2, paddingRight: () => 2, paddingTop: () => 2, paddingBottom: () => 2,
+        },
+      },
+    ],
+  });
+
+  return [
+    { text: 'Top 10 mouvements', fontSize: 10, bold: true, color: COLORS.text, margin: [0, 4, 0, 8] },
+    {
+      columns: [
+        buildCol('Top 10 encaissements', top10Entrees, '#268E00'),
+        buildCol('Top 10 décaissements', top10Sorties, COLORS.red),
+      ],
+      columnGap: 16,
+    },
   ];
 }
 
@@ -988,6 +1140,473 @@ function buildPodiumSvg(top3, podiumW = 500) {
     <!-- Ground line -->
     <line x1="${padL.toFixed(1)}" y1="${(H - padB).toFixed(1)}" x2="${(padL + 3 * barW + 2 * gap).toFixed(1)}" y2="${(H - padB).toFixed(1)}" stroke="#CBD5E0" stroke-width="2"/>
   </svg>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helpers communs — fiches Export_Multi (capital social, immobilisations,
+// emprunts, matériels) : formatage de cellule générique + ligne de widgets
+// + ligne d'en-tête de groupe (colSpan).
+// ─────────────────────────────────────────────────────────────
+function fmtFicheCell(value, type) {
+  if (type === 'amount')  return fmtEur(value);
+  if (type === 'percent') return value == null ? '—' : fmtPct(value);
+  if (type === 'date')    return value instanceof Date ? formatDate(value) : (value ? String(value) : '—');
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+}
+
+function makeWidgetsRow(widgets) {
+  const cells = widgets.map(w => ({
+    border: [true, true, true, true],
+    fillColor: '#F7FAFC',
+    stack: [
+      { text: w.label, fontSize: 7, color: COLORS.secondary, bold: true },
+      { text: w.value, fontSize: 14, bold: true, color: w.color ?? COLORS.text, margin: [0, 2, 0, 0] },
+    ],
+    margin: [6, 6, 6, 6],
+  }));
+  return {
+    table: { widths: Array(widgets.length).fill('*'), body: [cells] },
+    layout: {
+      hLineWidth: () => 1, vLineWidth: (i) => (i === 0 || i === widgets.length) ? 1 : 0,
+      hLineColor: () => COLORS.border, vLineColor: () => COLORS.border,
+      paddingLeft: () => 0, paddingRight: () => 0,
+      paddingTop: () => 0, paddingBottom: () => 0,
+    },
+    margin: [0, 0, 0, 14],
+  };
+}
+
+function groupHeaderRow(text, colSpan) {
+  return [
+    { text, colSpan, fontSize: 8, bold: true, fillColor: '#F0F9FF', color: COLORS.text },
+    ...Array(colSpan - 1).fill({}),
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Capital social (registre) → contenu pdfmake
+// ─────────────────────────────────────────────────────────────
+const CAPITAL_SOCIAL_PDF_COLUMNS = [
+  { key: 'adherent',         label: 'Adhérent',          type: 'text',   width: '*' },
+  { key: 'baseSouscription', label: 'Base Souscription', type: 'text',   width: 70 },
+  { key: 'qtPrevue',         label: 'Qt. Prévue',        type: 'number', width: 42 },
+  { key: 'qtAppelee',        label: 'Qt. Appelée',       type: 'number', width: 42 },
+  { key: 'qtLiberee',        label: 'Qt. Libérée',       type: 'number', width: 42 },
+  { key: 'qtAnnulee',        label: 'Qt. Annulée',       type: 'number', width: 42 },
+  { key: 'qtRemboursee',     label: 'Qt. Remboursée',    type: 'number', width: 50 },
+  { key: 'qtTransferee',     label: 'Qt. Transférée',    type: 'number', width: 50 },
+  { key: 'qtSolde',          label: 'Qt. Solde',         type: 'number', width: 45 },
+  { key: 'montant',          label: 'Montant',           type: 'amount', width: 65 },
+];
+
+function buildCapitalSocialContent(exploitationData, docOpts) {
+  const rows = exploitationData?.capitalSocial ?? [];
+  if (!rows.length) return [];
+  const groupBy = docOpts?.groupBy ?? 'none';
+
+  const totalQtSolde = sumColumn(rows, 'qtSolde');
+  const totalMontant = sumColumn(rows, 'montant');
+
+  const headerRow = CAPITAL_SOCIAL_PDF_COLUMNS.map(col => ({
+    text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+
+  const rowCells = (row) => CAPITAL_SOCIAL_PDF_COLUMNS.map(col => ({
+    text: fmtFicheCell(row[col.key], col.type), fontSize: 7,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+
+  const tableBody = [headerRow];
+
+  if (groupBy === 'none') {
+    for (const row of rows) tableBody.push(rowCells(row));
+  } else {
+    const keyFn = groupBy === 'adherent' ? (r => r.adherent) : (r => r.baseSouscription);
+    const groups = groupRows(rows, keyFn, { subtotalKeys: ['montant', 'qtSolde'] });
+    for (const group of groups) {
+      const label = `${group.label} — Montant : ${fmtEur(group.subtotal.montant)} — Qt. Solde : ${group.subtotal.qtSolde}`;
+      tableBody.push(groupHeaderRow(label, CAPITAL_SOCIAL_PDF_COLUMNS.length));
+      for (const row of group.rows) tableBody.push(rowCells(row));
+    }
+  }
+
+  tableBody.push(CAPITAL_SOCIAL_PDF_COLUMNS.map((col, idx) => ({
+    text: idx === 0 ? 'Total'
+      : col.key === 'qtSolde' ? String(totalQtSolde)
+      : col.key === 'montant' ? fmtEur(totalMontant)
+      : '',
+    fontSize: 8, bold: true, fillColor: COLORS.blueLight,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  })));
+
+  return [
+    makeSectionTitle(DOC_LABELS.capital_social, 'capital_social'),
+    makeWidgetsRow([
+      { label: 'Qt. Solde (total)', value: String(totalQtSolde) },
+      { label: 'Montant (total)', value: fmtEur(totalMontant), color: COLORS.orange },
+    ]),
+    {
+      table: { headerRows: 1, widths: CAPITAL_SOCIAL_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      layout: tableLayout(),
+    },
+    { text: ' ', pageBreak: 'after' },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Immobilisations → contenu pdfmake (actives uniquement)
+// ─────────────────────────────────────────────────────────────
+const IMMOBILISATIONS_PDF_COLUMNS = [
+  { key: 'nBien',            label: 'N. Bien',             type: 'number', width: 40 },
+  { key: 'axe1',             label: 'Axe 1',               type: 'text',   width: 50 },
+  { key: 'libelle',          label: 'Libellé',             type: 'text',   width: '*' },
+  { key: 'dateAcquisition',  label: 'Date Acquisition',    type: 'date',   width: 62 },
+  { key: 'dateMiseEnService',label: 'Date Mise en Service',type: 'date',   width: 68 },
+  { key: 'valeurEntree',     label: 'Valeur Entrée',       type: 'amount', width: 65 },
+  { key: 'dateDebutAmort',   label: 'Date Début Amort',    type: 'date',   width: 62 },
+  { key: 'valeurResiduelle', label: 'Valeur Résiduelle',   type: 'amount', width: 65 },
+  { key: 'typeImmoCOG',      label: 'Type Immo COG',       type: 'text',   width: 60 },
+  { key: 'codeNational',     label: 'Code National',       type: 'text',   width: 60 },
+];
+
+function buildImmobilisationsContent(exploitationData) {
+  const all = exploitationData?.immobilisations ?? [];
+  if (!all.length) return [];
+  const ETAT_ACTIF = 1;
+  const POSITION_NON_AMORTIE = 1;
+
+  const actives = all.filter(i => Number(i.etat) === ETAT_ACTIF);
+  const nbActives = actives.length;
+  const nbNonAmorties = all.filter(i => Number(i.position) === POSITION_NON_AMORTIE).length;
+  const valeurEntreeActives = sumColumn(actives, 'valeurEntree');
+
+  const sorted = sortRows(actives, 'nBien', 'asc');
+
+  const headerRow = IMMOBILISATIONS_PDF_COLUMNS.map(col => ({
+    text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+  const tableBody = [headerRow, ...sorted.map(row => IMMOBILISATIONS_PDF_COLUMNS.map(col => ({
+    text: fmtFicheCell(row[col.key], col.type), fontSize: 7,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  })))];
+
+  return [
+    makeSectionTitle(DOC_LABELS.immobilisations, 'immobilisations'),
+    makeWidgetsRow([
+      { label: 'Immobilisations actives', value: String(nbActives) },
+      { label: 'Non amorties', value: String(nbNonAmorties) },
+      { label: "Valeur d'entrée (actives)", value: fmtEur(valeurEntreeActives), color: COLORS.orange },
+    ]),
+    {
+      table: { headerRows: 1, widths: IMMOBILISATIONS_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      layout: tableLayout(),
+    },
+    { text: ' ', pageBreak: 'after' },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Emprunts → contenu pdfmake (en cours uniquement)
+// ─────────────────────────────────────────────────────────────
+const EMPRUNTS_PDF_COLUMNS = [
+  { key: 'nEmprunt',         label: 'N. Emprunt',     type: 'text',    width: 55 },
+  { key: 'designation',      label: 'Désignation',    type: 'text',    width: '*' },
+  { key: 'montant',          label: 'Montant',        type: 'amount',  width: 65 },
+  { key: 'taux',             label: 'Taux',           type: 'percent', width: 42 },
+  { key: 'dateRealisation',  label: 'Date Réalisation', type: 'date',  width: 65 },
+  { key: 'premiereEcheance', label: '1ère Échéance',  type: 'date',    width: 65 },
+  { key: 'duree',            label: 'Durée',          type: 'number',  width: 42 },
+  { key: 'dureeMois',        label: 'Durée (mois)',   type: 'number',  width: 55 },
+  { key: 'annuite',          label: 'Annuité',        type: 'text',    width: 60 },
+];
+
+function buildEmpruntsContent(exploitationData) {
+  const emprunts = exploitationData?.emprunts ?? [];
+  const lignesEmprunt = exploitationData?.lignesEmprunt ?? [];
+  if (!emprunts.length) return [];
+  const SITUATION_EN_COURS = 4;
+
+  const enCours = sortRows(emprunts.filter(e => Number(e.situation) === SITUATION_EN_COURS), 'nEmprunt', 'asc');
+  const capitalRestantDu = getCapitalRestantDu(emprunts, lignesEmprunt, SITUATION_EN_COURS);
+  const nbEnCours = countEmpruntsEnCours(emprunts, SITUATION_EN_COURS);
+
+  const headerRow = EMPRUNTS_PDF_COLUMNS.map(col => ({
+    text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+  const tableBody = [headerRow, ...enCours.map(row => EMPRUNTS_PDF_COLUMNS.map(col => ({
+    text: fmtFicheCell(row[col.key], col.type), fontSize: 7,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  })))];
+
+  return [
+    makeSectionTitle(DOC_LABELS.emprunts, 'emprunts'),
+    makeWidgetsRow([
+      { label: 'Capital restant dû', value: fmtEur(capitalRestantDu), color: COLORS.orange },
+      { label: 'Emprunts en cours', value: String(nbEnCours) },
+    ]),
+    {
+      table: { headerRows: 1, widths: EMPRUNTS_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      layout: tableLayout(),
+    },
+    { text: ' ', pageBreak: 'after' },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Matériels → contenu pdfmake (en usage uniquement)
+// ─────────────────────────────────────────────────────────────
+const MATERIELS_PDF_COLUMNS = [
+  { key: 'codeMateriel',   label: 'Code Matériel',   type: 'number', width: 55 },
+  { key: 'baseSref1',      label: 'Base',            type: 'text',   width: 50 },
+  { key: 'libelle',        label: 'Libellé',         type: 'text',   width: '*' },
+  { key: 'codeNational',   label: 'Code National',   type: 'text',   width: 60 },
+  { key: 'marque',         label: 'Marque',          type: 'text',   width: 60 },
+  { key: 'libMarque',      label: 'Lib. Marque',     type: 'text',   width: 70 },
+  { key: 'dateAchat',      label: 'Date Achat',      type: 'date',   width: 60 },
+  { key: 'mtAchat',        label: 'Mt Achat',        type: 'amount', width: 65 },
+  { key: 'codeAnalytique', label: 'Code Analytique', type: 'text',   width: 65 },
+];
+
+function buildMaterielsContent(exploitationData, docOpts) {
+  const all = exploitationData?.materiels ?? [];
+  if (!all.length) return [];
+  const enUsage = all.filter(m => !m.dateVente);
+  const groupBy = docOpts?.groupBy ?? 'none';
+
+  const headerRow = MATERIELS_PDF_COLUMNS.map(col => ({
+    text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+  const rowCells = (row) => MATERIELS_PDF_COLUMNS.map(col => ({
+    text: fmtFicheCell(row[col.key], col.type), fontSize: 7,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+
+  const tableBody = [headerRow];
+
+  if (groupBy === 'none') {
+    for (const row of enUsage) tableBody.push(rowCells(row));
+  } else {
+    const keyFn = groupBy === 'marque'
+      ? (r => r.marque || 'Sans marque')
+      : (r => yearOf(r.dateAchat) ?? 'Sans date');
+    const groups = groupRows(enUsage, keyFn);
+    for (const group of groups) {
+      tableBody.push(groupHeaderRow(`${group.label} (${group.rows.length})`, MATERIELS_PDF_COLUMNS.length));
+      for (const row of group.rows) tableBody.push(rowCells(row));
+    }
+  }
+
+  return [
+    makeSectionTitle(DOC_LABELS.materiels, 'materiels'),
+    {
+      table: { headerRows: 1, widths: MATERIELS_PDF_COLUMNS.map(c => c.width), body: tableBody },
+      layout: tableLayout(),
+    },
+    { text: ' ', pageBreak: 'after' },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Fiche de synthèse → contenu pdfmake (impérativement 1 page A4)
+// ─────────────────────────────────────────────────────────────
+function ficheVal(s, overrides, key, type) {
+  const raw = overrides[key] !== undefined ? overrides[key] : s[key];
+  if (raw === undefined || raw === null || raw === '') return '—';
+  if (type === 'amount') return fmtEur(raw);
+  if (type === 'date') return raw instanceof Date ? formatDate(raw) : String(raw);
+  return String(raw);
+}
+
+function ficheField(label, value) {
+  return {
+    columns: [
+      { text: label, fontSize: 6.5, color: COLORS.secondary, width: '55%' },
+      { text: value, fontSize: 7, bold: true, color: COLORS.text, alignment: 'right', width: '45%' },
+    ],
+    margin: [0, 1, 0, 1],
+  };
+}
+
+function ficheCard(title, fields) {
+  return {
+    unbreakable: true,
+    stack: [
+      { text: title, fontSize: 8, bold: true, color: COLORS.orange, margin: [0, 0, 0, 3] },
+      ...fields,
+    ],
+    margin: [0, 0, 0, 8],
+  };
+}
+
+function buildFicheSyntheseContent(exploitationData, syntheseOverrides, chartW = 781) {
+  const s = exploitationData?.synthese ?? {};
+  const ov = syntheseOverrides ?? {};
+  const f = (label, key, type) => ficheField(label, ficheVal(s, ov, key, type));
+
+  const cardIdentite = ficheCard('Identité', [
+    f('Dossier', 'dossier'), f('Raison sociale', 'raisonSociale'), f('Adresse', 'adresse'),
+    f('Code postal / Ville', 'codePostalVille'), f('Téléphone', 'telephone'), f('SIRET', 'siret'),
+    f("N° agrément", 'numAgrement'), f('N° exploitation', 'numExploitation'),
+  ]);
+  const cardDirigeants = ficheCard('Dirigeants', [
+    f('Président', 'president'), f('Vice-président', 'vp'), f('Trésorier', 'tresorier'), f('Secrétaire', 'secretaire'),
+  ]);
+  const cardSituation = ficheCard('Situation de la CUMA', [
+    f("Nombre d'adhérents", 'nbAdherentsTotal'), f('Dont individuels', 'nbAdherentsIndividuels'),
+    f('Autres (groupes)', 'nbAdherentsGroupes'), f('Nombre de matériels', 'nbMaterielsActifs'),
+    f("Nombre d'articles", 'nbArticles'), f('Dont activités', 'nbActivites'), f('Nombre de salariés', 'nbSalaries'),
+  ]);
+  const cardExercice = ficheCard('Année en cours', [
+    f('Exercice — début', 'dateDebutExercice', 'date'), f('Exercice — fin', 'dateFinExercice', 'date'),
+    f('Nb BL facturés', 'nbBlFactures'), f('Nb lignes comptables', 'nbLignesCompta'), f('Nb pièces comptables', 'nbPiecesCompta'),
+  ]);
+  const cardCS = ficheCard('Capital Social', [
+    f('Solde 10121', 'solde10121', 'amount'), f('Solde 10122', 'solde10122', 'amount'),
+    f('Solde 10131', 'solde10131', 'amount'), f('Solde 10132', 'solde10132', 'amount'),
+    f('CS appelé/versé', 'csAppeleVerse'), f('CS appelé/non versé', 'csAppeleNonVerse'),
+  ]);
+  const cardFactCli = ficheCard('Facturation adhérent', [
+    f('BL non générés', 'blCliNonGeneres'), f('BL non facturés', 'blCliNonFactures'), f('Factures non intégrées', 'factCliNonIntegrees'),
+  ]);
+  const cardFactFou = ficheCard('Facturation fournisseur', [
+    f('BL non facturés', 'blFouNonFactures'), f('Factures non intégrées', 'factFouNonIntegrees'),
+  ]);
+
+  const isPortrait = chartW <= 515;
+  const columns = isPortrait
+    ? [
+        { width: '50%', stack: [cardIdentite, cardSituation, cardDirigeants] },
+        { width: '50%', stack: [cardExercice, cardCS, cardFactCli, cardFactFou] },
+      ]
+    : [
+        { width: '33%', stack: [cardIdentite, cardDirigeants] },
+        { width: '33%', stack: [cardSituation, cardExercice] },
+        { width: '34%', stack: [cardCS, cardFactCli, cardFactFou] },
+      ];
+
+  return [
+    {
+      text: DOC_LABELS.fiche_synthese, fontSize: 13, bold: true, color: COLORS.text,
+      id: 'section_fiche_synthese',
+      tocItem: 'mainToc',
+      tocStyle: { fontSize: 11, color: COLORS.text },
+      tocNumberStyle: { fontSize: 11, bold: true, color: COLORS.secondary },
+      margin: [0, 0, 0, 2],
+    },
+    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: chartW, y2: 0, lineWidth: 2, lineColor: COLORS.blue }], margin: [0, 0, 0, 8] },
+    { columns, columnGap: 14 },
+    { text: ' ', pageBreak: 'after' },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Suivi budgétaire → contenu pdfmake (regroupement nature+code toujours actif)
+// ─────────────────────────────────────────────────────────────
+const BUDGET_SUIVI_BASE_COLUMNS = [
+  { key: 'libelle',       label: 'Poste',            type: 'text',   width: '*' },
+  { key: 'budgete',       label: 'Budgété',           type: 'amount', width: 65 },
+  { key: 'engage',        label: 'Engagé',            type: 'amount', width: 65 },
+  { key: 'realise',       label: 'Réalisé',           type: 'amount', width: 65 },
+  { key: 'ecart',         label: 'Écart',             type: 'amount', width: 65 },
+  { key: 'ecartPctPct',   label: 'Écart %',           type: 'percent', width: 50 },
+  { key: 'tauxConsoPct',  label: 'Taux conso.',       type: 'percent', width: 55 },
+  { key: 'resteAEngager', label: 'Reste à engager',   type: 'amount', width: 70 },
+];
+const BUDGET_SUIVI_SCENARIO_COLUMNS = [
+  { key: 'budgeteBas',  label: 'Budg. bas',  type: 'amount', width: 60 },
+  { key: 'ecartBasVal', label: 'Écart bas',  type: 'amount', width: 60 },
+  { key: 'budgeteHaut', label: 'Budg. haut', type: 'amount', width: 60 },
+  { key: 'ecartHautVal',label: 'Écart haut', type: 'amount', width: 60 },
+];
+
+function buildBudgetSuiviContent(storeData, chartW = 781) {
+  const budgets = storeData.budgets ?? [];
+  const docOpts = storeData.docOptions?.budget_suivi ?? {};
+  const parsedFec = storeData.parsedFec;
+  const budget = budgets.find(b => b.id === docOpts.budgetId);
+  if (!budget) return [];
+
+  const tableType = docOpts.tableType ?? 'ecarts';
+  const median = budget.scenarios.find(s => s.type === 'median');
+  const scenarioId = docOpts.scenarioId || (median ? median.id : budget.scenarios[0]?.id);
+  const scenario = budget.scenarios.find(s => s.id === scenarioId);
+
+  const rows = sortPostesByCode(budget.postes).map(poste => {
+    const budgete = totalBudgetePoste(poste, budget.scenarios, scenarioId);
+    const engage = (budget.engagements ?? [])
+      .filter(e => e.posteId === poste.id)
+      .reduce((sum, e) => sum + e.montant, 0);
+    const realise = parsedFec
+      ? realiseFromFec(parsedFec, poste).reduce((sum, r) => sum + r.montant, 0)
+      : 0;
+    const ecartVal = ecart(realise, budgete);
+
+    const base = {
+      poste, libelle: poste.libelle, budgete, engage, realise,
+      ecart: ecartVal,
+      ecartPctPct: ecartPct(ecartVal, budgete) * 100,
+      tauxConsoPct: tauxConso(realise, engage, budgete) * 100,
+      resteAEngager: resteAEngager(budgete, engage, realise),
+    };
+
+    if (tableType === 'ecarts_scenario') {
+      const scenarioBas  = budget.scenarios.find(s => s.type === 'bas');
+      const scenarioHaut = budget.scenarios.find(s => s.type === 'haut');
+      const budgeteBas  = scenarioBas  ? totalBudgetePoste(poste, budget.scenarios, scenarioBas.id)  : 0;
+      const budgeteHaut = scenarioHaut ? totalBudgetePoste(poste, budget.scenarios, scenarioHaut.id) : 0;
+      return {
+        ...base,
+        budgeteBas, budgeteHaut,
+        ecartBasVal:  ecart(realise, budgeteBas),
+        ecartHautVal: ecart(realise, budgeteHaut),
+      };
+    }
+    return base;
+  });
+
+  const columns = tableType === 'ecarts_scenario'
+    ? [...BUDGET_SUIVI_BASE_COLUMNS, ...BUDGET_SUIVI_SCENARIO_COLUMNS]
+    : BUDGET_SUIVI_BASE_COLUMNS;
+
+  const headerRow = columns.map(col => ({
+    text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+  const rowCells = (row) => columns.map(col => ({
+    text: fmtFicheCell(row[col.key], col.type), fontSize: 7,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+
+  const tableBody = [headerRow];
+  const natureGroups = groupRowsByNatureAndCode(rows);
+  for (const natureGroup of natureGroups) {
+    tableBody.push(groupHeaderRow(natureGroup.label, columns.length));
+    for (const codeGroup of natureGroup.codeGroups) {
+      tableBody.push(groupHeaderRow(`  ${codeGroup.key}`, columns.length));
+      for (const row of codeGroup.rows) tableBody.push(rowCells(row));
+    }
+  }
+
+  const subtitle = `Budget : ${budget.nom} — Scénario : ${scenario?.type ?? '—'}`;
+
+  return [
+    makeSectionTitle(DOC_LABELS.budget_suivi, 'budget_suivi'),
+    { text: subtitle, fontSize: 9, color: COLORS.secondary, margin: [0, 0, 0, 8] },
+    ...(!parsedFec ? [{
+      text: '⚠️ FEC non chargé — Réalisé non calculé (valeurs à 0).',
+      fontSize: 9, color: '#7C4D00', margin: [0, 0, 0, 8],
+    }] : []),
+    {
+      table: { headerRows: 1, widths: columns.map(c => c.width), body: tableBody },
+      layout: tableLayout(),
+    },
+    { text: ' ', pageBreak: 'after' },
+  ];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1950,12 +2569,18 @@ export async function generateExport(
     balance:           () => buildBalanceContent(parsedFec),
     balance_aux:       () => buildBalanceAuxContent(parsedFec),
     grand_livre:       () => buildGrandLivreContent(parsedFec),
-    treasury_curve:    () => buildTreasuryCurve(storeData.treasuryData, chartW),
+    treasury_curve:    () => buildTreasuryCurve(storeData.treasuryData, chartW, storeData.docOptions?.treasury_curve),
     charges_charts:    () => buildChargesCharts(storeData.chargesData, chartW),
     analytique_table:  () => buildAnalytiqueTable(storeData.analytiqueData),
     analytique_podium: () => buildAnalytiquePodium(storeData.analytiqueData, chartW),
     rapport_ia:        () => buildRapportIAContent(storeData.analyseIAText),
     comparaison_nn1:   () => buildComparaisonNN1Content(storeData, chartW),
+    fiche_synthese:    () => buildFicheSyntheseContent(storeData.exploitationData, storeData.syntheseOverrides, chartW),
+    capital_social:    () => buildCapitalSocialContent(storeData.exploitationData, storeData.docOptions?.capital_social),
+    immobilisations:   () => buildImmobilisationsContent(storeData.exploitationData),
+    emprunts:          () => buildEmpruntsContent(storeData.exploitationData),
+    materiels:         () => buildMaterielsContent(storeData.exploitationData, storeData.docOptions?.materiels),
+    budget_suivi:      () => buildBudgetSuiviContent({ ...storeData, parsedFec }, chartW),
   };
 
   const defaultStyles = {

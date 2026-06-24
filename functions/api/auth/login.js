@@ -91,7 +91,11 @@ export async function onRequestPost(context) {
     ip, request.headers.get('User-Agent') ?? ''
   );
 
-  const ALL_SECTIONS = ['analyseur', 'dashboard', 'dossier', 'bilanCR', 'bilanParam', 'editions', 'export', 'analyse'];
+  const ALL_SECTIONS = [
+    'analyseur', 'dashboard', 'dossier', 'treasury', 'bilanCR', 'bilanParam', 'editions',
+    'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
+    'export', 'analyse',
+  ];
   let permissions, editPermissions;
   if (user.role === 'admin') {
     permissions     = ALL_SECTIONS;
@@ -104,7 +108,7 @@ export async function onRequestPost(context) {
   }
 
   return json(
-    { user: { id: user.id, email: user.email, name: user.name, role: user.role }, permissions, editPermissions },
+    { user: { id: user.id, email: user.email, name: user.name, role: user.role, can_upload_file: user.can_upload_file }, permissions, editPermissions },
     200,
     { 'Set-Cookie': buildSessionCookie(sessionId, durationHours) }
   );

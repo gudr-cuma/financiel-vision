@@ -1,0 +1,346 @@
+import { describe, it, expect } from 'vitest';
+import {
+  ecart,
+  ecartPct,
+  tauxConso,
+  resteAEngager,
+  montantSubvention,
+  montantScenario,
+  repartitionCharges,
+  controleEquilibre,
+  repartirMontantAnnuel,
+  resolveMontantPrevu,
+  resolveCoefficient,
+  totalBudgetePoste,
+  sortPostesByCode,
+  groupKeyForCode,
+  groupRowsByNatureAndCode,
+  sumRows,
+  prorataRatio,
+  buildPeriodColumns,
+} from '../domain/budget/calculs';
+import { buildExerciceMonths } from '../engine/exerciceUtils';
+
+describe('ecart', () => {
+  it('renvoie realise - budgete', () => {
+    expect(ecart(1200, 1000)).toBe(200);
+  });
+
+  it('est négatif quand le réalisé est inférieur au budgété', () => {
+    expect(ecart(800, 1000)).toBe(-200);
+  });
+});
+
+describe('ecartPct', () => {
+  it('renvoie l\'écart en pourcentage du budgété', () => {
+    expect(ecartPct(200, 1000)).toBe(0.2);
+  });
+
+  it('renvoie 0 quand le budgété est 0 (évite la division par zéro)', () => {
+    expect(ecartPct(200, 0)).toBe(0);
+  });
+});
+
+describe('tauxConso', () => {
+  it('renvoie (realise + engage) / budgete', () => {
+    expect(tauxConso(600, 200, 1000)).toBe(0.8);
+  });
+
+  it('renvoie 0 quand le budgété est 0', () => {
+    expect(tauxConso(600, 200, 0)).toBe(0);
+  });
+});
+
+describe('resteAEngager', () => {
+  it('renvoie budgete - engage - realise', () => {
+    expect(resteAEngager(1000, 200, 600)).toBe(200);
+  });
+});
+
+describe('montantSubvention', () => {
+  it('applique le taux d\'intervention sur le minimum(assiette, dépenses réalisées)', () => {
+    expect(montantSubvention(62500, 50000, 0.4)).toBe(20000);
+  });
+
+  it('plafonne les dépenses éligibles à l\'assiette éligible', () => {
+    expect(montantSubvention(62500, 80000, 0.4)).toBe(25000);
+  });
+});
+
+describe('montantScenario', () => {
+  it('applique le coefficient au montant médian', () => {
+    expect(montantScenario(1000, 1.1)).toBe(1100);
+  });
+});
+
+describe('repartitionCharges', () => {
+  it('applique la clé de répartition du projet à la charge de structure', () => {
+    const cle = { projetA: 0.6, projetB: 0.4 };
+    expect(repartitionCharges(10000, cle, 'projetA')).toBe(6000);
+  });
+
+  it('renvoie 0 si le projet n\'a pas de clé définie', () => {
+    const cle = { projetA: 0.6 };
+    expect(repartitionCharges(10000, cle, 'projetInconnu')).toBe(0);
+  });
+});
+
+describe('controleEquilibre', () => {
+  it('signale équilibré quand recettes == dépenses (à 0,01€ près)', () => {
+    const financements = [{ montant: 600 }, { montant: 400 }];
+    const lignesBudget = [{ montantPrevu: 1000 }];
+    expect(controleEquilibre(financements, lignesBudget)).toEqual({ equilibre: true, ecart: 0 });
+  });
+
+  it('signale déséquilibré et renvoie l\'écart sinon', () => {
+    const financements = [{ montant: 600 }, { montant: 300 }];
+    const lignesBudget = [{ montantPrevu: 1000 }];
+    expect(controleEquilibre(financements, lignesBudget)).toEqual({ equilibre: false, ecart: -100 });
+  });
+});
+
+describe('repartirMontantAnnuel', () => {
+  it('répartit également quand la division est exacte', () => {
+    expect(repartirMontantAnnuel(1200, 12)).toEqual(Array(12).fill(100));
+  });
+
+  it('absorbe le reliquat d\'arrondi sur le dernier mois, la somme reste exacte', () => {
+    const result = repartirMontantAnnuel(1000, 3);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toBe(333.33);
+    expect(result[1]).toBe(333.33);
+    expect(result[2]).toBe(333.34);
+    expect(result.reduce((a, b) => a + b, 0)).toBe(1000);
+  });
+
+  it('renvoie un tableau vide si nbMois est 0', () => {
+    expect(repartirMontantAnnuel(1000, 0)).toEqual([]);
+  });
+});
+
+const scenarios = [
+  { id: 'sce_bas', type: 'bas', coefficient: 0.9 },
+  { id: 'sce_median', type: 'median', coefficient: 1 },
+  { id: 'sce_haut', type: 'haut', coefficient: 1.1 },
+];
+
+describe('resolveMontantPrevu', () => {
+  it('renvoie la valeur explicite quand une ligne existe pour ce scénario/période', () => {
+    const poste = { lignes: [{ scenarioId: 'sce_bas', periode: '2026-01', montantPrevu: 500 }] };
+    expect(resolveMontantPrevu(poste, scenarios, 'sce_bas', '2026-01')).toBe(500);
+  });
+
+  it('calcule médian × coefficient quand aucune ligne explicite n\'existe pour bas/haut', () => {
+    const poste = { lignes: [{ scenarioId: 'sce_median', periode: '2026-01', montantPrevu: 1000 }] };
+    expect(resolveMontantPrevu(poste, scenarios, 'sce_bas', '2026-01')).toBe(900);
+    expect(resolveMontantPrevu(poste, scenarios, 'sce_haut', '2026-01')).toBe(1100);
+  });
+
+  it('renvoie 0 pour le médian sans ligne explicite (pas de calcul automatique sur le médian)', () => {
+    const poste = { lignes: [] };
+    expect(resolveMontantPrevu(poste, scenarios, 'sce_median', '2026-01')).toBe(0);
+  });
+
+  it('renvoie 0 pour bas/haut quand le médian n\'a pas de valeur pour cette période', () => {
+    const poste = { lignes: [] };
+    expect(resolveMontantPrevu(poste, scenarios, 'sce_bas', '2026-01')).toBe(0);
+  });
+});
+
+describe('totalBudgetePoste', () => {
+  it('additionne le médian × coefficient sur toutes les périodes connues du poste', () => {
+    const poste = {
+      lignes: [
+        { scenarioId: 'sce_median', periode: '2026-01', montantPrevu: 1000 },
+        { scenarioId: 'sce_median', periode: '2026-02', montantPrevu: 2000 },
+      ],
+    };
+    expect(totalBudgetePoste(poste, scenarios, 'sce_haut')).toBe(3300);
+  });
+
+  it('tient compte d\'une surcharge explicite sur une période donnée', () => {
+    const poste = {
+      lignes: [
+        { scenarioId: 'sce_median', periode: '2026-01', montantPrevu: 1000 },
+        { scenarioId: 'sce_haut', periode: '2026-01', montantPrevu: 1500 },
+      ],
+    };
+    expect(totalBudgetePoste(poste, scenarios, 'sce_haut')).toBe(1500);
+  });
+});
+
+describe('sortPostesByCode', () => {
+  it('trie les postes par code croissant', () => {
+    const postes = [
+      { id: 'p3', code: 'ACH002', libelle: 'Engrais' },
+      { id: 'p1', code: 'ACH001', libelle: 'Semences' },
+      { id: 'p2', code: 'POS001', libelle: 'Loyer' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p1', 'p3', 'p2']);
+  });
+
+  it('place les postes sans code en fin de liste', () => {
+    const postes = [
+      { id: 'p1', code: '', libelle: 'Sans code' },
+      { id: 'p2', code: 'ACH001', libelle: 'Avec code' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p2', 'p1']);
+  });
+
+  it('trie par libellé en cas d\'égalité ou d\'absence de code', () => {
+    const postes = [
+      { id: 'p1', code: '', libelle: 'Zinc' },
+      { id: 'p2', code: '', libelle: 'Achat' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p2', 'p1']);
+  });
+
+  it('ne mute pas le tableau d\'origine', () => {
+    const postes = [{ id: 'p1', code: 'B' }, { id: 'p2', code: 'A' }];
+    const sorted = sortPostesByCode(postes);
+    expect(sorted).not.toBe(postes);
+    expect(postes.map(p => p.id)).toEqual(['p1', 'p2']);
+  });
+
+  it('trie d\'abord par nature (charge, puis produit, puis invest) avant le code', () => {
+    const postes = [
+      { id: 'p1', code: 'POS001', libelle: 'Vente', nature: 'produit' },
+      { id: 'p2', code: 'INV001', libelle: 'Matériel', nature: 'invest' },
+      { id: 'p3', code: 'ACH002', libelle: 'Engrais', nature: 'charge' },
+      { id: 'p4', code: 'ACH001', libelle: 'Semences', nature: 'charge' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p4', 'p3', 'p1', 'p2']);
+  });
+
+  it('traite les postes sans nature comme un groupe homogène (rétro-compatibilité)', () => {
+    const postes = [
+      { id: 'p1', code: 'B' },
+      { id: 'p2', code: 'A' },
+    ];
+    expect(sortPostesByCode(postes).map(p => p.id)).toEqual(['p2', 'p1']);
+  });
+});
+
+describe('groupKeyForCode', () => {
+  it('renvoie les 3 premiers caractères du code en majuscules', () => {
+    expect(groupKeyForCode('ach001')).toBe('ACH');
+    expect(groupKeyForCode('POS001')).toBe('POS');
+  });
+
+  it('renvoie AUTRE quand le code est absent ou trop court', () => {
+    expect(groupKeyForCode('')).toBe('AUTRE');
+    expect(groupKeyForCode(undefined)).toBe('AUTRE');
+    expect(groupKeyForCode('AB')).toBe('AUTRE');
+  });
+});
+
+describe('resolveCoefficient', () => {
+  const scenario = { id: 'sce_bas', type: 'bas', coefficient: 0.9 };
+
+  it('renvoie le coefficient global du scénario par défaut', () => {
+    const poste = { id: 'p1' };
+    expect(resolveCoefficient(poste, scenario)).toBe(0.9);
+  });
+
+  it('renvoie la surcharge propre au poste quand elle existe', () => {
+    const poste = { id: 'p1', scenarioCoefficients: { sce_bas: 0.8 } };
+    expect(resolveCoefficient(poste, scenario)).toBe(0.8);
+  });
+});
+
+describe('sumRows', () => {
+  it('additionne les champs demandés sur une liste de lignes', () => {
+    const rows = [{ budgete: 100, realise: 80 }, { budgete: 200, realise: 150 }];
+    expect(sumRows(rows, ['budgete', 'realise'])).toEqual({ budgete: 300, realise: 230 });
+  });
+
+  it('renvoie 0 pour une liste vide', () => {
+    expect(sumRows([], ['budgete'])).toEqual({ budgete: 0 });
+  });
+});
+
+describe('groupRowsByNatureAndCode', () => {
+  it('regroupe par nature (dans l\'ordre charge, produit, invest) puis par préfixe de code', () => {
+    const rows = [
+      { poste: { code: 'ACH001', nature: 'charge' } },
+      { poste: { code: 'ACH002', nature: 'charge' } },
+      { poste: { code: 'POS001', nature: 'produit' } },
+    ];
+    const groups = groupRowsByNatureAndCode(rows);
+    expect(groups.map(g => g.nature)).toEqual(['charge', 'produit']);
+    expect(groups[0].label).toBe('Charges');
+    expect(groups[0].codeGroups.map(g => g.key)).toEqual(['ACH']);
+    expect(groups[0].codeGroups[0].rows).toHaveLength(2);
+    expect(groups[1].codeGroups.map(g => g.key)).toEqual(['POS']);
+  });
+
+  it('ne renvoie pas de groupe pour une nature absente des lignes', () => {
+    const rows = [{ poste: { code: 'ACH001', nature: 'charge' } }];
+    expect(groupRowsByNatureAndCode(rows).map(g => g.nature)).toEqual(['charge']);
+  });
+});
+
+describe('buildPeriodColumns', () => {
+  const months = buildExerciceMonths(new Date(2026, 0, 1), new Date(2026, 11, 31));
+
+  it('renvoie 12 colonnes (une par mois) en mensuel, clé = mois lui-même', () => {
+    const columns = buildPeriodColumns(months, 'mensuel');
+    expect(columns).toHaveLength(12);
+    expect(columns[0].key).toBe('2026-01');
+    expect(columns[11].key).toBe('2026-12');
+  });
+
+  it('renvoie 4 colonnes en trimestriel, clé = premier mois de chaque trimestre', () => {
+    const columns = buildPeriodColumns(months, 'trimestriel');
+    expect(columns).toHaveLength(4);
+    expect(columns.map(c => c.key)).toEqual(['2026-01', '2026-04', '2026-07', '2026-10']);
+    expect(columns[0].months).toHaveLength(3);
+  });
+
+  it('renvoie 2 colonnes en semestriel, clé = premier mois de chaque semestre', () => {
+    const columns = buildPeriodColumns(months, 'semestriel');
+    expect(columns).toHaveLength(2);
+    expect(columns.map(c => c.key)).toEqual(['2026-01', '2026-07']);
+    expect(columns[0].months).toHaveLength(6);
+  });
+
+  it('renvoie 1 colonne en annuel, couvrant tous les mois', () => {
+    const columns = buildPeriodColumns(months, 'annuel');
+    expect(columns).toHaveLength(1);
+    expect(columns[0].key).toBe('2026-01');
+    expect(columns[0].months).toHaveLength(12);
+  });
+
+  it('respecte l\'ordre d\'un exercice décalé (Avr–Mars) pour le découpage trimestriel', () => {
+    const decale = buildExerciceMonths(new Date(2026, 3, 1), new Date(2027, 2, 31));
+    const columns = buildPeriodColumns(decale, 'trimestriel');
+    expect(columns.map(c => c.key)).toEqual(['2026-04', '2026-07', '2026-10', '2027-01']);
+  });
+
+  it('le dernier groupe est plus court si la durée n\'est pas un multiple exact de la taille de groupe', () => {
+    const courte = months.slice(0, 5); // 5 mois : Jan-Mai
+    const columns = buildPeriodColumns(courte, 'trimestriel');
+    expect(columns).toHaveLength(2);
+    expect(columns[0].months).toHaveLength(3);
+    expect(columns[1].months).toHaveLength(2); // groupe incomplet
+  });
+});
+
+describe('prorataRatio', () => {
+  it('renvoie 0 avant le début de l\'exercice', () => {
+    expect(prorataRatio('2026-01-01', '2026-12-31', new Date('2025-12-15'))).toBe(0);
+  });
+
+  it('renvoie 1 après la fin de l\'exercice', () => {
+    expect(prorataRatio('2026-01-01', '2026-12-31', new Date('2027-01-15'))).toBe(1);
+  });
+
+  it('renvoie 1 le dernier jour de l\'exercice', () => {
+    expect(prorataRatio('2026-01-01', '2026-12-31', new Date('2026-12-31'))).toBe(1);
+  });
+
+  it('renvoie le ratio de jours écoulés (inclus) sur la durée totale', () => {
+    // Exercice de 100 jours, on est au 50e jour inclus -> 50/100
+    expect(prorataRatio('2026-01-01', '2026-04-10', new Date('2026-02-19'))).toBeCloseTo(0.5, 2);
+  });
+});

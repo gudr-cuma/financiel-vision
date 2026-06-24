@@ -53,12 +53,18 @@ import AnalytiqueTab from './components/analytique/AnalytiqueTab';
 import AnalyseurTab from './components/analyseur/AnalyseurTab';
 import LivresTab from './components/livres/LivresTab';
 import DossierTab from './components/dossier/DossierTab';
+import BudgetTab from './components/budget/BudgetTab';
 import BilanCRTab from './components/bilanCR/BilanCRTab';
 import BilanParamTab from './components/bilanParam/BilanParamTab';
 import ExportTab from './components/export/ExportTab';
 import AccueilTab from './components/accueil/AccueilTab';
 import DiaporamaTab from './components/diaporama/DiaporamaTab';
 import SessionRestoreModal from './components/session/SessionRestoreModal';
+import EmpruntsTab from './components/emprunts/EmpruntsTab';
+import ImmobilisationsTab from './components/immobilisations/ImmobilisationsTab';
+import CapitalSocialRegistreTab from './components/capitalSocialRegistre/CapitalSocialRegistreTab';
+import MaterielsTab from './components/materiels/MaterielsTab';
+import FicheSyntheseTab from './components/synthese/FicheSyntheseTab';
 
 export default function App() {
   // ── État sidebar ──────────────────────────────────────────────────────────
@@ -141,7 +147,10 @@ export default function App() {
         {/* Modal de restauration de session */}
         {pendingSession !== null && <SessionRestoreModal />}
 
-        <div className="max-w-[1280px] mx-auto px-6 pb-4">
+        <div
+          className="mx-auto px-6 pb-4"
+          style={{ maxWidth: activeSection === 'budget' ? '1536px' : '1280px' }}
+        >
 
           {/* Administration */}
           {activeSection === 'admin' && <AdminPanel />}
@@ -159,7 +168,6 @@ export default function App() {
                   <>
                     {activeTab === 'sig'         && <SigTable />}
                     {activeTab === 'monthly'     && <MonthlyTab />}
-                    {activeTab === 'treasury'    && <TreasuryTab />}
                     {activeTab === 'charges'     && <ChargesTab />}
                     {activeTab === 'balance'     && <BalanceTab />}
                     {activeTab === 'comparaison' && <ComparaisonTab />}
@@ -168,8 +176,15 @@ export default function App() {
                 )}
 
                 {activeSection === 'dossier'    && <DossierTab />}
+                {activeSection === 'budget'     && <BudgetTab />}
+                {activeSection === 'treasury'   && <TreasuryTab />}
                 {activeSection === 'bilanCR'    && <BilanCRTab />}
                 {activeSection === 'bilanParam' && <BilanParamTab />}
+                {activeSection === 'emprunts'              && <EmpruntsTab />}
+                {activeSection === 'immobilisations'       && <ImmobilisationsTab />}
+                {activeSection === 'capitalSocialRegistre' && <CapitalSocialRegistreTab />}
+                {activeSection === 'materiels'              && <MaterielsTab />}
+                {activeSection === 'ficheSynthese'         && <FicheSyntheseTab />}
                 {activeSection === 'editions'   && <LivresTab />}
                 {activeSection === 'export'     && <ExportTab />}
                 {activeSection === 'diaporama'  && <ErrorBoundary key="diaporama"><DiaporamaTab /></ErrorBoundary>}
