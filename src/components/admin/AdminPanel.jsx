@@ -10,9 +10,16 @@ const ALL_SECTIONS = [
   { id: 'analyseur',  label: 'Analyseur FEC' },
   { id: 'dashboard',  label: 'Tableaux de bord' },
   { id: 'dossier',    label: 'Dossier de gestion' },
+  { id: 'budget',     label: 'Suivi budgétaire' },
+  { id: 'treasury',   label: 'Trésorerie' },
   { id: 'bilanCR',    label: 'Bilan & CR' },
   { id: 'bilanParam', label: 'Bilan paramétré', hasEditPerm: true },
   { id: 'editions',   label: 'Éditions' },
+  { id: 'emprunts',              label: 'Emprunts' },
+  { id: 'immobilisations',       label: 'Immobilisations' },
+  { id: 'capitalSocialRegistre', label: 'Capital social (registre)' },
+  { id: 'materiels',             label: 'Matériels' },
+  { id: 'ficheSynthese',         label: 'Fiche de synthèse' },
   { id: 'export',     label: 'Export PDF' },
   { id: 'analyse',    label: 'Rapport IA' },
 ];
@@ -98,7 +105,6 @@ function UserForm({ onSuccess, onCancel }) {
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#2D3748' }}>
               <input type="checkbox" checked={canUploadFile} onChange={e => setCanUploadFile(e.target.checked)} style={{ accentColor: '#31B700', width: '14px', height: '14px' }} />
               <span>📥 Autoriser l'import de fichiers réels</span>
-              <span style={{ fontSize: '11px', color: '#A0AEC0' }}>(FEC, Dossier, Bilan&CR, Analytique)</span>
             </label>
           </div>
           <div>
@@ -183,7 +189,6 @@ function PermissionsEditor({ userId, initialPerms, initialEditPerms, initialCanU
         <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '12px', color: '#2D3748' }}>
           <input type="checkbox" checked={canUploadFile} onChange={e => setCanUploadFile(e.target.checked)} style={{ accentColor: '#31B700', width: '13px', height: '13px' }} />
           <span>📥 Import de fichiers réels</span>
-          <span style={{ fontSize: '10px', color: '#A0AEC0' }}>(FEC, Dossier, Bilan&CR, Analytique)</span>
         </label>
       </div>
       <div style={{ fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '8px' }}>Sections accessibles :</div>
@@ -213,11 +218,72 @@ function PermissionsEditor({ userId, initialPerms, initialEditPerms, initialCanU
   );
 }
 
+// ── Éditeur nom / email / mot de passe ───────────────────────────────────────
+function UserEditor({ userId, initialName, initialEmail, onSaved, onCancel }) {
+  const [name, setName]         = useState(initialName);
+  const [email, setEmail]       = useState(initialEmail);
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError]       = useState('');
+
+  const save = async () => {
+    setIsLoading(true); setError('');
+    const body = { name, email };
+    if (password) body.password = password;
+    const { ok, data } = await apiFetch(`/api/admin/users/${userId}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    });
+    setIsLoading(false);
+    if (ok) onSaved(data.user);
+    else setError(data.error ?? 'Erreur lors de la modification');
+  };
+
+  return (
+    <div style={{ padding: '12px', background: '#F8FAFB', borderRadius: '8px', marginTop: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '4px' }}>Nom</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '4px' }}>Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4A5568', marginBottom: '4px' }}>Nouveau mot de passe (min. 10 car., laisser vide pour ne pas changer)</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••••"
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '6px', fontSize: '13px', color: '#991B1B', marginBottom: '10px' }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={save} disabled={isLoading}
+          style={{ padding: '6px 14px', borderRadius: '5px', border: 'none', background: isLoading ? '#CBD5E0' : '#31B700', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: isLoading ? 'not-allowed' : 'pointer' }}>
+          {isLoading ? 'Enregistrement…' : '✓ Enregistrer'}
+        </button>
+        <button onClick={onCancel} disabled={isLoading}
+          style={{ padding: '6px 14px', borderRadius: '5px', border: '1px solid #E2E8F0', background: 'transparent', fontSize: '12px', cursor: 'pointer', color: '#718096' }}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Ligne utilisateur ─────────────────────────────────────────────────────────
 function UserRow({ user: initialUser, currentUserId, onDeleted }) {
   const [user, setUser]             = useState(initialUser);
   const [expanded, setExpanded]     = useState(false);
   const [editPerms, setEditPerms]   = useState(false);
+  const [editing, setEditing]       = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -287,8 +353,12 @@ function UserRow({ user: initialUser, currentUserId, onDeleted }) {
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+          <button onClick={() => { setEditing(e => !e); setExpanded(false); }}
+            style={{ padding: '5px 10px', fontSize: '12px', borderRadius: '5px', border: '1px solid #E2E8F0', background: 'transparent', cursor: 'pointer', color: '#718096' }}>
+            {editing ? 'Masquer' : '✏️ Modifier'}
+          </button>
           {!isAdmin && (
-            <button onClick={() => { setExpanded(e => !e); setEditPerms(false); }}
+            <button onClick={() => { setExpanded(e => !e); setEditing(false); setEditPerms(false); }}
               style={{ padding: '5px 10px', fontSize: '12px', borderRadius: '5px', border: '1px solid #E2E8F0', background: 'transparent', cursor: 'pointer', color: '#718096' }}>
               {expanded ? 'Masquer' : '✏️ Permissions'}
             </button>
@@ -313,6 +383,22 @@ function UserRow({ user: initialUser, currentUserId, onDeleted }) {
           )}
         </div>
       </div>
+
+      {/* Nom / email / mot de passe (expandable) */}
+      {editing && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <UserEditor
+            userId={user.id}
+            initialName={user.name}
+            initialEmail={user.email}
+            onSaved={(updated) => {
+              setUser(u => ({ ...u, name: updated.name, email: updated.email }));
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      )}
 
       {/* Permissions editor (expandable) */}
       {expanded && !isAdmin && (

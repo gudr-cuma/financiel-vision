@@ -1,10 +1,11 @@
 /**
  * GET    /api/admin/users/:id  — Détail user + sessions actives
- * PUT    /api/admin/users/:id  — Modifier name / role / is_active
+ * PUT    /api/admin/users/:id  — Modifier name / email / password / role / is_active / can_upload_file
  * DELETE /api/admin/users/:id  — Supprimer (cascade)
  */
-import { getUserPermissions, revokeAllSessions } from '../../../_lib/db.js';
-import { isValidRole, isValidUUID }              from '../../../_lib/validate.js';
+import { hashPassword } from '../../../_lib/password.js';
+import { getUserPermissions, revokeAllSessions, revokeOtherSessions } from '../../../_lib/db.js';
+import { isValidRole, isValidUUID, validateEmail, validatePassword } from '../../../_lib/validate.js';
 import { json, error, notFound, forbidden, methodNotAllowed } from '../../../_lib/responses.js';
 
 async function getUser(db, id) {
@@ -47,13 +48,27 @@ export async function onRequestPut(context) {
   try { body = await request.json(); }
   catch { return error('Corps de requête invalide'); }
 
-  const { name, role, is_active, can_upload_file } = body ?? {};
+  const { name, email, password, role, is_active, can_upload_file } = body ?? {};
   const updates = [];
   const values  = [];
 
   if (name !== undefined) {
     if (!name?.trim()) return error('Le nom ne peut pas être vide');
     updates.push('name = ?'); values.push(name.trim());
+  }
+  if (email !== undefined) {
+    const emailCheck = validateEmail(email ?? '');
+    if (!emailCheck.ok) return error(emailCheck.error);
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?')
+      .bind(normalizedEmail, id).first();
+    if (existing) return error('Un compte avec cet email existe déjà', 409);
+    updates.push('email = ?'); values.push(normalizedEmail);
+  }
+  if (password !== undefined) {
+    const pwCheck = validatePassword(password ?? '');
+    if (!pwCheck.ok) return error(pwCheck.error);
+    updates.push('password_hash = ?'); values.push(await hashPassword(password));
   }
   if (role !== undefined) {
     if (!isValidRole(role)) return error('Rôle invalide');
@@ -76,6 +91,13 @@ export async function onRequestPut(context) {
   values.push(id);
   await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`)
     .bind(...values).run();
+
+  if (password !== undefined) {
+    // Le mot de passe a changé : on coupe les sessions ouvertes avec l'ancien.
+    // Si l'admin réinitialise son propre mot de passe, on garde sa session courante active.
+    if (id === data.user.id) await revokeOtherSessions(env.DB, id, data.sessionId);
+    else await revokeAllSessions(env.DB, id);
+  }
 
   const updated = await getUser(env.DB, id);
   return json({ user: updated });
