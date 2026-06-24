@@ -215,7 +215,7 @@ function addCoverSlide(pptx, { cumaName, exerciceLabel, logoDataUrl }) {
   }
 
   // Titre principal
-  slide.addText('🌿 Clario Vision', {
+  slide.addText('🌿 myCuma Vision', {
     x: 1.0, y: 1.1, w: W - 2.0, h: 0.8,
     fontSize: 28,
     bold: true,
@@ -748,8 +748,8 @@ export async function generatePptx({ selectedSlides, coverInfo, storeData, onPro
 
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
-  pptx.title  = ['Clario Vision', coverInfo.cumaName, coverInfo.exerciceLabel].filter(Boolean).join(' — ');
-  pptx.author = 'Clario Vision';
+  pptx.title  = ['myCuma Vision', coverInfo.cumaName, coverInfo.exerciceLabel].filter(Boolean).join(' — ');
+  pptx.author = 'myCuma Vision';
 
   const footer = {
     cumaName:      coverInfo.cumaName ?? '',
@@ -1497,8 +1497,8 @@ export async function generateBuilderPptx({ slides, coverInfo, storeData, onProg
 
   const pptx = new PptxGenJS();
   pptx.layout  = 'LAYOUT_WIDE';
-  pptx.title   = ['Clario Vision', coverInfo.cumaName, coverInfo.exerciceLabel].filter(Boolean).join(' — ');
-  pptx.author  = 'Clario Vision';
+  pptx.title   = ['myCuma Vision', coverInfo.cumaName, coverInfo.exerciceLabel].filter(Boolean).join(' — ');
+  pptx.author  = 'myCuma Vision';
 
   // Page de garde
   progress('Page de garde…');

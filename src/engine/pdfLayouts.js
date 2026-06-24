@@ -77,7 +77,7 @@ export const STYLES = {
 export function makeFooter(currentPage, pageCount) {
   return {
     columns: [
-      { text: 'Clario Vision', fontSize: 7, color: COLORS.secondary, margin: [40, 0, 0, 0] },
+      { text: 'myCuma Vision', fontSize: 7, color: COLORS.secondary, margin: [40, 0, 0, 0] },
       { text: `Page ${currentPage} / ${pageCount}`, fontSize: 7, color: COLORS.secondary, alignment: 'right', margin: [0, 0, 40, 0] },
     ],
     margin: [0, 8, 0, 0],
@@ -119,7 +119,7 @@ export function makeCoverPage(parsedFec, selectedDocs, DOC_LABELS, annexeNames =
             { image: logoDataUrl, fit: [150, 70], alignment: 'right', margin: [0, 20, 0, 0] },
           ],
         }] : []),
-        { text: 'Clario Vision', fontSize: 32, bold: true, color: COLORS.primary, margin: [0, logoDataUrl ? 16 : 80, 0, 4] },
+        { text: 'myCuma Vision', fontSize: 32, bold: true, color: COLORS.primary, margin: [0, logoDataUrl ? 16 : 80, 0, 4] },
         { text: 'Export des livres comptables', fontSize: 16, color: COLORS.secondary, margin: [0, 0, 0, 40] },
         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2, lineColor: COLORS.blue }] },
         { text: ' ', fontSize: 4 },

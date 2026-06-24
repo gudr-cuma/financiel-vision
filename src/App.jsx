@@ -97,7 +97,7 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFB' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: '#31B700', marginBottom: '16px' }}>Clario Vision</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#31B700', marginBottom: '16px' }}>myCuma Vision</div>
           <div style={{
             width: '28px', height: '28px', margin: '0 auto',
             border: '3px solid #E2E8F0', borderTopColor: '#31B700',

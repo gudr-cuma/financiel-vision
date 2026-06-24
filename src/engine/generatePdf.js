@@ -2028,7 +2028,7 @@ export async function generateExport(
       styles: defaultStyles,
       info: {
         title:   `Export comptable — ${siren}`,
-        author:  'Clario Vision',
+        author:  'myCuma Vision',
         subject: 'Export comptable',
       },
     };

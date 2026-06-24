@@ -2,6 +2,7 @@ import { useState } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { getExerciceLabel } from '../../engine/exerciceUtils';
+import logoMyCumaVision from '../../assets/logo-mycuma-vision.png';
 
 // ---------------------------------------------------------------------------
 // Modal confidentialité
@@ -165,7 +166,7 @@ function PrivacyModal({ onClose }) {
               </span>
             </div>
             <p style={{ margin: 0, fontSize: '13px', color: '#4A5568', lineHeight: 1.65 }}>
-              Clario Vision ne dépose <strong>aucun cookie analytique</strong>, n'utilise aucun
+              myCuma Vision ne dépose <strong>aucun cookie analytique</strong>, n'utilise aucun
               outil de tracking (Google Analytics, etc.) et ne collecte aucune donnée sur votre
               utilisation de l'application.
             </p>
@@ -246,17 +247,14 @@ export function AppHeader() {
         }}
       >
         {/* Logo */}
-        <div
+        <img
+          src={logoMyCumaVision}
+          alt="myCuma Vision"
           style={{
-            fontWeight: 700,
-            fontSize: '20px',
-            color: '#31B700',
-            letterSpacing: '-0.3px',
+            height: '32px',
             flexShrink: 0,
           }}
-        >
-          Clario Vision
-        </div>
+        />
 
         {/* Right side: file info + demo button */}
         <div

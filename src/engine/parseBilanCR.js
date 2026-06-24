@@ -244,7 +244,7 @@ export async function parseBilanCR(file) {
 
   for (const name of ['Actif', 'Passif', 'Resultat']) {
     if (!wb.Sheets[name]) {
-      throw new Error(`Feuille "${name}" introuvable. Vérifiez que le fichier est bien un BilanCR Clario Vision.`);
+      throw new Error(`Feuille "${name}" introuvable. Vérifiez que le fichier est bien un BilanCR myCuma Vision.`);
     }
   }
 

@@ -208,7 +208,7 @@ export function AccueilTab() {
             fontSize: '28px', fontWeight: 800, color: '#1A202C',
             margin: '0 0 8px',
           }}>
-            Clario Vision
+            myCuma Vision
           </h1>
           <p style={{
             fontSize: '16px', color: '#4A5568',

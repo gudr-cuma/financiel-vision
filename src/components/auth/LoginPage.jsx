@@ -32,7 +32,7 @@ export function LoginPage() {
       {/* Logo */}
       <div style={{ marginBottom: '32px', textAlign: 'center' }}>
         <div style={{ fontSize: '28px', fontWeight: 800, color: '#31B700', letterSpacing: '-0.5px' }}>
-          Clario Vision
+          myCuma Vision
         </div>
         <div style={{ fontSize: '13px', color: '#718096', marginTop: '4px' }}>
           Analyse financière CUMA
