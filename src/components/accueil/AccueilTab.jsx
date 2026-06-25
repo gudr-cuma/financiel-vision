@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { getRecentSessions, removeRecentSession } from '../../engine/sessionManager';
+import iconEye from '../../assets/icon-eye.svg';
 
 const MODULES = [
   {
@@ -267,7 +268,7 @@ export function AccueilTab() {
         }} />
 
         <div style={{ position: 'relative' }}>
-          <div style={{ fontSize: '36px', marginBottom: '12px' }}>🌿</div>
+          <img src={iconEye} alt="" style={{ width: '48px', height: '48px', marginBottom: '12px' }} />
           <h1 style={{
             fontSize: '28px', fontWeight: 800, color: '#1A202C',
             margin: '0 0 8px',
