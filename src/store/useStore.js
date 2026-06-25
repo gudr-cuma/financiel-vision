@@ -41,7 +41,7 @@ const useStore = create((set, get) => ({
   isLoadingExploitation: false,
   errorExploitation: null,
   syntheseOverrides: {},  // surcharges utilisateur de la Fiche de synthèse, persistées en .clario
-  activeSection: 'accueil',   // 'accueil' | 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
+  activeSection: 'accueil',   // 'accueil' | 'analyseur' | 'controles' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
   detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null

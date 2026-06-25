@@ -6,7 +6,7 @@ import { verifyPassword, dummyVerify } from '../../_lib/password.js';
 import { buildSessionCookie, getClientIp } from '../../_lib/session.js';
 import { checkRateLimit, incrementRateLimit, resetRateLimit } from '../../_lib/ratelimit.js';
 import { getUserByEmail, getUserPermissions, getUserEditPermissions, createSession } from '../../_lib/db.js';
-import { validateEmail } from '../../_lib/validate.js';
+import { validateEmail, VALID_SECTIONS } from '../../_lib/validate.js';
 import { json, error, tooManyRequests } from '../../_lib/responses.js';
 
 export async function onRequestPost(context) {
@@ -91,15 +91,10 @@ export async function onRequestPost(context) {
     ip, request.headers.get('User-Agent') ?? ''
   );
 
-  const ALL_SECTIONS = [
-    'analyseur', 'dashboard', 'dossier', 'treasury', 'bilanCR', 'bilanParam', 'editions',
-    'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
-    'export', 'analyse',
-  ];
   let permissions, editPermissions;
   if (user.role === 'admin') {
-    permissions     = ALL_SECTIONS;
-    editPermissions = ALL_SECTIONS;
+    permissions     = VALID_SECTIONS;
+    editPermissions = VALID_SECTIONS;
   } else {
     [permissions, editPermissions] = await Promise.all([
       getUserPermissions(env.DB, user.id),
