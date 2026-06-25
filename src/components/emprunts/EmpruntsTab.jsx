@@ -6,10 +6,11 @@ import { RangeFilterInput } from '../shared/RangeFilterInput';
 import { FilterField } from '../shared/FilterField';
 import { MiniStatCard } from '../shared/MiniStatCard';
 import { EmpruntsTable } from './EmpruntsTable';
+import { EmpruntsCrd5AnsTable } from './EmpruntsCrd5AnsTable';
 import { EmpruntDetailPanel } from './EmpruntDetailPanel';
 import { sortRows, nextSortState, filterByText, filterByRange, distinctValues } from '../../engine/tableUtils';
-import { getCapitalRestantDu, countEmpruntsEnCours } from '../../engine/empruntsUtils';
-import { formatAmountFull } from '../../engine/formatUtils';
+import { getCapitalRestantDu, countEmpruntsEnCours, computeCrd5Ans } from '../../engine/empruntsUtils';
+import { formatAmountFull, parseFrDate } from '../../engine/formatUtils';
 
 const SELECT_STYLE = {
   border: '1px solid #CBD5E0',
@@ -20,6 +21,20 @@ const SELECT_STYLE = {
   backgroundColor: '#ffffff',
   cursor: 'pointer',
 };
+
+function dateToInputValue(date) {
+  if (!date) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function inputValueToDate(raw) {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 const SITUATION_EN_COURS = 4;
 
@@ -65,6 +80,13 @@ export function EmpruntsTab() {
   const [sort, setSort] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
 
+  const [view, setView] = useState('registre'); // 'registre' | 'crd5ans'
+  const bilanCRData = useStore((s) => s.bilanCRData);
+  const [dateFin, setDateFin] = useState(() => parseFrDate(bilanCRData?.dateFin) ?? new Date());
+  const [searchCrd, setSearchCrd] = useState('');
+  const [enCoursOnlyCrd, setEnCoursOnlyCrd] = useState(true);
+  const [sortCrd, setSortCrd] = useState(null);
+
   const emprunts = useMemo(() => exploitationData?.emprunts ?? [], [exploitationData]);
   const lignesEmprunt = useMemo(() => exploitationData?.lignesEmprunt ?? [], [exploitationData]);
 
@@ -95,6 +117,14 @@ export function EmpruntsTab() {
     if (sort) result = sortRows(result, sort.key, sort.direction);
     return result;
   }, [emprunts, enCoursOnly, search, montantMin, montantMax, dateRealisationMin, dateRealisationMax, premiereEcheanceMin, premiereEcheanceMax, banque, categorie, sort]);
+
+  const crd5AnsRows = useMemo(() => {
+    let result = enCoursOnlyCrd ? emprunts.filter((e) => Number(e.situation) === SITUATION_EN_COURS) : emprunts;
+    result = computeCrd5Ans(result, lignesEmprunt, dateFin);
+    result = filterByText(result, ['nEmprunt', 'designation', 'ancienCode'], searchCrd);
+    if (sortCrd) result = sortRows(result, sortCrd.key, sortCrd.direction);
+    return result;
+  }, [emprunts, lignesEmprunt, dateFin, enCoursOnlyCrd, searchCrd, sortCrd]);
 
   if (!exploitationData) {
     return (
@@ -130,57 +160,113 @@ export function EmpruntsTab() {
         <MiniStatCard label="Emprunts en cours" value={nbEnCours} />
       </div>
 
-      <div style={{ marginBottom: '12px' }}>
-        <ToggleButton active={enCoursOnly} onClick={() => setEnCoursOnly((v) => !v)}>
-          Emprunts en cours uniquement
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <ToggleButton active={view === 'registre'} onClick={() => setView('registre')}>
+          Registre
+        </ToggleButton>
+        <ToggleButton active={view === 'crd5ans'} onClick={() => setView('crd5ans')}>
+          CRD à 5 ans
         </ToggleButton>
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: '10px',
-        marginBottom: '16px',
-      }}>
-        <FilterField label="Recherche">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="N. Emprunt ou désignation…"
-            style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box', cursor: 'text' }}
-          />
-        </FilterField>
-        <FilterField label="Montant">
-          <RangeFilterInput type="number" minValue={montantMin} maxValue={montantMax} onChange={(min, max) => { setMontantMin(min); setMontantMax(max); }} minPlaceholder="Min" maxPlaceholder="Max" />
-        </FilterField>
-        <FilterField label="Date de réalisation">
-          <RangeFilterInput type="date" minValue={dateRealisationMin} maxValue={dateRealisationMax} onChange={(min, max) => { setDateRealisationMin(min); setDateRealisationMax(max); }} minPlaceholder="Min" maxPlaceholder="Max" />
-        </FilterField>
-        <FilterField label="1ère échéance">
-          <RangeFilterInput type="date" minValue={premiereEcheanceMin} maxValue={premiereEcheanceMax} onChange={(min, max) => { setPremiereEcheanceMin(min); setPremiereEcheanceMax(max); }} minPlaceholder="Min" maxPlaceholder="Max" />
-        </FilterField>
-        <FilterField label="Banque">
-          <select value={banque} onChange={(e) => setBanque(e.target.value)} style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box' }}>
-            <option value="">Toutes les banques</option>
-            {banques.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </FilterField>
-        <FilterField label="Catégorie">
-          <select value={categorie} onChange={(e) => setCategorie(e.target.value)} style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box' }}>
-            <option value="">Toutes les catégories</option>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </FilterField>
-      </div>
+      {view === 'registre' && (
+        <>
+          <div style={{ marginBottom: '12px' }}>
+            <ToggleButton active={enCoursOnly} onClick={() => setEnCoursOnly((v) => !v)}>
+              Emprunts en cours uniquement
+            </ToggleButton>
+          </div>
 
-      <EmpruntsTable
-        rows={rows}
-        sort={sort}
-        onSort={(key) => setSort(nextSortState(sort, key))}
-        onRowClick={(row) => setSelectedRow(selectedRow?.nEmprunt === row.nEmprunt ? null : row)}
-        selectedRow={selectedRow}
-      />
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: '10px',
+            marginBottom: '16px',
+          }}>
+            <FilterField label="Recherche">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="N. Emprunt ou désignation…"
+                style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box', cursor: 'text' }}
+              />
+            </FilterField>
+            <FilterField label="Montant">
+              <RangeFilterInput type="number" minValue={montantMin} maxValue={montantMax} onChange={(min, max) => { setMontantMin(min); setMontantMax(max); }} minPlaceholder="Min" maxPlaceholder="Max" />
+            </FilterField>
+            <FilterField label="Date de réalisation">
+              <RangeFilterInput type="date" minValue={dateRealisationMin} maxValue={dateRealisationMax} onChange={(min, max) => { setDateRealisationMin(min); setDateRealisationMax(max); }} minPlaceholder="Min" maxPlaceholder="Max" />
+            </FilterField>
+            <FilterField label="1ère échéance">
+              <RangeFilterInput type="date" minValue={premiereEcheanceMin} maxValue={premiereEcheanceMax} onChange={(min, max) => { setPremiereEcheanceMin(min); setPremiereEcheanceMax(max); }} minPlaceholder="Min" maxPlaceholder="Max" />
+            </FilterField>
+            <FilterField label="Banque">
+              <select value={banque} onChange={(e) => setBanque(e.target.value)} style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box' }}>
+                <option value="">Toutes les banques</option>
+                {banques.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </FilterField>
+            <FilterField label="Catégorie">
+              <select value={categorie} onChange={(e) => setCategorie(e.target.value)} style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box' }}>
+                <option value="">Toutes les catégories</option>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </FilterField>
+          </div>
+
+          <EmpruntsTable
+            rows={rows}
+            sort={sort}
+            onSort={(key) => setSort(nextSortState(sort, key))}
+            onRowClick={(row) => setSelectedRow(selectedRow?.nEmprunt === row.nEmprunt ? null : row)}
+            selectedRow={selectedRow}
+          />
+        </>
+      )}
+
+      {view === 'crd5ans' && (
+        <>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: '10px',
+            marginBottom: '12px',
+          }}>
+            <FilterField label="À la date du">
+              <input
+                type="date"
+                value={dateToInputValue(dateFin)}
+                onChange={(e) => setDateFin(inputValueToDate(e.target.value) ?? dateFin)}
+                style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box' }}
+              />
+            </FilterField>
+            <FilterField label="Recherche">
+              <input
+                type="text"
+                value={searchCrd}
+                onChange={(e) => setSearchCrd(e.target.value)}
+                placeholder="N. Emprunt, référence ou libellé…"
+                style={{ ...SELECT_STYLE, width: '100%', boxSizing: 'border-box', cursor: 'text' }}
+              />
+            </FilterField>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <ToggleButton active={enCoursOnlyCrd} onClick={() => setEnCoursOnlyCrd((v) => !v)}>
+              Emprunts en cours uniquement
+            </ToggleButton>
+          </div>
+
+          <EmpruntsCrd5AnsTable
+            rows={crd5AnsRows}
+            sort={sortCrd}
+            onSort={(key) => setSortCrd(nextSortState(sortCrd, key))}
+            onRowClick={(row) => setSelectedRow(selectedRow?.nEmprunt === row.nEmprunt ? null : row)}
+            selectedRow={selectedRow}
+          />
+        </>
+      )}
 
       <EmpruntDetailPanel
         emprunt={selectedRow}
