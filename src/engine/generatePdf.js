@@ -11,10 +11,10 @@ import {
   makeCoverPage, makeSommaire, makeSectionTitle, makeAnnexesSeparator,
   pdfFmt, fitTableWidths,
 } from './pdfLayouts';
-import { formatDate } from './formatUtils';
+import { formatDate, parseFrDate } from './formatUtils';
 import { sortRows, groupRows, sumColumn, yearOf } from './tableUtils';
 import { aggregateTreasuryByGranularity } from './computeTreasury';
-import { getCapitalRestantDu, countEmpruntsEnCours } from './empruntsUtils';
+import { getCapitalRestantDu, countEmpruntsEnCours, computeCrd5Ans, decodePeriode } from './empruntsUtils';
 import {
   ecart, ecartPct, tauxConso, resteAEngager, totalBudgetePoste,
   sortPostesByCode, groupRowsByNatureAndCode,
@@ -42,6 +42,7 @@ export const DOC_LABELS = {
   capital_social:    'Capital social (registre)',
   immobilisations:   'Immobilisations',
   emprunts:          'Emprunts',
+  emprunts_crd5ans:  'Emprunts — CRD à 5 ans',
   materiels:         'Matériels',
   budget_suivi:      'Suivi budgétaire',
 };
@@ -1357,6 +1358,62 @@ function buildEmpruntsContent(exploitationData, chartW = 781) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Emprunts — CRD à 5 ans → contenu pdfmake (en cours uniquement)
+// ─────────────────────────────────────────────────────────────
+const EMPRUNTS_CRD5ANS_PDF_COLUMNS = [
+  { key: 'nEmprunt',               label: 'N. Emprunt',       type: 'text',    width: 48 },
+  { key: 'ancienCode',             label: 'Référence',        type: 'text',    width: 48 },
+  { key: 'designation',            label: 'Libellé',          type: 'text',    width: '*' },
+  { key: 'dateRealisation',        label: 'Date Réalisation', type: 'date',    width: 58 },
+  { key: 'duree',                  label: 'Durée',            type: 'number',  width: 34 },
+  { key: 'periode',                label: 'Période',          type: 'text',    width: 48 },
+  { key: 'taux',                   label: 'Taux',             type: 'percent', width: 36 },
+  { key: 'montant',                label: 'Montant',          type: 'amount',  width: 55 },
+  { key: 'capitalRembourseCumule', label: 'Capital remb.',    type: 'amount',  width: 55 },
+  { key: 'interetsReglesCumule',   label: 'Intérêts réglés',  type: 'amount',  width: 55 },
+  { key: 'capitalRestantDu',       label: 'CRD',              type: 'amount',  width: 55 },
+  { key: 'capitalMoins1An',        label: '< 1 an',           type: 'amount',  width: 48 },
+  { key: 'capitalEntre1Et5Ans',    label: '1 à 5 ans',        type: 'amount',  width: 48 },
+  { key: 'capitalPlusDe5Ans',      label: '> 5 ans',          type: 'amount',  width: 48 },
+];
+
+function buildEmpruntsCrd5AnsContent(exploitationData, bilanCRData, chartW = 781) {
+  const emprunts = exploitationData?.emprunts ?? [];
+  const lignesEmprunt = exploitationData?.lignesEmprunt ?? [];
+  if (!emprunts.length) return [];
+  const SITUATION_EN_COURS = 4;
+
+  const dateFin = parseFrDate(bilanCRData?.dateFin) ?? new Date();
+  const enCours = emprunts.filter((e) => Number(e.situation) === SITUATION_EN_COURS);
+  const calculees = computeCrd5Ans(enCours, lignesEmprunt, dateFin)
+    .map((row) => ({ ...row, periode: decodePeriode(row.annuite) }));
+  const sorted = sortRows(calculees, 'nEmprunt', 'asc');
+  const totalCrd = sumColumn(sorted, 'capitalRestantDu');
+
+  const headerRow = EMPRUNTS_CRD5ANS_PDF_COLUMNS.map(col => ({
+    text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+    alignment: col.type === 'text' ? 'left' : 'right',
+  }));
+  const tableBody = [headerRow, ...sorted.map(row => EMPRUNTS_CRD5ANS_PDF_COLUMNS.map(col => ({
+    text: fmtFicheCell(row[col.key], col.type), fontSize: 7,
+    alignment: col.type === 'text' ? 'left' : 'right',
+  })))];
+
+  return [
+    makeSectionTitle(DOC_LABELS.emprunts_crd5ans, 'emprunts_crd5ans'),
+    makeWidgetsRow([
+      { label: `Capital restant dû au ${formatDate(dateFin)}`, value: fmtEur(totalCrd), color: COLORS.orange },
+      { label: 'Emprunts en cours', value: String(sorted.length) },
+    ]),
+    {
+      table: { headerRows: 1, widths: fitTableWidths(EMPRUNTS_CRD5ANS_PDF_COLUMNS, chartW), body: tableBody },
+      layout: tableLayout(),
+    },
+    { text: ' ', pageBreak: 'after' },
+  ];
+}
+
+// ─────────────────────────────────────────────────────────────
 // Matériels → contenu pdfmake (en usage uniquement)
 // ─────────────────────────────────────────────────────────────
 const MATERIELS_PDF_COLUMNS = [
@@ -2579,6 +2636,7 @@ export async function generateExport(
     capital_social:    () => buildCapitalSocialContent(storeData.exploitationData, storeData.docOptions?.capital_social, chartW),
     immobilisations:   () => buildImmobilisationsContent(storeData.exploitationData, chartW),
     emprunts:          () => buildEmpruntsContent(storeData.exploitationData, chartW),
+    emprunts_crd5ans:  () => buildEmpruntsCrd5AnsContent(storeData.exploitationData, storeData.bilanCRData, chartW),
     materiels:         () => buildMaterielsContent(storeData.exploitationData, storeData.docOptions?.materiels, chartW),
     budget_suivi:      () => buildBudgetSuiviContent({ ...storeData, parsedFec }, chartW),
   };
