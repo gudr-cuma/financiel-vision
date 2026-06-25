@@ -46,6 +46,7 @@ const ALL_DOCS = [
   { id: 'bilan_cr',          requiresBilanCR: true },
   { id: 'capital_social',    requiresExploitation: true },
   { id: 'emprunts',          requiresExploitation: true },
+  { id: 'emprunts_crd5ans',  requiresExploitation: true },
   { id: 'immobilisations',   requiresExploitation: true },
   { id: 'materiels',         requiresExploitation: true },
   { id: 'analytique_podium', requiresAnalytique: true },
