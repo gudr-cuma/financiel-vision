@@ -268,7 +268,7 @@ export function AccueilTab() {
         }} />
 
         <div style={{ position: 'relative' }}>
-          <img src={iconEye} alt="" style={{ width: '48px', height: '48px', marginBottom: '12px' }} />
+          <img src={iconEye} alt="" style={{ width: '48px', height: '48px', display: 'block', margin: '0 auto 12px' }} />
           <h1 style={{
             fontSize: '28px', fontWeight: 800, color: '#1A202C',
             margin: '0 0 8px',
