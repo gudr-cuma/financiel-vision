@@ -13,6 +13,14 @@ const MODULES = [
     description: 'Chargez votre fichier FEC (.csv) — les calculs sont instantanés et 100% locaux.',
   },
   {
+    id: 'controles',
+    icon: '🚦',
+    label: 'Contrôles',
+    color: '#0D9488',
+    bg: '#E6FFFA',
+    description: 'Vérifiez la cohérence de vos données entre modules et comptes — capital social, emprunts, équilibre comptable…',
+  },
+  {
     id: 'dashboard',
     icon: '📊',
     label: 'Tableaux de bord',

@@ -51,6 +51,7 @@ import AnalyseTab from './components/analyse/AnalyseTab';
 import ComparaisonTab from './components/comparaison/ComparaisonTab';
 import AnalytiqueTab from './components/analytique/AnalytiqueTab';
 import AnalyseurTab from './components/analyseur/AnalyseurTab';
+import ControlesTab from './components/controles/ControlesTab';
 import LivresTab from './components/livres/LivresTab';
 import DossierTab from './components/dossier/DossierTab';
 import BudgetTab from './components/budget/BudgetTab';
@@ -163,6 +164,7 @@ export default function App() {
               <main>
                 {activeSection === 'accueil'    && <AccueilTab />}
                 {activeSection === 'analyseur'  && <AnalyseurTab />}
+                {activeSection === 'controles'   && <ControlesTab />}
 
                 {activeSection === 'dashboard' && (
                   <>

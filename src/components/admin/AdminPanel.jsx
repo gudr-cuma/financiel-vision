@@ -8,6 +8,7 @@ import useAuthStore from '../../store/useAuthStore';
 
 const ALL_SECTIONS = [
   { id: 'analyseur',  label: 'Analyseur FEC' },
+  { id: 'controles',  label: 'Contrôles' },
   { id: 'dashboard',  label: 'Tableaux de bord' },
   { id: 'dossier',    label: 'Dossier de gestion' },
   { id: 'budget',     label: 'Suivi budgétaire' },

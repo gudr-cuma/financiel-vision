@@ -5,6 +5,7 @@ import useAuthStore from '../../store/useAuthStore';
 const SECTIONS = [
   { id: 'accueil',    icon: '🏠', label: 'Accueil',             alwaysVisible: true },
   { id: 'analyseur',  icon: '🔎', label: 'Analyseur FEC' },
+  { id: 'controles',  icon: '🚦', label: 'Contrôles' },
   { id: 'dashboard',  icon: '📊', label: 'Tableaux de bord' },
   { id: 'dossier',    icon: '📋', label: 'Dossier de gestion' },
   { id: 'budget',     icon: '💶', label: 'Suivi budgétaire' },

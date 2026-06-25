@@ -3,7 +3,7 @@
  */
 
 const VALID_SECTIONS = [
-  'analyseur', 'dashboard', 'dossier', 'budget', 'treasury', 'bilanCR', 'bilanParam', 'editions',
+  'analyseur', 'controles', 'dashboard', 'dossier', 'budget', 'treasury', 'bilanCR', 'bilanParam', 'editions',
   'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
   'export', 'diaporama', 'analyse',
 ];
