@@ -85,6 +85,8 @@ const CONTROLES_DEFINITIONS = [
   },
 ];
 
+const MESSAGE_NEUTRAL_AUCUNE_DONNEE = 'Aucune écriture trouvée sur les comptes concernés par ce contrôle.';
+
 export function computeControles(parsedFec, exploitationData) {
   if (!parsedFec) return [];
 
@@ -98,6 +100,13 @@ export function computeControles(parsedFec, exploitationData) {
       return { ...def, status: 'neutral' };
     }
     const { valueA, valueB } = def.compute({ balanceRows, balanceParCompte, exploitationData });
+
+    // Comptes attendus totalement absents du FEC (aucune écriture des deux côtés) :
+    // un 0 == 0 ne veut rien dire ici, on le distingue d'un vrai équilibre constaté.
+    if (valueA === 0 && valueB === 0) {
+      return { ...def, valueA, valueB, ecart: 0, status: 'neutral', neutralMessage: MESSAGE_NEUTRAL_AUCUNE_DONNEE };
+    }
+
     const ecart = Math.abs(valueA - valueB);
     return { ...def, valueA, valueB, ecart, status: ecart <= TOLERANCE_ECART ? 'ok' : 'ko' };
   });
@@ -106,7 +115,7 @@ export function computeControles(parsedFec, exploitationData) {
 
 `sommeComptesRacine(balanceRows, prefix)` est un petit helper local : somme `(solde_credit - solde_debit)` sur les lignes `rowType === 'compte'` dont `compteNum.startsWith(prefix)` — le compte 164 étant normalement créditeur, ceci donne directement le capital restant dû en positif, comparable au widget.
 
-Le statut `'neutral'` (gris) n'existe que pour le contrôle Emprunts quand `exploitationData` est absent ; les deux autres contrôles ne dépendent que du FEC, toujours disponible si on a atteint cette fonction.
+Le statut `'neutral'` (gris) couvre deux cas : l'Export Multi absent (contrôle Emprunts uniquement, message dédié via `def.neutralMessage`), et les deux valeurs comparées valant `0` (comptes attendus absents du FEC plutôt qu'un équilibre réellement constaté à zéro) — ce second cas s'applique aux 3 contrôles et utilise le message générique `MESSAGE_NEUTRAL_AUCUNE_DONNEE`.
 
 Le regroupement par catégorie (pour l'affichage) se fait côté composant par un simple `reduce` préservant l'ordre de `CONTROLES_DEFINITIONS` — une catégorie qui n'a aucune entrée dans ce tableau n'apparaît jamais, ce qui couvre naturellement la règle "masquer tant que vide" sans logique de filtrage dédiée.
 
@@ -130,10 +139,9 @@ Réutilisation de `formatAmountFull` (`engine/formatUtils.js`), déjà utilisé 
 
 ## Limites connues (non bloquantes)
 
-- Si un compte attendu (`10121000`, `45620000`, racine `164`) est totalement absent du FEC (montant 0 des deux côtés), le contrôle affiche "OK" alors qu'il n'y a en réalité aucune donnée — comportement identique à un vrai équilibre nul, jugé acceptable pour cette v1 plutôt que d'ajouter un état "indéterminé" supplémentaire.
 - Le contrôle Comptable, sur un FEC valide, sera quasi toujours vert puisque le FEC est par construction en partie double — sa valeur est avant tout une détection d'anomalie de parsing/import, pas un contrôle métier à proprement parler. Conforme à la demande explicite de l'utilisateur.
 
 ## Tests
 
-- `src/__tests__/computeControles.test.js` (nouveau, sur le modèle de `computeBilan.test.js`) : couvre les 3 contrôles avec des FEC de fixture — cas OK, cas en écart (> tolérance), cas dans la tolérance (≤ 0.01 €), et cas `exploitationData` absent pour Emprunts.
+- `src/__tests__/computeControles.test.js` (nouveau, sur le modèle de `computeBilan.test.js`) : couvre les 3 contrôles avec des FEC de fixture — cas OK, cas en écart (> tolérance), cas dans la tolérance (≤ 0.01 €), cas `exploitationData` absent pour Emprunts, et cas "comptes absents du FEC" (0 == 0 → neutre) pour Capital social et Emprunts.
 - Pas de test composant requis pour `ControleCard`/`ControlesTab` (cohérent avec l'absence de tests sur les autres `*Tab.jsx` de l'app, qui sont testés implicitement via les fonctions `compute*` pures).
