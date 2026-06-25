@@ -29,6 +29,8 @@ export function SortableTh({ label, sortKey, currentSort, onSort, align = 'left'
         borderBottom: '2px solid #E2E8F0',
         backgroundColor: '#F7FAFC',
         whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
         cursor: 'pointer',
         userSelect: 'none',
         ...(width ? { width, boxSizing: 'border-box' } : {}),

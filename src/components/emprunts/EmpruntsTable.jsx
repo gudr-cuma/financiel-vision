@@ -2,13 +2,13 @@ import { SortableTh } from '../shared/SortableTh';
 import { formatAmountFull, formatPercent, formatDate } from '../../engine/formatUtils';
 
 export const EMPRUNTS_COLUMNS = [
-  { key: 'nEmprunt', label: 'N. Emprunt', type: 'text', width: 94 },
-  { key: 'designation', label: 'Désignation', type: 'text' },
-  { key: 'montant', label: 'Montant', type: 'amount' },
-  { key: 'taux', label: 'Taux', type: 'percent', width: 65 },
-  { key: 'dateRealisation', label: 'Date Réalisation', type: 'date', width: 124 },
-  { key: 'premiereEcheance', label: '1ère Échéance', type: 'date', width: 109 },
-  { key: 'duree', label: 'Durée', type: 'number' },
+  { key: 'nEmprunt', label: 'N. Emprunt', type: 'text', width: '10%' },
+  { key: 'designation', label: 'Désignation', type: 'text', width: '30%' },
+  { key: 'montant', label: 'Montant', type: 'amount', width: '12%' },
+  { key: 'taux', label: 'Taux', type: 'percent', width: '8%' },
+  { key: 'dateRealisation', label: 'Date Réalisation', type: 'date', width: '16%' },
+  { key: 'premiereEcheance', label: '1ère Échéance', type: 'date', width: '15%' },
+  { key: 'duree', label: 'Durée', type: 'number', width: '9%' },
 ];
 
 /**
@@ -52,7 +52,7 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1400px', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '13px' }}>
         <thead>
           <tr>
             {EMPRUNTS_COLUMNS.map((col) => (
@@ -81,21 +81,27 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
                   borderBottom: '1px solid #F0F4F8',
                 }}
               >
-                {EMPRUNTS_COLUMNS.map((col) => (
-                  <td
-                    key={col.key}
-                    style={{
-                      padding: '6px 10px',
-                      textAlign: col.type === 'text' ? 'left' : 'right',
-                      color: '#2D3748',
-                      whiteSpace: 'nowrap',
-                      fontVariantNumeric: 'tabular-nums',
-                      ...(col.width ? { width: col.width, boxSizing: 'border-box' } : {}),
-                    }}
-                  >
-                    {formatCellValue(row[col.key], col.type)}
-                  </td>
-                ))}
+                {EMPRUNTS_COLUMNS.map((col) => {
+                  const value = formatCellValue(row[col.key], col.type);
+                  return (
+                    <td
+                      key={col.key}
+                      title={value}
+                      style={{
+                        padding: '6px 10px',
+                        textAlign: col.type === 'text' ? 'left' : 'right',
+                        color: '#2D3748',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontVariantNumeric: 'tabular-nums',
+                        ...(col.width ? { width: col.width, boxSizing: 'border-box' } : {}),
+                      }}
+                    >
+                      {value}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

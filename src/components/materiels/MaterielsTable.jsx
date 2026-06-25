@@ -3,15 +3,15 @@ import { SortableTh } from '../shared/SortableTh';
 import { formatAmountFull, formatDate } from '../../engine/formatUtils';
 
 export const MATERIELS_COLUMNS = [
-  { key: 'codeMateriel', label: 'Code Matériel', type: 'number' },
-  { key: 'baseSref1', label: 'Base', type: 'text' },
-  { key: 'libelle', label: 'Libellé', type: 'text' },
-  { key: 'codeNational', label: 'Code National', type: 'text' },
-  { key: 'marque', label: 'Marque', type: 'text' },
-  { key: 'libMarque', label: 'Lib. Marque', type: 'text' },
-  { key: 'dateAchat', label: 'Date Achat', type: 'date' },
-  { key: 'mtAchat', label: 'Mt Achat', type: 'amount' },
-  { key: 'codeAnalytique', label: 'Code Analytique', type: 'text' },
+  { key: 'codeMateriel', label: 'Code Matériel', type: 'number', width: '10%' },
+  { key: 'baseSref1', label: 'Base', type: 'text', width: '6%' },
+  { key: 'libelle', label: 'Libellé', type: 'text', width: '30%' },
+  { key: 'codeNational', label: 'Code National', type: 'text', width: '10%' },
+  { key: 'marque', label: 'Marque', type: 'text', width: '7%' },
+  { key: 'libMarque', label: 'Lib. Marque', type: 'text', width: '9%' },
+  { key: 'dateAchat', label: 'Date Achat', type: 'date', width: '9%' },
+  { key: 'mtAchat', label: 'Mt Achat', type: 'amount', width: '8%' },
+  { key: 'codeAnalytique', label: 'Code Analytique', type: 'text', width: '11%' },
 ];
 
 /**
@@ -72,19 +72,27 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
               borderBottom: '1px solid #F0F4F8',
             }}
           >
-            {MATERIELS_COLUMNS.map((col) => (
-              <td
-                key={col.key}
-                style={{
-                  padding: '6px 10px',
-                  textAlign: col.type === 'text' ? 'left' : 'right',
-                  whiteSpace: 'nowrap',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {formatCell(row[col.key], col.type)}
-              </td>
-            ))}
+            {MATERIELS_COLUMNS.map((col) => {
+              const value = formatCell(row[col.key], col.type);
+              return (
+                <td
+                  key={col.key}
+                  title={value}
+                  style={{
+                    padding: '6px 8px',
+                    textAlign: col.type === 'text' ? 'left' : 'right',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontVariantNumeric: 'tabular-nums',
+                    width: col.width,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {value}
+                </td>
+              );
+            })}
           </tr>
         );
       })}
@@ -100,7 +108,7 @@ export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowCl
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1900px', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '13px' }}>
         <thead>
           <tr>
             {MATERIELS_COLUMNS.map((col) => (
@@ -111,6 +119,7 @@ export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowCl
                 currentSort={sort}
                 onSort={onSort}
                 align={col.type === 'text' ? 'left' : 'right'}
+                width={col.width}
               />
             ))}
           </tr>

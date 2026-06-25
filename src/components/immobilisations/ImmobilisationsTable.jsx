@@ -3,13 +3,13 @@ import { SortableTh } from '../shared/SortableTh';
 import { formatAmountFull, formatPercent, formatDate } from '../../engine/formatUtils';
 
 export const IMMOBILISATIONS_COLUMNS = [
-  { key: 'nBien', label: 'N. Bien', type: 'number' },
-  { key: 'axe1', label: 'Axe 1', type: 'text' },
-  { key: 'libelle', label: 'Libellé', type: 'text' },
-  { key: 'dateAcquisition', label: 'Date Acquisition', type: 'date' },
-  { key: 'valeurEntree', label: 'Valeur Entrée', type: 'amount' },
-  { key: 'dateDebutAmort', label: 'Date Début Amort', type: 'date' },
-  { key: 'valeurResiduelle', label: 'Valeur Résiduelle', type: 'amount' },
+  { key: 'nBien', label: 'N. Bien', type: 'number', width: '7%' },
+  { key: 'axe1', label: 'Axe 1', type: 'text', width: '9%' },
+  { key: 'libelle', label: 'Libellé', type: 'text', width: '28%' },
+  { key: 'dateAcquisition', label: 'Date Acquisition', type: 'date', width: '15%' },
+  { key: 'valeurEntree', label: 'Valeur Entrée', type: 'amount', width: '14%' },
+  { key: 'dateDebutAmort', label: 'Date Début Amort', type: 'date', width: '14%' },
+  { key: 'valeurResiduelle', label: 'Valeur Résiduelle', type: 'amount', width: '13%' },
 ];
 
 /**
@@ -85,19 +85,27 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
               borderBottom: '1px solid #F0F4F8',
             }}
           >
-            {IMMOBILISATIONS_COLUMNS.map((col) => (
-              <td
-                key={col.key}
-                style={{
-                  padding: '6px 10px',
-                  textAlign: col.type === 'text' ? 'left' : 'right',
-                  whiteSpace: 'nowrap',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {formatCell(row[col.key], col.type)}
-              </td>
-            ))}
+            {IMMOBILISATIONS_COLUMNS.map((col) => {
+              const value = formatCell(row[col.key], col.type);
+              return (
+                <td
+                  key={col.key}
+                  title={value}
+                  style={{
+                    padding: '6px 10px',
+                    textAlign: col.type === 'text' ? 'left' : 'right',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontVariantNumeric: 'tabular-nums',
+                    width: col.width,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {value}
+                </td>
+              );
+            })}
           </tr>
         );
       })}
@@ -117,7 +125,7 @@ export function ImmobilisationsTable({ groups, showGroupHeaders, sort, onSort, o
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1400px', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '13px' }}>
         <thead>
           <tr>
             {IMMOBILISATIONS_COLUMNS.map((col) => (
@@ -128,6 +136,7 @@ export function ImmobilisationsTable({ groups, showGroupHeaders, sort, onSort, o
                 currentSort={sort}
                 onSort={onSort}
                 align={col.type === 'text' ? 'left' : 'right'}
+                width={col.width}
               />
             ))}
           </tr>

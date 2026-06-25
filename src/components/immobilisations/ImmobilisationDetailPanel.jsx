@@ -86,7 +86,7 @@ export function ImmobilisationDetailPanel({ immobilisation, immoLignes, onClose 
       subtitle="Immobilisation →"
       title={immobilisation?.libelle ?? '—'}
       amount={immobilisation?.valeurEntree}
-      width="min(960px, 95vw)"
+      width="min(1152px, 95vw)"
     >
       {immobilisation && <ImmobilisationFiche immobilisation={immobilisation} />}
 
