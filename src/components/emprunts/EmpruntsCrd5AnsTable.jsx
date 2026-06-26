@@ -1,5 +1,5 @@
 import { SortableTh } from '../shared/SortableTh';
-import { formatAmountFull, formatPercent, formatDate } from '../../engine/formatUtils';
+import { formatAmountDec, formatPercent, formatDate } from '../../engine/formatUtils';
 import { decodePeriode } from '../../engine/empruntsUtils';
 
 export const CRD_5_ANS_COLUMNS = [
@@ -23,7 +23,7 @@ function formatCellValue(value, type) {
   if (type === 'periode') return decodePeriode(value);
   if (value === null || value === undefined || value === '') return '—';
   switch (type) {
-    case 'amount': return formatAmountFull(value);
+    case 'amount': return formatAmountDec(value);
     case 'percent': return formatPercent(value);
     case 'date': return formatDate(value);
     default: return String(value);

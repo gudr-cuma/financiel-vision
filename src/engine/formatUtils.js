@@ -48,6 +48,11 @@ export function formatAmountFull(amount) {
   return `${FMT_EUR.format(amount)} €`;
 }
 
+export function formatAmountDec(amount) {
+  if (amount === null || amount === undefined || isNaN(amount)) return '—';
+  return `${FMT_EUR_DEC.format(amount)} €`;
+}
+
 /**
  * Formate un pourcentage.
  * Ex : 33.0123 → "33,0 %"

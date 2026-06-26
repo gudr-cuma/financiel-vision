@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { UploadPrompt } from '../shared/UploadPrompt';
@@ -8,7 +8,8 @@ import { MiniStatCard } from '../shared/MiniStatCard';
 import { EmpruntsTable } from './EmpruntsTable';
 import { EmpruntsCrd5AnsTable } from './EmpruntsCrd5AnsTable';
 import { EmpruntDetailPanel } from './EmpruntDetailPanel';
-import { sortRows, nextSortState, filterByText, filterByRange, distinctValues } from '../../engine/tableUtils';
+import { sortRows, nextSortState, filterByText, filterByRange, distinctValues, findDuplicateKeys } from '../../engine/tableUtils';
+import { ErrorBanner } from '../shared/ErrorBanner';
 import { getCapitalRestantDu, countEmpruntsEnCours, computeCrd5Ans } from '../../engine/empruntsUtils';
 import { formatAmountFull, parseFrDate } from '../../engine/formatUtils';
 
@@ -90,6 +91,10 @@ export function EmpruntsTab() {
   const emprunts = useMemo(() => exploitationData?.emprunts ?? [], [exploitationData]);
   const lignesEmprunt = useMemo(() => exploitationData?.lignesEmprunt ?? [], [exploitationData]);
 
+  const duplicateKeys = useMemo(() => findDuplicateKeys(emprunts, 'nEmprunt'), [emprunts]);
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false);
+  useEffect(() => { setDuplicatesOnly(false); }, [duplicateKeys]);
+
   const banques = useMemo(() => distinctValues(emprunts, 'banque'), [emprunts]);
   const categories = useMemo(() => distinctValues(emprunts, 'categorie'), [emprunts]);
 
@@ -115,8 +120,9 @@ export function EmpruntsTab() {
     if (banque) result = result.filter((r) => r.banque === banque);
     if (categorie) result = result.filter((r) => r.categorie === categorie);
     if (sort) result = sortRows(result, sort.key, sort.direction);
+    if (duplicatesOnly) result = result.filter((r) => duplicateKeys.has(r.nEmprunt));
     return result;
-  }, [emprunts, enCoursOnly, search, montantMin, montantMax, dateRealisationMin, dateRealisationMax, premiereEcheanceMin, premiereEcheanceMax, banque, categorie, sort]);
+  }, [emprunts, enCoursOnly, search, montantMin, montantMax, dateRealisationMin, dateRealisationMax, premiereEcheanceMin, premiereEcheanceMax, banque, categorie, sort, duplicatesOnly, duplicateKeys]);
 
   const crd5AnsRows = useMemo(() => {
     let result = enCoursOnlyCrd ? emprunts.filter((e) => Number(e.situation) === SITUATION_EN_COURS) : emprunts;
@@ -150,6 +156,19 @@ export function EmpruntsTab() {
         {isLoadingExploitation && <div style={{ fontSize: '13px', color: '#718096' }}>Import en cours…</div>}
       </div>
 
+      {duplicateKeys.size > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <ErrorBanner
+            type="warning"
+            message={`${duplicateKeys.size} numéro(s) d'emprunt apparaissent en double dans l'export (${[...duplicateKeys.values()].reduce((s, c) => s + c, 0)} lignes concernées) — ceci est anormal, vérifiez l'export auprès de votre éditeur comptable.`}
+            action={{
+              label: duplicatesOnly ? 'Afficher tout' : 'Afficher uniquement les doublons',
+              onClick: () => setDuplicatesOnly((v) => !v),
+            }}
+          />
+        </div>
+      )}
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -160,13 +179,33 @@ export function EmpruntsTab() {
         <MiniStatCard label="Emprunts en cours" value={nbEnCours} />
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        <ToggleButton active={view === 'registre'} onClick={() => setView('registre')}>
-          Registre
-        </ToggleButton>
-        <ToggleButton active={view === 'crd5ans'} onClick={() => setView('crd5ans')}>
-          CRD à 5 ans
-        </ToggleButton>
+      <div style={{
+        display: 'flex', gap: '4px',
+        borderBottom: '2px solid #E2E8F0',
+        marginBottom: '20px',
+      }}>
+        {[{ id: 'registre', label: 'Registre' }, { id: 'crd5ans', label: 'CRD à 5 ans' }].map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setView(tab.id)}
+            style={{
+              padding: '9px 20px',
+              fontSize: '13px',
+              fontWeight: view === tab.id ? 700 : 500,
+              color: view === tab.id ? '#1A202C' : '#718096',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: view === tab.id ? '2px solid #31B700' : '2px solid transparent',
+              cursor: 'pointer',
+              marginBottom: '-2px',
+              transition: 'color 150ms, border-bottom-color 150ms',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {view === 'registre' && (
@@ -221,6 +260,7 @@ export function EmpruntsTab() {
             onSort={(key) => setSort(nextSortState(sort, key))}
             onRowClick={(row) => setSelectedRow(selectedRow?.nEmprunt === row.nEmprunt ? null : row)}
             selectedRow={selectedRow}
+            duplicateKeys={duplicateKeys}
           />
         </>
       )}
