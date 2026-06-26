@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SortableTh } from '../shared/SortableTh';
+import { Tooltip } from '../shared/Tooltip';
 import { formatAmountFull, formatPercent, formatDate } from '../../engine/formatUtils';
 
 export const IMMOBILISATIONS_COLUMNS = [
@@ -56,7 +57,7 @@ function formatCell(value, type) {
   }
 }
 
-function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
+function GroupSection({ group, showHeader, onRowClick, selectedRow, duplicateKeys }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -77,7 +78,7 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
         const isSelected = selectedRow?.nBien === row.nBien;
         return (
           <tr
-            key={row.nBien ?? idx}
+            key={`${row.nBien ?? 'na'}-${idx}`}
             onClick={() => onRowClick(row)}
             style={{
               background: isSelected ? '#E3F2F5' : idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
@@ -102,7 +103,14 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
                     boxSizing: 'border-box',
                   }}
                 >
-                  {value}
+                  {col.key === 'nBien' && duplicateKeys?.has(row.nBien) ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Tooltip content={`${duplicateKeys.get(row.nBien)} lignes partagent ce numéro`}>
+                        <span style={{ color: '#E53935', cursor: 'help', lineHeight: 1 }}>⚠️</span>
+                      </Tooltip>
+                      {value}
+                    </span>
+                  ) : value}
                 </td>
               );
             })}
@@ -117,7 +125,7 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
  * ImmobilisationsTable — `groups` est toujours un tableau de sections
  * (1 section sans en-tête si aucun regroupement n'est actif).
  */
-export function ImmobilisationsTable({ groups, showGroupHeaders, sort, onSort, onRowClick, selectedRow }) {
+export function ImmobilisationsTable({ groups, showGroupHeaders, sort, onSort, onRowClick, selectedRow, duplicateKeys }) {
   const totalRows = groups.reduce((sum, g) => sum + g.rows.length, 0);
   if (totalRows === 0) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>Aucune immobilisation ne correspond aux filtres.</div>;
@@ -149,6 +157,7 @@ export function ImmobilisationsTable({ groups, showGroupHeaders, sort, onSort, o
               showHeader={showGroupHeaders}
               onRowClick={onRowClick}
               selectedRow={selectedRow}
+              duplicateKeys={duplicateKeys}
             />
           ))}
         </tbody>

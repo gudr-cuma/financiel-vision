@@ -7,6 +7,7 @@ import {
   distinctValues,
   groupRows,
   yearOf,
+  findDuplicateKeys,
 } from '../engine/tableUtils';
 
 describe('sortRows', () => {
@@ -145,5 +146,37 @@ describe('yearOf', () => {
   it('retourne null sans lever pour une valeur absente', () => {
     expect(yearOf(null)).toBeNull();
     expect(yearOf(undefined)).toBeNull();
+  });
+});
+
+describe('findDuplicateKeys', () => {
+  it('retourne une Map vide pour un tableau vide', () => {
+    expect(findDuplicateKeys([], 'id').size).toBe(0);
+  });
+
+  it('retourne une Map vide si aucun doublon', () => {
+    const rows = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    expect(findDuplicateKeys(rows, 'id').size).toBe(0);
+  });
+
+  it('retourne la clé dupliquée avec son nombre d\'occurrences', () => {
+    const rows = [{ id: 1 }, { id: 2 }, { id: 1 }, { id: 1 }];
+    const result = findDuplicateKeys(rows, 'id');
+    expect(result.size).toBe(1);
+    expect(result.get(1)).toBe(3);
+  });
+
+  it('gère plusieurs groupes de doublons distincts', () => {
+    const rows = [{ id: 'A' }, { id: 'B' }, { id: 'A' }, { id: 'B' }, { id: 'C' }];
+    const result = findDuplicateKeys(rows, 'id');
+    expect(result.size).toBe(2);
+    expect(result.get('A')).toBe(2);
+    expect(result.get('B')).toBe(2);
+    expect(result.has('C')).toBe(false);
+  });
+
+  it('ignore les valeurs null, undefined et chaîne vide', () => {
+    const rows = [{ id: null }, { id: null }, { id: undefined }, { id: '' }, { id: '' }];
+    expect(findDuplicateKeys(rows, 'id').size).toBe(0);
   });
 });

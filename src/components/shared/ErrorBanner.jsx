@@ -1,19 +1,9 @@
-import { useEffect } from 'react';
-
-export function ErrorBanner({ message, type = 'error', onClose }) {
+export function ErrorBanner({ message, type = 'error', onClose, action }) {
   const isError = type === 'error';
 
   const containerStyle = isError
-    ? {
-        backgroundColor: '#FFF5F5',
-        borderColor: '#FEB2B2',
-        color: '#C53030',
-      }
-    : {
-        backgroundColor: '#FFF3E0',
-        borderColor: '#FBBF24',
-        color: '#92400E',
-      };
+    ? { backgroundColor: '#FFF5F5', borderColor: '#FEB2B2', color: '#C53030' }
+    : { backgroundColor: '#FFF3E0', borderColor: '#FBBF24', color: '#92400E' };
 
   if (!message) return null;
 
@@ -41,6 +31,25 @@ export function ErrorBanner({ message, type = 'error', onClose }) {
       <span style={{ flex: 1, fontSize: '14px', lineHeight: '1.5' }}>
         {message}
       </span>
+      {action && (
+        <button
+          onClick={action.onClick}
+          style={{
+            border: `1px solid ${containerStyle.borderColor}`,
+            borderRadius: '6px',
+            padding: '4px 10px',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: containerStyle.color,
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {action.label}
+        </button>
+      )}
       {onClose && (
         <button
           onClick={onClose}

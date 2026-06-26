@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SortableTh } from '../shared/SortableTh';
+import { Tooltip } from '../shared/Tooltip';
 import { formatAmountFull, formatDate } from '../../engine/formatUtils';
 
 export const MATERIELS_COLUMNS = [
@@ -43,7 +44,7 @@ function formatCell(value, type) {
   return String(value);
 }
 
-function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
+function GroupSection({ group, showHeader, onRowClick, selectedRow, duplicateKeys }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -64,7 +65,7 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
         const isSelected = selectedRow?.codeMateriel === row.codeMateriel;
         return (
           <tr
-            key={row.codeMateriel ?? idx}
+            key={`${row.codeMateriel ?? 'na'}-${idx}`}
             onClick={() => onRowClick?.(row)}
             style={{
               background: isSelected ? '#E3F2F5' : idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
@@ -72,27 +73,26 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
               borderBottom: '1px solid #F0F4F8',
             }}
           >
-            {MATERIELS_COLUMNS.map((col) => {
-              const value = formatCell(row[col.key], col.type);
-              return (
-                <td
-                  key={col.key}
-                  title={value}
-                  style={{
-                    padding: '6px 8px',
-                    textAlign: col.type === 'text' ? 'left' : 'right',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    fontVariantNumeric: 'tabular-nums',
-                    width: col.width,
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  {value}
-                </td>
-              );
-            })}
+            {MATERIELS_COLUMNS.map((col) => (
+              <td
+                key={col.key}
+                style={{
+                  padding: '6px 10px',
+                  textAlign: col.type === 'text' ? 'left' : 'right',
+                  whiteSpace: 'nowrap',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {col.key === 'codeMateriel' && duplicateKeys?.has(row.codeMateriel) ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Tooltip content={`${duplicateKeys.get(row.codeMateriel)} lignes partagent ce code`}>
+                      <span style={{ color: '#E53935', cursor: 'help', lineHeight: 1 }}>⚠️</span>
+                    </Tooltip>
+                    {formatCell(row[col.key], col.type)}
+                  </span>
+                ) : formatCell(row[col.key], col.type)}
+              </td>
+            ))}
           </tr>
         );
       })}
@@ -100,7 +100,7 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
   );
 }
 
-export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowClick, selectedRow }) {
+export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowClick, selectedRow, duplicateKeys }) {
   const totalRows = groups.reduce((sum, g) => sum + g.rows.length, 0);
   if (totalRows === 0) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>Aucun matériel ne correspond aux filtres.</div>;
@@ -126,7 +126,7 @@ export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowCl
         </thead>
         <tbody>
           {groups.map((group) => (
-            <GroupSection key={group.key} group={group} showHeader={showGroupHeaders} onRowClick={onRowClick} selectedRow={selectedRow} />
+            <GroupSection key={group.key} group={group} showHeader={showGroupHeaders} onRowClick={onRowClick} selectedRow={selectedRow} duplicateKeys={duplicateKeys} />
           ))}
         </tbody>
       </table>

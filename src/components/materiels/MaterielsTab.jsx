@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { UploadPrompt } from '../shared/UploadPrompt';
 import { FilterField } from '../shared/FilterField';
 import { MaterielsTable } from './MaterielsTable';
 import { MaterielDetailPanel } from './MaterielDetailPanel';
-import { sortRows, nextSortState, groupRows, yearOf } from '../../engine/tableUtils';
+import { sortRows, nextSortState, groupRows, yearOf, findDuplicateKeys } from '../../engine/tableUtils';
+import { ErrorBanner } from '../shared/ErrorBanner';
 
 const SELECT_STYLE = {
   border: '1px solid #CBD5E0',
@@ -64,11 +65,15 @@ export function MaterielsTab() {
   const [selectedRow, setSelectedRow] = useState(null);
 
   const materiels = useMemo(() => exploitationData?.materiels ?? [], [exploitationData]);
+  const duplicateKeys = useMemo(() => findDuplicateKeys(materiels, 'codeMateriel'), [materiels]);
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false);
+  useEffect(() => { setDuplicatesOnly(false); }, [duplicateKeys]);
 
-  const filtered = useMemo(
-    () => (enUsageOnly ? materiels.filter((m) => !m.dateVente) : materiels),
-    [materiels, enUsageOnly]
-  );
+  const filtered = useMemo(() => {
+    let result = enUsageOnly ? materiels.filter((m) => !m.dateVente) : materiels;
+    if (duplicatesOnly) result = result.filter((m) => duplicateKeys.has(m.codeMateriel));
+    return result;
+  }, [materiels, enUsageOnly, duplicatesOnly, duplicateKeys]);
 
   const sorted = useMemo(() => {
     if (!sort) return filtered;
@@ -105,6 +110,19 @@ export function MaterielsTab() {
         {isLoadingExploitation && <div style={{ fontSize: '13px', color: '#718096' }}>Import en cours…</div>}
       </div>
 
+      {duplicateKeys.size > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <ErrorBanner
+            type="warning"
+            message={`${duplicateKeys.size} code(s) matériel apparaissent en double dans l'export (${[...duplicateKeys.values()].reduce((s, c) => s + c, 0)} lignes concernées) — ceci est anormal, vérifiez l'export auprès de votre éditeur comptable.`}
+            action={{
+              label: duplicatesOnly ? 'Afficher tout' : 'Afficher uniquement les doublons',
+              onClick: () => setDuplicatesOnly((v) => !v),
+            }}
+          />
+        </div>
+      )}
+
       <div style={{ marginBottom: '12px' }}>
         <ToggleButton active={enUsageOnly} onClick={() => setEnUsageOnly((v) => !v)}>
           Matériels en cours d'usage uniquement
@@ -126,6 +144,7 @@ export function MaterielsTab() {
         onSort={(key) => setSort(nextSortState(sort, key))}
         onRowClick={(row) => setSelectedRow(selectedRow?.codeMateriel === row.codeMateriel ? null : row)}
         selectedRow={selectedRow}
+        duplicateKeys={duplicateKeys}
       />
 
       <MaterielDetailPanel
