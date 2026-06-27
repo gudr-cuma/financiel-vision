@@ -174,6 +174,7 @@ function buildCessions(i1All, vncIndex, exerciceYear) {
       for (const k of [...MONEY_KEYS, 'prixCession', 'plusMoinsValue']) {
         totaux[k] = sumKey(biens, k);
       }
-      return { compte, libelle: compteLabel(compte), biens, totaux };
+      const { racineImmo, racineAmort } = compteRacines(compte);
+      return { compte, libelle: compteLabel(compte), racineImmo, racineAmort, biens, totaux };
     });
 }
