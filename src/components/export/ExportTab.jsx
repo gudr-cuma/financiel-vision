@@ -48,6 +48,7 @@ const ALL_DOCS = [
   { id: 'emprunts',          requiresExploitation: true },
   { id: 'emprunts_crd5ans',  requiresExploitation: true },
   { id: 'immobilisations',   requiresExploitation: true },
+  { id: 'amortissements',    requiresExploitation: true },
   { id: 'materiels',         requiresExploitation: true },
   { id: 'analytique_podium', requiresAnalytique: true },
   { id: 'analytique_table',  requiresAnalytique: true },
@@ -58,7 +59,7 @@ const ALL_DOCS = [
 const DEFAULT_SELECTED = [
   'fiche_synthese', 'dossier_gestion', 'treasury_curve', 'charges_charts',
   'sig', 'balance', 'balance_aux', 'bilan_cr',
-  'capital_social', 'emprunts', 'immobilisations', 'materiels',
+  'capital_social', 'emprunts', 'immobilisations', 'amortissements', 'materiels',
 ];
 
 const DEFAULT_DOC_OPTIONS = {

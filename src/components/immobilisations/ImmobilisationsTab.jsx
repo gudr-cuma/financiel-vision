@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { UploadPrompt } from '../shared/UploadPrompt';
+import { AmortissementEditionView } from './AmortissementEditionView';
 import { RangeFilterInput } from '../shared/RangeFilterInput';
 import { FilterField } from '../shared/FilterField';
 import { MiniStatCard } from '../shared/MiniStatCard';
@@ -59,7 +60,7 @@ function groupKeyFn(groupBy) {
   return null;
 }
 
-export function ImmobilisationsTab() {
+function RegistrePane() {
   const exploitationData = useStore((s) => s.exploitationData);
   const loadExportMulti = useStore((s) => s.loadExportMulti);
   const loadDemoExportMulti = useStore((s) => s.loadDemoExportMulti);
@@ -227,6 +228,49 @@ export function ImmobilisationsTab() {
         immoLignes={immoLignes}
         onClose={() => setSelectedRow(null)}
       />
+    </div>
+  );
+}
+
+const SUBTABS = [
+  { id: 'registre',       label: 'Registre' },
+  { id: 'amortissements', label: 'Liste des amortissements' },
+];
+
+export function ImmobilisationsTab() {
+  const exploitationData = useStore((s) => s.exploitationData);
+  const [view, setView] = useState('registre');
+
+  return (
+    <div style={{ paddingTop: '8px' }}>
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '2px solid #E2E8F0', marginBottom: '8px' }}>
+        {SUBTABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setView(tab.id)}
+            style={{
+              padding: '8px 18px',
+              fontSize: '13px',
+              fontWeight: view === tab.id ? 700 : 500,
+              color: view === tab.id ? '#1A202C' : '#718096',
+              background: 'none',
+              border: 'none',
+              borderBottom: view === tab.id ? '2px solid #31B700' : '2px solid transparent',
+              cursor: 'pointer',
+              marginBottom: '-2px',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'registre' && <RegistrePane />}
+      {view === 'amortissements' && (
+        exploitationData
+          ? <AmortissementEditionView exploitationData={exploitationData} />
+          : <RegistrePane />
+      )}
     </div>
   );
 }
