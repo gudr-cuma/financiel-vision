@@ -21,6 +21,8 @@ describe('helpers comptes', () => {
   it('round2 arrondit au centime', () => {
     expect(round2(886.099999)).toBe(886.1);
     expect(round2(2114.355)).toBe(2114.36);
+    expect(round2(-11715.664)).toBe(-11715.66);
+    expect(round2(-886.1)).toBe(-886.1);
   });
 });
 

@@ -9,9 +9,9 @@ export const COMPTE_IMMO_LABELS = {
   '21542000': 'Accessoires matériel',
 };
 
-/** Arrondi au centime (évite le bruit flottant). */
+/** Arrondi au centime (symétrique, évite le bruit flottant). */
 export function round2(n) {
-  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  return Number(`${Math.round(Number(`${n}e2`))}e-2`);
 }
 
 /** Coerce vers nombre fini, 0 sinon. */
