@@ -4,6 +4,7 @@
  */
 
 import { computeBalance, computeBalanceAuxiliaire, computeGrandLivre } from './computeLivres';
+import { computeAmortissementEdition } from './computeAmortissementEdition';
 import { htmlToPdfmake } from './htmlToPdfmake';
 import {
   COLORS,
@@ -41,6 +42,7 @@ export const DOC_LABELS = {
   fiche_synthese:    'Fiche de synthèse',
   capital_social:    'Capital social (registre)',
   immobilisations:   'Immobilisations',
+  amortissements:    'Liste des amortissements',
   emprunts:          'Emprunts',
   emprunts_crd5ans:  'Emprunts — CRD à 5 ans',
   materiels:         'Matériels',
@@ -1307,6 +1309,92 @@ function buildImmobilisationsContent(exploitationData, chartW = 781) {
     },
     { text: ' ', pageBreak: 'after' },
   ];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Liste des amortissements → contenu pdfmake (par compte + cessions)
+// ─────────────────────────────────────────────────────────────
+const AMORT_PDF_COLUMNS = [
+  { key: 'designation', label: 'Désignation', type: 'text',   width: '*' },
+  { key: 'nBien',       label: 'N°',          type: 'number', width: 26 },
+  { key: 'axe',         label: 'Axe',         type: 'text',   width: 40 },
+  { key: 'dateMes',     label: 'Mise serv.',  type: 'date',   width: 52 },
+  { key: 'cout',        label: 'Coût',        type: 'amount', width: 58 },
+  { key: 'anterieur',   label: 'Antérieur',   type: 'amount', width: 58 },
+  { key: 'base',        label: 'Base',        type: 'amount', width: 58 },
+  { key: 'dotation',    label: 'Dotation',    type: 'amount', width: 56 },
+  { key: 'total',       label: 'Total',       type: 'amount', width: 58 },
+  { key: 'vnc',         label: 'VNC',         type: 'amount', width: 58 },
+];
+
+function buildAmortissementEditionContent(exploitationData, chartW = 781) {
+  const ed = computeAmortissementEdition(exploitationData ?? {});
+  if (!ed.comptes.length && !ed.cessions.length) return [];
+
+  const content = [makeSectionTitle(DOC_LABELS.amortissements, 'amortissements')];
+
+  for (const compte of ed.comptes) {
+    const header = AMORT_PDF_COLUMNS.map(col => ({
+      text: col.label, style: 'tableHeader', fillColor: '#F7FAFC',
+      alignment: col.type === 'text' ? 'left' : 'right',
+    }));
+    const body = [header, ...compte.biens.map(b => AMORT_PDF_COLUMNS.map(col => ({
+      text: fmtFicheCell(b[col.key], col.type), fontSize: 7,
+      alignment: col.type === 'text' ? 'left' : 'right',
+    })))];
+    const t = compte.totaux;
+    body.push(AMORT_PDF_COLUMNS.map(col => {
+      const totalKeys = { cout: t.cout, anterieur: t.anterieur, base: t.base,
+        dotation: t.dotation, total: t.total, vnc: t.vnc };
+      const text = col.key === 'designation' ? `Total ${compte.compte}`
+        : (col.key in totalKeys ? fmtEur(totalKeys[col.key]) : '');
+      return { text, fontSize: 7, bold: true, fillColor: '#E8F5E0',
+        alignment: col.type === 'text' ? 'left' : 'right' };
+    }));
+
+    content.push(
+      { text: `${compte.compte} — ${compte.libelle}  (${compte.racineImmo} - ${compte.racineAmort})`,
+        fontSize: 9, bold: true, color: COLORS.secondary, margin: [0, 8, 0, 3] },
+      { table: { headerRows: 1, widths: fitTableWidths(AMORT_PDF_COLUMNS, chartW), body },
+        layout: tableLayout() },
+    );
+  }
+
+  content.push({
+    text: `Total général — Coût ${fmtEur(ed.totalGeneral.cout)} · `
+      + `Amort. ${fmtEur(ed.totalGeneral.total)} · VNC ${fmtEur(ed.totalGeneral.vnc)}`,
+    fontSize: 8, bold: true, color: COLORS.text, margin: [0, 6, 0, 0],
+  });
+
+  if (ed.cessions.length) {
+    content.push({ text: 'Tableau des cessions', fontSize: 10, bold: true,
+      color: COLORS.secondary, margin: [0, 12, 0, 4] });
+    const cessCols = [
+      { key: 'designation', label: 'Désignation', type: 'text',   width: '*' },
+      { key: 'nBien',       label: 'N°',          type: 'number', width: 26 },
+      { key: 'cout',        label: 'Coût',        type: 'amount', width: 60 },
+      { key: 'total',       label: 'Amort.',      type: 'amount', width: 60 },
+      { key: 'vnc',         label: 'VNC',         type: 'amount', width: 60 },
+      { key: 'prixCession', label: 'Prix cession', type: 'amount', width: 64 },
+      { key: 'plusMoinsValue', label: '+/- value', type: 'amount', width: 60 },
+    ];
+    for (const c of ed.cessions) {
+      const header = cessCols.map(col => ({
+        text: col.label, style: 'tableHeader', fillColor: '#FFF7ED',
+        alignment: col.type === 'text' ? 'left' : 'right' }));
+      const body = [header, ...c.biens.map(b => cessCols.map(col => ({
+        text: fmtFicheCell(b[col.key], col.type), fontSize: 7,
+        alignment: col.type === 'text' ? 'left' : 'right' })))];
+      content.push(
+        { text: `${c.compte} — ${c.libelle}`, fontSize: 8, bold: true, margin: [0, 6, 0, 2] },
+        { table: { headerRows: 1, widths: fitTableWidths(cessCols, chartW), body },
+          layout: tableLayout() },
+      );
+    }
+  }
+
+  content.push({ text: ' ', pageBreak: 'after' });
+  return content;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2635,6 +2723,7 @@ export async function generateExport(
     fiche_synthese:    () => buildFicheSyntheseContent(storeData.exploitationData, storeData.syntheseOverrides, chartW),
     capital_social:    () => buildCapitalSocialContent(storeData.exploitationData, storeData.docOptions?.capital_social, chartW),
     immobilisations:   () => buildImmobilisationsContent(storeData.exploitationData, chartW),
+    amortissements:    () => buildAmortissementEditionContent(storeData.exploitationData, chartW),
     emprunts:          () => buildEmpruntsContent(storeData.exploitationData, chartW),
     emprunts_crd5ans:  () => buildEmpruntsCrd5AnsContent(storeData.exploitationData, storeData.bilanCRData, chartW),
     materiels:         () => buildMaterielsContent(storeData.exploitationData, storeData.docOptions?.materiels, chartW),
