@@ -175,7 +175,7 @@ function RegistrePane() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '10px',
         marginBottom: '16px',
       }}>
