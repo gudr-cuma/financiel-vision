@@ -41,7 +41,7 @@ export const DOC_LABELS = {
   comparaison_nn1:   'Comparaison N/N-1',
   fiche_synthese:    'Fiche de synthèse',
   capital_social:    'Capital social (registre)',
-  immobilisations:   'Immobilisations',
+  immobilisations:   'Immobilisations — Registre',
   amortissements:    'Immobilisations — Liste des amortissements',
   emprunts:          'Emprunts — Registre',
   emprunts_crd5ans:  'Emprunts — CRD à 5 ans',
