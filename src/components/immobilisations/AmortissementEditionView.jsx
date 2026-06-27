@@ -56,7 +56,7 @@ function CompteSection({ compte }) {
           <th key={c.key} style={{ ...th, textAlign: c.align }}>{c.label}</th>
         ))}</tr></thead>
         <tbody>
-          {compte.biens.map(b => <AmortRow key={b.nBien} bien={b} />)}
+          {compte.biens.map((b, idx) => <AmortRow key={`${b.nBien}-${idx}`} bien={b} />)}
           <tr style={{ background: '#FAFAFA', fontWeight: 700 }}>
             <td style={td('left')} colSpan={5}>Total {compte.compte}</td>
             <td style={td('right')}>{formatAmountFull(t.cout)}</td>
@@ -109,8 +109,8 @@ function CessionsSection({ cessions }) {
               <th key={col.key} style={{ ...th, textAlign: col.align }}>{col.label}</th>
             ))}</tr></thead>
             <tbody>
-              {c.biens.map(b => (
-                <tr key={b.nBien}>
+              {c.biens.map((b, idx) => (
+                <tr key={`${b.nBien}-${idx}`}>
                   {CESS_COLS.map(col => (
                     <td key={col.key} style={td(col.align)}>{fmt(b[col.key], col.type)}</td>
                   ))}
