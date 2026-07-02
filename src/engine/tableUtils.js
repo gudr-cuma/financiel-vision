@@ -188,3 +188,25 @@ export function groupMultiLevel(rows, keyFns, subtotalKeys = []) {
     };
   });
 }
+
+/**
+ * Retourne une Map<valeur de clé, nombre d'occurrences> ne contenant que
+ * les valeurs de `key` apparaissant plus d'une fois dans `rows`.
+ * Les valeurs null, undefined et '' sont ignorées.
+ * @param {object[]} rows
+ * @param {string} key
+ * @returns {Map<any, number>}
+ */
+export function findDuplicateKeys(rows, key) {
+  const counts = new Map();
+  for (const row of rows) {
+    const k = row[key];
+    if (k === null || k === undefined || k === '') continue;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const duplicates = new Map();
+  for (const [k, count] of counts) {
+    if (count > 1) duplicates.set(k, count);
+  }
+  return duplicates;
+}

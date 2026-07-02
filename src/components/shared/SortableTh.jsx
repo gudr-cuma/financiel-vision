@@ -7,8 +7,9 @@
  *   currentSort ({key, direction}|null) — état de tri courant
  *   onSort      (fn)     — appelé avec sortKey au clic
  *   align       ('left'|'right') — alignement du texte (défaut 'left')
+ *   width       (number) — largeur fixe en px (défaut auto)
  */
-export function SortableTh({ label, sortKey, currentSort, onSort, align = 'left' }) {
+export function SortableTh({ label, sortKey, currentSort, onSort, align = 'left', width }) {
   const isActive = currentSort?.key === sortKey;
   const arrow = isActive ? (currentSort.direction === 'asc' ? '▲' : '▼') : '';
 
@@ -28,8 +29,11 @@ export function SortableTh({ label, sortKey, currentSort, onSort, align = 'left'
         borderBottom: '2px solid #E2E8F0',
         backgroundColor: '#F7FAFC',
         whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
         cursor: 'pointer',
         userSelect: 'none',
+        ...(width ? { width, boxSizing: 'border-box' } : {}),
       }}
     >
       {label} <span style={{ display: 'inline-block', width: '10px', fontSize: '9px', color: '#FF8200' }}>{arrow}</span>

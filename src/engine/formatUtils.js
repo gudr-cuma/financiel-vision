@@ -48,6 +48,11 @@ export function formatAmountFull(amount) {
   return `${FMT_EUR.format(amount)} €`;
 }
 
+export function formatAmountDec(amount) {
+  if (amount === null || amount === undefined || isNaN(amount)) return '—';
+  return `${FMT_EUR_DEC.format(amount)} €`;
+}
+
 /**
  * Formate un pourcentage.
  * Ex : 33.0123 → "33,0 %"
@@ -76,6 +81,22 @@ export function formatDate(date) {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const y = date.getFullYear();
   return `${d}/${m}/${y}`;
+}
+
+/**
+ * Parse une date au format JJ/MM/AAAA (format texte utilisé par
+ * bilanCRData.dateFin) en objet Date. Renvoie null si le format ne
+ * correspond pas.
+ * @param {string|null|undefined} str
+ * @returns {Date|null}
+ */
+export function parseFrDate(str) {
+  if (typeof str !== 'string') return null;
+  const match = str.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, d, m, y] = match;
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  return isNaN(date.getTime()) ? null : date;
 }
 
 /**

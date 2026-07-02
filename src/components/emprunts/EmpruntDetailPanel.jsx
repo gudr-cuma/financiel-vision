@@ -86,7 +86,7 @@ export function EmpruntDetailPanel({ emprunt, lignesEmprunt, onClose }) {
       subtitle="Emprunt →"
       title={emprunt?.designation ?? '—'}
       amount={emprunt?.montant}
-      width="min(960px, 95vw)"
+      width="min(1152px, 95vw)"
     >
       {emprunt && <EmpruntFiche emprunt={emprunt} />}
 

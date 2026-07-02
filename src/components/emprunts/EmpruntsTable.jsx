@@ -1,16 +1,15 @@
 import { SortableTh } from '../shared/SortableTh';
-import { formatAmountFull, formatPercent, formatDate } from '../../engine/formatUtils';
+import { Tooltip } from '../shared/Tooltip';
+import { formatAmountDec, formatPercent, formatDate } from '../../engine/formatUtils';
 
 export const EMPRUNTS_COLUMNS = [
-  { key: 'nEmprunt', label: 'N. Emprunt', type: 'text' },
-  { key: 'designation', label: 'Désignation', type: 'text' },
-  { key: 'montant', label: 'Montant', type: 'amount' },
-  { key: 'taux', label: 'Taux', type: 'percent' },
-  { key: 'dateRealisation', label: 'Date Réalisation', type: 'date' },
-  { key: 'premiereEcheance', label: '1ère Échéance', type: 'date' },
-  { key: 'duree', label: 'Durée', type: 'number' },
-  { key: 'dureeMois', label: 'Durée (mois)', type: 'number' },
-  { key: 'annuite', label: 'Annuité', type: 'text' },
+  { key: 'nEmprunt', label: 'N. Emprunt', type: 'text', width: '10%' },
+  { key: 'designation', label: 'Désignation', type: 'text', width: '30%' },
+  { key: 'montant', label: 'Montant', type: 'amount', width: '12%' },
+  { key: 'taux', label: 'Taux', type: 'percent', width: '8%' },
+  { key: 'dateRealisation', label: 'Date Réalisation', type: 'date', width: '16%' },
+  { key: 'premiereEcheance', label: '1ère Échéance', type: 'date', width: '15%' },
+  { key: 'duree', label: 'Durée', type: 'number', width: '9%' },
 ];
 
 /**
@@ -19,6 +18,8 @@ export const EMPRUNTS_COLUMNS = [
  */
 export const EMPRUNT_FICHE_FIELDS = [
   ...EMPRUNTS_COLUMNS,
+  { key: 'dureeMois', label: 'Durée (mois)', type: 'number' },
+  { key: 'annuite', label: 'Annuité', type: 'text' },
   { key: 'modeRemb', label: 'Mode Remb.', type: 'text' },
   { key: 'situation', label: 'Situation', type: 'text' },
   { key: 'banque', label: 'Banque', type: 'text' },
@@ -38,21 +39,21 @@ export const EMPRUNT_FICHE_FIELDS = [
 function formatCellValue(value, type) {
   if (value === null || value === undefined || value === '') return '—';
   switch (type) {
-    case 'amount': return formatAmountFull(value);
+    case 'amount': return formatAmountDec(value);
     case 'percent': return formatPercent(value);
     case 'date': return formatDate(value);
     default: return String(value);
   }
 }
 
-export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
+export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow, duplicateKeys }) {
   if (!rows || rows.length === 0) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>Aucun emprunt ne correspond aux filtres.</div>;
   }
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1600px', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '13px' }}>
         <thead>
           <tr>
             {EMPRUNTS_COLUMNS.map((col) => (
@@ -63,6 +64,7 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
                 currentSort={sort}
                 onSort={onSort}
                 align={col.type === 'text' ? 'left' : 'right'}
+                width={col.width}
               />
             ))}
           </tr>
@@ -72,7 +74,7 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
             const isSelected = selectedRow?.nEmprunt === row.nEmprunt;
             return (
               <tr
-                key={row.nEmprunt ?? idx}
+                key={`${row.nEmprunt ?? 'na'}-${idx}`}
                 onClick={() => onRowClick(row)}
                 style={{
                   background: isSelected ? '#E3F2F5' : idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
@@ -91,7 +93,14 @@ export function EmpruntsTable({ rows, sort, onSort, onRowClick, selectedRow }) {
                       fontVariantNumeric: 'tabular-nums',
                     }}
                   >
-                    {formatCellValue(row[col.key], col.type)}
+                    {col.key === 'nEmprunt' && duplicateKeys?.has(row.nEmprunt) ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <Tooltip content={`${duplicateKeys.get(row.nEmprunt)} lignes partagent ce numéro`}>
+                          <span style={{ color: '#E53935', cursor: 'help', lineHeight: 1 }}>⚠️</span>
+                        </Tooltip>
+                        {formatCellValue(row[col.key], col.type)}
+                      </span>
+                    ) : formatCellValue(row[col.key], col.type)}
                   </td>
                 ))}
               </tr>

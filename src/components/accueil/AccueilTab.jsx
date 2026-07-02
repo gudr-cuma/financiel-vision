@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { getRecentSessions, removeRecentSession } from '../../engine/sessionManager';
+import iconEye from '../../assets/icon-eye.svg';
 
 const MODULES = [
   {
@@ -11,6 +12,14 @@ const MODULES = [
     color: '#31B700',
     bg: '#E8F5E0',
     description: 'Chargez votre fichier FEC (.csv) — les calculs sont instantanés et 100% locaux.',
+  },
+  {
+    id: 'controles',
+    icon: '🚦',
+    label: 'Contrôles',
+    color: '#0D9488',
+    bg: '#E6FFFA',
+    description: 'Vérifiez la cohérence de vos données entre modules et comptes — capital social, emprunts, équilibre comptable…',
   },
   {
     id: 'dashboard',
@@ -259,7 +268,7 @@ export function AccueilTab() {
         }} />
 
         <div style={{ position: 'relative' }}>
-          <div style={{ fontSize: '36px', marginBottom: '12px' }}>🌿</div>
+          <img src={iconEye} alt="" style={{ width: '48px', height: '48px', display: 'block', margin: '0 auto 12px' }} />
           <h1 style={{
             fontSize: '28px', fontWeight: 800, color: '#1A202C',
             margin: '0 0 8px',

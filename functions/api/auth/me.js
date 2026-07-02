@@ -5,12 +5,7 @@
  */
 import { getUserPermissions, getUserEditPermissions } from '../../_lib/db.js';
 import { json, methodNotAllowed } from '../../_lib/responses.js';
-
-const ALL_SECTIONS = [
-  'analyseur', 'dashboard', 'dossier', 'treasury', 'bilanCR', 'bilanParam', 'editions',
-  'emprunts', 'immobilisations', 'capitalSocialRegistre', 'materiels', 'ficheSynthese',
-  'export', 'analyse',
-];
+import { VALID_SECTIONS } from '../../_lib/validate.js';
 
 export async function onRequestGet(context) {
   const { env, data } = context;
@@ -18,8 +13,8 @@ export async function onRequestGet(context) {
 
   let permissions, editPermissions;
   if (user.role === 'admin') {
-    permissions     = ALL_SECTIONS;
-    editPermissions = ALL_SECTIONS;
+    permissions     = VALID_SECTIONS;
+    editPermissions = VALID_SECTIONS;
   } else {
     [permissions, editPermissions] = await Promise.all([
       getUserPermissions(env.DB, user.id),

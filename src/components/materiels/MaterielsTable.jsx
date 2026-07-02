@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { SortableTh } from '../shared/SortableTh';
+import { Tooltip } from '../shared/Tooltip';
 import { formatAmountFull, formatDate } from '../../engine/formatUtils';
 
 export const MATERIELS_COLUMNS = [
-  { key: 'codeMateriel', label: 'Code Matériel', type: 'number' },
-  { key: 'baseSref1', label: 'Base', type: 'text' },
-  { key: 'libelle', label: 'Libellé', type: 'text' },
-  { key: 'codeNational', label: 'Code National', type: 'text' },
-  { key: 'marque', label: 'Marque', type: 'text' },
-  { key: 'libMarque', label: 'Lib. Marque', type: 'text' },
-  { key: 'dateAchat', label: 'Date Achat', type: 'date' },
-  { key: 'mtAchat', label: 'Mt Achat', type: 'amount' },
-  { key: 'codeAnalytique', label: 'Code Analytique', type: 'text' },
+  { key: 'codeMateriel', label: 'Code Matériel', type: 'number', width: '10%' },
+  { key: 'baseSref1', label: 'Base', type: 'text', width: '6%' },
+  { key: 'libelle', label: 'Libellé', type: 'text', width: '30%' },
+  { key: 'codeNational', label: 'Code National', type: 'text', width: '10%' },
+  { key: 'marque', label: 'Marque', type: 'text', width: '7%' },
+  { key: 'libMarque', label: 'Lib. Marque', type: 'text', width: '9%' },
+  { key: 'dateAchat', label: 'Date Achat', type: 'date', width: '9%' },
+  { key: 'mtAchat', label: 'Mt Achat', type: 'amount', width: '8%' },
+  { key: 'codeAnalytique', label: 'Code Analytique', type: 'text', width: '11%' },
 ];
 
 /**
@@ -43,7 +44,7 @@ function formatCell(value, type) {
   return String(value);
 }
 
-function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
+function GroupSection({ group, showHeader, onRowClick, selectedRow, duplicateKeys }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -64,7 +65,7 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
         const isSelected = selectedRow?.codeMateriel === row.codeMateriel;
         return (
           <tr
-            key={row.codeMateriel ?? idx}
+            key={`${row.codeMateriel ?? 'na'}-${idx}`}
             onClick={() => onRowClick?.(row)}
             style={{
               background: isSelected ? '#E3F2F5' : idx % 2 === 0 ? '#FFFFFF' : '#FAFAFA',
@@ -82,7 +83,14 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {formatCell(row[col.key], col.type)}
+                {col.key === 'codeMateriel' && duplicateKeys?.has(row.codeMateriel) ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Tooltip content={`${duplicateKeys.get(row.codeMateriel)} lignes partagent ce code`}>
+                      <span style={{ color: '#E53935', cursor: 'help', lineHeight: 1 }}>⚠️</span>
+                    </Tooltip>
+                    {formatCell(row[col.key], col.type)}
+                  </span>
+                ) : formatCell(row[col.key], col.type)}
               </td>
             ))}
           </tr>
@@ -92,7 +100,7 @@ function GroupSection({ group, showHeader, onRowClick, selectedRow }) {
   );
 }
 
-export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowClick, selectedRow }) {
+export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowClick, selectedRow, duplicateKeys }) {
   const totalRows = groups.reduce((sum, g) => sum + g.rows.length, 0);
   if (totalRows === 0) {
     return <div style={{ padding: '48px', textAlign: 'center', color: '#A0AEC0' }}>Aucun matériel ne correspond aux filtres.</div>;
@@ -100,7 +108,7 @@ export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowCl
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1900px', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '13px' }}>
         <thead>
           <tr>
             {MATERIELS_COLUMNS.map((col) => (
@@ -111,13 +119,14 @@ export function MaterielsTable({ groups, showGroupHeaders, sort, onSort, onRowCl
                 currentSort={sort}
                 onSort={onSort}
                 align={col.type === 'text' ? 'left' : 'right'}
+                width={col.width}
               />
             ))}
           </tr>
         </thead>
         <tbody>
           {groups.map((group) => (
-            <GroupSection key={group.key} group={group} showHeader={showGroupHeaders} onRowClick={onRowClick} selectedRow={selectedRow} />
+            <GroupSection key={group.key} group={group} showHeader={showGroupHeaders} onRowClick={onRowClick} selectedRow={selectedRow} duplicateKeys={duplicateKeys} />
           ))}
         </tbody>
       </table>

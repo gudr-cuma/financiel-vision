@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useStore from '../../store/useStore';
 import useAuthStore from '../../store/useAuthStore';
 import { UploadPrompt } from '../shared/UploadPrompt';
+import { AmortissementEditionView } from './AmortissementEditionView';
 import { RangeFilterInput } from '../shared/RangeFilterInput';
 import { FilterField } from '../shared/FilterField';
 import { MiniStatCard } from '../shared/MiniStatCard';
+import { ErrorBanner } from '../shared/ErrorBanner';
 import { ImmobilisationsTable } from './ImmobilisationsTable';
 import { ImmobilisationDetailPanel } from './ImmobilisationDetailPanel';
-import { sortRows, nextSortState, filterByText, filterByRange, distinctValues, groupRows, sumColumn, yearOf } from '../../engine/tableUtils';
+import { sortRows, nextSortState, filterByText, filterByRange, distinctValues, groupRows, sumColumn, yearOf, findDuplicateKeys } from '../../engine/tableUtils';
 import { formatAmountFull } from '../../engine/formatUtils';
 
 const SELECT_STYLE = {
@@ -58,7 +60,7 @@ function groupKeyFn(groupBy) {
   return null;
 }
 
-export function ImmobilisationsTab() {
+function RegistrePane() {
   const exploitationData = useStore((s) => s.exploitationData);
   const loadExportMulti = useStore((s) => s.loadExportMulti);
   const loadDemoExportMulti = useStore((s) => s.loadDemoExportMulti);
@@ -80,6 +82,10 @@ export function ImmobilisationsTab() {
 
   const immobilisations = useMemo(() => exploitationData?.immobilisations ?? [], [exploitationData]);
   const immoLignes = useMemo(() => exploitationData?.immoLignes ?? [], [exploitationData]);
+
+  const duplicateKeys = useMemo(() => findDuplicateKeys(immobilisations, 'nBien'), [immobilisations]);
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false);
+  useEffect(() => { setDuplicatesOnly(false); }, [duplicateKeys]);
 
   const axes = useMemo(() => distinctValues(immobilisations, 'axe1'), [immobilisations]);
   const fournisseurs = useMemo(() => distinctValues(immobilisations, 'cptFournisseur'), [immobilisations]);
@@ -103,8 +109,9 @@ export function ImmobilisationsTab() {
     if (axe) result = result.filter((r) => r.axe1 === axe);
     if (fournisseur) result = result.filter((r) => r.cptFournisseur === fournisseur);
     if (sort) result = sortRows(result, sort.key, sort.direction);
+    if (duplicatesOnly) result = result.filter((r) => duplicateKeys.has(r.nBien));
     return result;
-  }, [immobilisations, actives, actifOnly, search, dateEffetMin, dateEffetMax, dateAcqMin, dateAcqMax, axe, fournisseur, sort]);
+  }, [immobilisations, actives, actifOnly, search, dateEffetMin, dateEffetMax, dateAcqMin, dateAcqMax, axe, fournisseur, sort, duplicatesOnly, duplicateKeys]);
 
   const groups = useMemo(() => {
     const keyFn = groupKeyFn(groupBy);
@@ -136,6 +143,19 @@ export function ImmobilisationsTab() {
         {isLoadingExploitation && <div style={{ fontSize: '13px', color: '#718096' }}>Import en cours…</div>}
       </div>
 
+      {duplicateKeys.size > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <ErrorBanner
+            type="warning"
+            message={`${duplicateKeys.size} numéro(s) de bien apparaissent en double dans l'export (${[...duplicateKeys.values()].reduce((s, c) => s + c, 0)} lignes concernées) — ceci est anormal, vérifiez l'export auprès de votre éditeur comptable.`}
+            action={{
+              label: duplicatesOnly ? 'Afficher tout' : 'Afficher uniquement les doublons',
+              onClick: () => setDuplicatesOnly((v) => !v),
+            }}
+          />
+        </div>
+      )}
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -155,7 +175,7 @@ export function ImmobilisationsTab() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '10px',
         marginBottom: '16px',
       }}>
@@ -200,6 +220,7 @@ export function ImmobilisationsTab() {
         onSort={(key) => setSort(nextSortState(sort, key))}
         onRowClick={(row) => setSelectedRow(selectedRow?.nBien === row.nBien ? null : row)}
         selectedRow={selectedRow}
+        duplicateKeys={duplicateKeys}
       />
 
       <ImmobilisationDetailPanel
@@ -207,6 +228,49 @@ export function ImmobilisationsTab() {
         immoLignes={immoLignes}
         onClose={() => setSelectedRow(null)}
       />
+    </div>
+  );
+}
+
+const SUBTABS = [
+  { id: 'registre',       label: 'Registre' },
+  { id: 'amortissements', label: 'Liste des amortissements' },
+];
+
+export function ImmobilisationsTab() {
+  const exploitationData = useStore((s) => s.exploitationData);
+  const [view, setView] = useState('registre');
+
+  return (
+    <div style={{ paddingTop: '8px' }}>
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '2px solid #E2E8F0', marginBottom: '8px' }}>
+        {SUBTABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setView(tab.id)}
+            style={{
+              padding: '8px 18px',
+              fontSize: '13px',
+              fontWeight: view === tab.id ? 700 : 500,
+              color: view === tab.id ? '#1A202C' : '#718096',
+              background: 'none',
+              border: 'none',
+              borderBottom: view === tab.id ? '2px solid #31B700' : '2px solid transparent',
+              cursor: 'pointer',
+              marginBottom: '-2px',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'registre' && <RegistrePane />}
+      {view === 'amortissements' && (
+        exploitationData
+          ? <AmortissementEditionView exploitationData={exploitationData} />
+          : <RegistrePane />
+      )}
     </div>
   );
 }
