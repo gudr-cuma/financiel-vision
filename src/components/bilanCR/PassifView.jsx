@@ -101,7 +101,7 @@ export function PassifView({ items }) {
                   onKeyDown={drillable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
                   role={drillable ? 'button' : undefined}
                   tabIndex={drillable ? 0 : undefined}
-                  aria-selected={drillable ? selected : undefined}
+                  aria-pressed={drillable ? selected : undefined}
                   style={{
                     borderBottom: '1px solid #F0F4F8',
                     background: selected ? '#E3F2F5' : '',

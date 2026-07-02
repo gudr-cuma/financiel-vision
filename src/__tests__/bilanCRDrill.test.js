@@ -4,6 +4,7 @@ import {
   getAccountsForBilan,
   getEntriesForBilanAccount,
 } from '../engine/drillDown';
+import { isDrillableLine } from '../components/bilanCR/drillRow';
 
 const entries = [
   { compteNum: '2010000', compteLib: 'Frais établissement', debit: 1000, credit: 0, ecritureDate: new Date('2024-01-05'), ecritureLib: 'ecr a', pieceRef: 'P1', journalCode: 'AC' },
@@ -81,8 +82,6 @@ describe('getEntriesForBilanAccount — option type', () => {
     expect(rows[0].soldeCumule).toBe(1000);
   });
 });
-
-import { isDrillableLine } from '../components/bilanCR/drillRow';
 
 describe('isDrillableLine', () => {
   it('ligne à code numérique : cliquable', () => {
