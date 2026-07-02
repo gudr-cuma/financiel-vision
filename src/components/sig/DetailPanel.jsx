@@ -284,7 +284,7 @@ export function DetailPanel() {
     if (isOpen && closeBtnRef.current) {
       closeBtnRef.current.focus();
     }
-  }, [isOpen, detailPanel?.sigId, detailPanel?.bilanPostId]);
+  }, [isOpen, detailPanel?.sigId, detailPanel?.bilanPostId, detailPanel?.racine]);
 
   // Fermeture par Escape
   useEffect(() => {
