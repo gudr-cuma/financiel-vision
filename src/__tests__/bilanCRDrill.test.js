@@ -96,4 +96,29 @@ describe('isDrillableLine', () => {
     expect(isDrillableLine({ type: 'section' })).toBe(false);
     expect(isDrillableLine({ type: 'line', code: null })).toBe(false);
   });
+  it('code composite numérique (ex. "267+268") : cliquable', () => {
+    expect(isDrillableLine({ type: 'line', code: '267+268' })).toBe(true);
+    expect(isDrillableLine({ type: 'line', code: '267 + 268' })).toBe(true);
+  });
+  it('code composite non numérique : non cliquable', () => {
+    expect(isDrillableLine({ type: 'line', code: '267+A' })).toBe(false);
+    expect(isDrillableLine({ type: 'line', code: '164.1+165' })).toBe(false);
+  });
+});
+
+describe('buildBilanCRDrill — codes composites', () => {
+  it('éclate un code "267+268" en plusieurs racines (sans amort)', () => {
+    const drill = buildBilanCRDrill({ type: 'line', code: '267+268', netN: 3000 }, 'actif');
+    expect(drill.racine).toBe('267+268');
+    expect(drill.ranges).toEqual(['267', '268']);
+    expect(drill.montant).toBe(3000);
+  });
+  it('tolère les espaces autour du "+"', () => {
+    const drill = buildBilanCRDrill({ type: 'line', code: '267 + 268', netN: 3000 }, 'passif');
+    expect(drill.ranges).toEqual(['267', '268']);
+  });
+  it('éclate et dérive les amort par racine (actif amortissable)', () => {
+    const drill = buildBilanCRDrill({ type: 'line', code: '213+215', amort: 500, netN: 1000 }, 'actif');
+    expect(drill.ranges).toEqual(['213', '2813', '2913', '215', '2815', '2915']);
+  });
 });

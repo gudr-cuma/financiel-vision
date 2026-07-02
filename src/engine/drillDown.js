@@ -211,20 +211,22 @@ function deriveAmortRanges(racine) {
 /**
  * Résout une ligne « de détail » de l'onglet Bilan et CR en paramètres de drill-down.
  *
- * Précondition (garantie côté UI par `isDrillableLine`) : `item.code` est une racine
- * de compte purement numérique. Le montant est lu selon la vue : `totalN` pour le
- * compte de résultat, `netN` pour l'actif/passif.
+ * Précondition (garantie côté UI par `isDrillableLine`) : `item.code` est une ou
+ * plusieurs racines de compte numériques, éventuellement jointes par « + »
+ * (ex. "267+268" → racines 267 et 268). Le montant est lu selon la vue :
+ * `totalN` pour le compte de résultat, `netN` pour l'actif/passif.
  *
- * @param {object} item - Ligne de détail avec un `code` racine numérique.
+ * @param {object} item - Ligne de détail avec un `code` racine numérique (ou composite).
  * @param {'actif'|'passif'|'resultat'} view - Sous-vue d'origine.
  * @returns {{ racine:string, label:string, montant:number|null, ranges:string[], soldeType:'charge'|'product' }}
  */
 export function buildBilanCRDrill(item, view) {
   const racine = String(item.code);
+  const roots = racine.split('+').map(r => r.trim()).filter(Boolean);
   const montant = view === 'resultat' ? item.totalN : item.netN;
   const ranges = (view === 'actif' && item.amort)
-    ? [racine, ...deriveAmortRanges(racine)]
-    : [racine];
-  const soldeType = racine.startsWith('7') ? 'product' : 'charge';
+    ? roots.flatMap(r => [r, ...deriveAmortRanges(r)])
+    : roots;
+  const soldeType = roots[0]?.startsWith('7') ? 'product' : 'charge';
   return { racine, label: item.label, montant, ranges, soldeType };
 }
