@@ -5,12 +5,15 @@ import BilanCRSubNav from './BilanCRSubNav';
 import ActifView from './ActifView';
 import PassifView from './PassifView';
 import ResultatView from './ResultatView';
+import { DetailPanel } from '../sig/DetailPanel';
 
 export function BilanCRTab() {
   const bilanCRData      = useStore(s => s.bilanCRData);
   const setBilanCRData   = useStore(s => s.setBilanCRData);
   const loadDemoBilanCR  = useStore(s => s.loadDemoBilanCR);
   const loadFileBilanCR  = useStore(s => s.loadFileBilanCR);
+  const detailPanel      = useStore(s => s.detailPanel);
+  const closeDetail      = useStore(s => s.closeDetail);
 
   const canUploadFile = useAuthStore(s => s.canUploadFile());
   const [activeTab, setActiveTab]   = useState('actif');
@@ -193,13 +196,27 @@ export function BilanCRTab() {
         </button>
       </div>
 
-      <BilanCRSubNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BilanCRSubNav
+        activeTab={activeTab}
+        onTabChange={(tab) => { closeDetail(); setActiveTab(tab); }}
+      />
 
       <div style={{ paddingTop: '20px' }}>
         {activeTab === 'actif'    && <ActifView    items={actif} />}
         {activeTab === 'passif'   && <PassifView   items={passif} />}
         {activeTab === 'resultat' && <ResultatView items={resultat} />}
       </div>
+
+      {detailPanel?.type === 'bilancr' && (
+        <>
+          <div
+            onClick={closeDetail}
+            aria-hidden="true"
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.15)', zIndex: 39 }}
+          />
+          <DetailPanel />
+        </>
+      )}
     </div>
   );
 }
