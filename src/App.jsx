@@ -44,6 +44,7 @@ import TabNav from './components/layout/TabNav';
 import SigTable from './components/sig/SigTable';
 import ErrorBanner from './components/shared/ErrorBanner';
 import MonthlyTab from './components/monthly/MonthlyTab';
+import MultiCumaTab from './components/multiCuma/MultiCumaTab';
 import TreasuryTab from './components/treasury/TreasuryTab';
 import ChargesTab from './components/charges/ChargesTab';
 import BalanceTab from './components/balance/BalanceTab';
@@ -184,6 +185,7 @@ export default function App() {
                 {activeSection === 'immobilisations'       && <ImmobilisationsTab />}
                 {activeSection === 'capitalSocialRegistre' && <CapitalSocialRegistreTab />}
                 {activeSection === 'materiels'              && <MaterielsTab />}
+                {activeSection === 'multiCuma'              && <MultiCumaTab />}
                 {activeSection === 'ficheSynthese'         && <FicheSyntheseTab />}
                 {activeSection === 'editions'   && <LivresTab />}
                 {activeSection === 'export'     && <ExportTab />}
