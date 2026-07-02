@@ -11,6 +11,7 @@ import { parseBilanCR } from '../engine/parseBilanCR';
 import { parseAnalytique, computeAnalytique, computeAnalytiqueGlobal } from '../engine/computeAnalytique';
 import { exportSession, parseSessionFile, addRecentSession } from '../engine/sessionManager';
 import { parseExportMulti } from '../engine/parseExportMulti';
+import { parseGlobalMultiCuma } from '../engine/parseGlobalMultiCuma';
 
 /** Lance tous les calculs à partir d'un ParsedFEC */
 function computeAll(parsedFec) {
@@ -40,6 +41,9 @@ const useStore = create((set, get) => ({
   exploitationData: null,       // ExportMultiData | null — voir engine/parseExportMulti.js
   isLoadingExploitation: false,
   errorExploitation: null,
+  multiCumaData: null,          // { importedAt, rows, fileName } | null — voir engine/parseGlobalMultiCuma.js
+  isLoadingMultiCuma: false,
+  errorMultiCuma: null,
   syntheseOverrides: {},  // surcharges utilisateur de la Fiche de synthèse, persistées en .clario
   activeSection: 'accueil',   // 'accueil' | 'analyseur' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
@@ -376,6 +380,18 @@ const useStore = create((set, get) => ({
 
   clearExploitationError: () => set({ errorExploitation: null }),
 
+  loadMultiCuma: async (file) => {
+    set({ isLoadingMultiCuma: true, errorMultiCuma: null });
+    try {
+      const multiCumaData = await parseGlobalMultiCuma(file);
+      set({ multiCumaData, isLoadingMultiCuma: false });
+    } catch (err) {
+      set({ isLoadingMultiCuma: false, errorMultiCuma: err.message });
+    }
+  },
+
+  clearMultiCumaError: () => set({ errorMultiCuma: null }),
+
   /** Met à jour la valeur d'un champ de la Fiche de synthèse (override utilisateur) */
   updateSyntheseOverride: (key, value) => set(state => ({
     syntheseOverrides: { ...state.syntheseOverrides, [key]: value },
@@ -566,6 +582,9 @@ const useStore = create((set, get) => ({
     exploitationData: null,
     isLoadingExploitation: false,
     errorExploitation: null,
+    multiCumaData: null,
+    isLoadingMultiCuma: false,
+    errorMultiCuma: null,
     syntheseOverrides: {},
     activeSection: 'accueil',
     activeTab: 'sig',
