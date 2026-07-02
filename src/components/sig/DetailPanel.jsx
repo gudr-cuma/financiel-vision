@@ -57,14 +57,14 @@ function findBilanLine(bilanData, bilanPostId) {
 // ---------------------------------------------------------------------------
 // BilanAccountCard — inline account card for bilan (uses getEntriesForBilanAccount)
 // ---------------------------------------------------------------------------
-function BilanAccountCard({ account, entries }) {
+function BilanAccountCard({ account, entries, soldeType = 'charge' }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [filterText, setFilterText] = useState('');
 
   const isNegative = account.solde < 0;
 
   const accountEntries = isExpanded
-    ? getEntriesForBilanAccount(account.compteNum, entries)
+    ? getEntriesForBilanAccount(account.compteNum, entries, soldeType)
     : [];
 
   return (
@@ -212,6 +212,56 @@ function BilanAccountList({ bilanPostId, entries }) {
 }
 
 // ---------------------------------------------------------------------------
+// BilanCRAccountList — liste de comptes pilotée par des ranges explicites
+// ---------------------------------------------------------------------------
+function BilanCRAccountList({ ranges, soldeType, entries }) {
+  if (!entries || entries.length === 0) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: '#A0AEC0' }}>
+        Chargez le FEC de l'exercice N pour afficher le détail des comptes.
+      </div>
+    );
+  }
+
+  const accounts = getAccountsForBilan(ranges, entries, { type: soldeType });
+
+  if (!accounts || accounts.length === 0) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: '#A0AEC0' }}>
+        Aucun compte contribuant trouvé.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        style={{
+          padding: '12px 0 8px',
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#718096',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}
+      >
+        Comptes contribuant ({accounts.length})
+      </div>
+      <div>
+        {accounts.map((account) => (
+          <BilanAccountCard
+            key={account.compteNum}
+            account={account}
+            entries={entries}
+            soldeType={soldeType}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // DetailPanel — main exported component
 // ---------------------------------------------------------------------------
 
@@ -273,9 +323,15 @@ export function DetailPanel() {
   } else if (panelType === 'bilan' && bilanLine) {
     headerLabel = bilanLine.label;
     headerAmount = bilanLine.montant;
+  } else if (panelType === 'bilancr') {
+    headerLabel = detailPanel.label;
+    headerPrefix = detailPanel.racine;
+    headerAmount = detailPanel.montant;
   }
 
-  const ariaLabel = panelType === 'bilan' ? 'Détail du poste bilan' : 'Détail du poste SIG';
+  let ariaLabel = 'Détail du poste SIG';
+  if (panelType === 'bilan') ariaLabel = 'Détail du poste bilan';
+  if (panelType === 'bilancr') ariaLabel = 'Détail de la ligne Bilan et CR';
 
   return (
     <div
@@ -401,6 +457,13 @@ export function DetailPanel() {
         )}
         {panelType === 'bilan' && detailPanel?.bilanPostId && (
           <BilanAccountList bilanPostId={detailPanel.bilanPostId} entries={entries} />
+        )}
+        {panelType === 'bilancr' && detailPanel?.ranges && (
+          <BilanCRAccountList
+            ranges={detailPanel.ranges}
+            soldeType={detailPanel.soldeType}
+            entries={entries}
+          />
         )}
       </div>
     </div>
