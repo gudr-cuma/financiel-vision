@@ -20,6 +20,7 @@ const ALL_SECTIONS = [
   { id: 'capitalSocialRegistre', label: 'Capital social (registre)' },
   { id: 'materiels',             label: 'Matériels' },
   { id: 'ficheSynthese',         label: 'Fiche de synthèse' },
+  { id: 'multiCuma',  label: 'Analyse multi-CUMA' },
   { id: 'export',     label: 'Export PDF' },
   { id: 'analyse',    label: 'Rapport IA' },
 ];
