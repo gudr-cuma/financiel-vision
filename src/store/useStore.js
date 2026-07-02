@@ -44,7 +44,7 @@ const useStore = create((set, get) => ({
   activeSection: 'accueil',   // 'accueil' | 'analyseur' | 'controles' | 'dashboard' | 'dossier' | 'editions' | 'export' | 'analyse'
   activeTab: 'sig',           // 'sig' | 'monthly' | 'treasury' | 'charges' | 'balance' | 'comparaison' | 'analytique'
   activeSubTab: 'mensuel',    // 'mensuel' | 'cumule' | 'tableau'
-  detailPanel: null,       // { type: 'sig'|'bilan', sigId, compteNum } | null
+  detailPanel: null,       // { type: 'sig'|'bilan'|'bilancr', ... } | null
   isLoading: false,
   isLoadingDemo: false,    // true pendant loadDemoComplete
   loadProgress: 0,         // 0-100
@@ -241,6 +241,9 @@ const useStore = create((set, get) => ({
 
   /** Ouvre le détail d'un compte dans le panel bilan (niveau 2) */
   openBilanAccountDetail: (bilanPostId, compteNum) => set({ detailPanel: { type: 'bilan', bilanPostId, compteNum } }),
+
+  /** Ouvre le panel de détail d'une ligne de l'onglet Bilan et CR (drill FEC N). */
+  openBilanCRDetail: (payload) => set({ detailPanel: { type: 'bilancr', ...payload } }),
 
   closeDetail: () => set({ detailPanel: null }),
 
