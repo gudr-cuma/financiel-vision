@@ -135,7 +135,7 @@ export function getEntriesForAccount(compteNum, sigId, entries) {
  * @returns {AccountDetail[]}
  */
 export function getAccountsForBilan(ranges, entries, options = {}) {
-  const { excludeRanges = [], groupByAux = false } = options;
+  const { excludeRanges = [], groupByAux = false, type = 'charge' } = options;
   const byAccount = {};
 
   for (const entry of entries) {
@@ -161,7 +161,7 @@ export function getAccountsForBilan(ranges, entries, options = {}) {
       ...acc,
       totalDebit: Math.round(acc.totalDebit * 100) / 100,
       totalCredit: Math.round(acc.totalCredit * 100) / 100,
-      solde: Math.round((acc.totalDebit - acc.totalCredit) * 100) / 100,
+      solde: Math.round(netSolde(acc.totalDebit, acc.totalCredit, type) * 100) / 100,
     }))
     .sort((a, b) => Math.abs(b.solde) - Math.abs(a.solde));
 }
@@ -173,14 +173,14 @@ export function getAccountsForBilan(ranges, entries, options = {}) {
  * @param {Array} entries
  * @returns {EntryWithRunning[]}
  */
-export function getEntriesForBilanAccount(compteNum, entries) {
+export function getEntriesForBilanAccount(compteNum, entries, type = 'charge') {
   const filtered = entries
     .filter(e => e.compteNum === compteNum)
     .sort((a, b) => a.ecritureDate - b.ecritureDate);
 
   let running = 0;
   return filtered.map(e => {
-    running += e.debit - e.credit;
+    running += netSolde(e.debit, e.credit, type);
     return {
       ecritureDate: e.ecritureDate,
       ecritureLib: e.ecritureLib,
@@ -191,4 +191,36 @@ export function getEntriesForBilanAccount(compteNum, entries) {
       soldeCumule: Math.round(running * 100) / 100,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Bilan et CR : résolution d'une ligne (racine affichée) → drill-down
+// ---------------------------------------------------------------------------
+
+// Préfixes des comptes d'amortissement / dépréciation par classe d'actif.
+const AMORT_PREFIX_BY_CLASS = { '2': ['28', '29'], '3': ['39'], '4': ['49'], '5': ['59'] };
+
+/** Dérive les racines d'amortissement/dépréciation d'une racine d'actif immobilisé ou circulant. */
+function deriveAmortRanges(racine) {
+  const prefixes = AMORT_PREFIX_BY_CLASS[racine[0]];
+  if (!prefixes) return [];
+  const rest = racine.slice(1);
+  return prefixes.map(p => p + rest);
+}
+
+/**
+ * Résout une ligne de l'onglet Bilan et CR en paramètres de drill-down.
+ *
+ * @param {object} item - Ligne parsée (type 'line' ou 'subline') avec un `code` numérique.
+ * @param {'actif'|'passif'|'resultat'} view - Sous-vue d'origine.
+ * @returns {{ racine:string, label:string, montant:number|null, ranges:string[], soldeType:'charge'|'product' }}
+ */
+export function buildBilanCRDrill(item, view) {
+  const racine = String(item.code);
+  const montant = view === 'resultat' ? item.totalN : item.netN;
+  const ranges = (view === 'actif' && item.amort)
+    ? [racine, ...deriveAmortRanges(racine)]
+    : [racine];
+  const soldeType = racine.startsWith('7') ? 'product' : 'charge';
+  return { racine, label: item.label, montant, ranges, soldeType };
 }
