@@ -7,6 +7,7 @@ const SECTIONS = [
   { id: 'analyseur',  icon: '🔎', label: 'Analyseur FEC' },
   { id: 'controles',  icon: '🚦', label: 'Contrôles' },
   { id: 'dashboard',  icon: '📊', label: 'Tableaux de bord' },
+  { id: 'multiCuma',  icon: '🌐', label: 'Analyse multi-CUMA' },
   { id: 'dossier',    icon: '📋', label: 'Dossier de gestion' },
   { id: 'budget',     icon: '💶', label: 'Suivi budgétaire' },
   { id: 'treasury',   icon: '💰', label: 'Trésorerie' },

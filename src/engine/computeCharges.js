@@ -57,7 +57,7 @@ export const CHARGE_CATEGORIES = [
   },
 ];
 
-function accountMatchesCategory(compteNum, cat) {
+export function accountMatchesCategory(compteNum, cat) {
   const matches = cat.ranges.some(r => compteNum.startsWith(r));
   if (!matches) return false;
   if (cat.excludeRanges?.length) {
@@ -131,4 +131,42 @@ export function computeCharges(parsedFec) {
     totalCharges: Math.round(totalCharges * 100) / 100,
     monthly,
   };
+}
+
+/**
+ * Dérive les comptes de charges disponibles, groupés par catégorie PCG.
+ * Strictement cohérent avec computeCharges (journal ANC exclu, ranges/excludeRanges).
+ *
+ * @param {import('./types').ParsedFEC} parsedFec
+ * @returns {{ id, label, color, accounts: { compteNum, compteLib, montant }[] }[]}
+ *          catégories non vides seulement, comptes triés par montant décroissant.
+ */
+export function getChargeAccountsByCategory(parsedFec) {
+  const { entries } = parsedFec;
+
+  // { catId: { compteNum: { compteNum, compteLib, montant } } }
+  const acc = Object.fromEntries(CHARGE_CATEGORIES.map((c) => [c.id, {}]));
+
+  for (const entry of entries) {
+    if (entry.journalCode === 'ANC') continue;
+    const cat = CHARGE_CATEGORIES.find((c) => accountMatchesCategory(entry.compteNum, c));
+    if (!cat) continue;
+
+    const bucket = acc[cat.id];
+    if (!bucket[entry.compteNum]) {
+      bucket[entry.compteNum] = { compteNum: entry.compteNum, compteLib: entry.compteLib, montant: 0 };
+    }
+    bucket[entry.compteNum].montant += entry.debit - entry.credit;
+  }
+
+  return CHARGE_CATEGORIES
+    .map((cat) => ({
+      id: cat.id,
+      label: cat.label,
+      color: cat.color,
+      accounts: Object.values(acc[cat.id])
+        .map((a) => ({ ...a, montant: Math.round(a.montant * 100) / 100 }))
+        .sort((x, y) => y.montant - x.montant),
+    }))
+    .filter((g) => g.accounts.length > 0);
 }

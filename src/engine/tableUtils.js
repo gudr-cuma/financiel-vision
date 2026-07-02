@@ -157,6 +157,39 @@ export function yearOf(date) {
 }
 
 /**
+ * Regroupement récursif multi-niveaux.
+ * @param {object[]} rows
+ * @param {{label: string, fn: (row: object) => string|number}[]} keyFns
+ * @param {string[]} [subtotalKeys=[]]
+ * @returns {null | Array<{key: string, label: string, count: number, subtotal: Record<string, number>, children: any[]|null, rows: object[]|null}>}
+ */
+export function groupMultiLevel(rows, keyFns, subtotalKeys = []) {
+  if (!keyFns.length) return null;
+  const [first, ...rest] = keyFns;
+  const map = new Map();
+  for (const row of rows) {
+    const k = first.fn(row);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(row);
+  }
+  return [...map.entries()].map(([key, groupRowsList]) => {
+    const children = rest.length ? groupMultiLevel(groupRowsList, rest, subtotalKeys) : null;
+    const subtotal = {};
+    for (const s of subtotalKeys) {
+      subtotal[s] = groupRowsList.reduce((sum, r) => sum + (Number(r[s]) || 0), 0);
+    }
+    return {
+      key: String(key),
+      label: first.label,
+      count: groupRowsList.length,
+      subtotal,
+      children,
+      rows: children ? null : groupRowsList,
+    };
+  });
+}
+
+/**
  * Retourne une Map<valeur de clé, nombre d'occurrences> ne contenant que
  * les valeurs de `key` apparaissant plus d'une fois dans `rows`.
  * Les valeurs null, undefined et '' sont ignorées.
