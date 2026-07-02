@@ -209,9 +209,13 @@ function deriveAmortRanges(racine) {
 }
 
 /**
- * Résout une ligne de l'onglet Bilan et CR en paramètres de drill-down.
+ * Résout une ligne « de détail » de l'onglet Bilan et CR en paramètres de drill-down.
  *
- * @param {object} item - Ligne parsée (type 'line' ou 'subline') avec un `code` numérique.
+ * Précondition (garantie côté UI par `isDrillableLine`) : `item.code` est une racine
+ * de compte purement numérique. Le montant est lu selon la vue : `totalN` pour le
+ * compte de résultat, `netN` pour l'actif/passif.
+ *
+ * @param {object} item - Ligne de détail avec un `code` racine numérique.
  * @param {'actif'|'passif'|'resultat'} view - Sous-vue d'origine.
  * @returns {{ racine:string, label:string, montant:number|null, ranges:string[], soldeType:'charge'|'product' }}
  */
