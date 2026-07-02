@@ -1,3 +1,7 @@
+import useStore from '../../store/useStore';
+import { buildBilanCRDrill } from '../../engine/drillDown';
+import { isDrillableLine } from './drillRow';
+
 function fmtEur(v) {
   if (v === null || v === undefined) return '';
   if (v === 0) return '—';
@@ -20,6 +24,11 @@ const TH = ({ children, right }) => (
 );
 
 export function PassifView({ items }) {
+  const detailPanel = useStore(s => s.detailPanel);
+  const openBilanCRDetail = useStore(s => s.openBilanCRDetail);
+  const closeDetail = useStore(s => s.closeDetail);
+  const selectedRacine = detailPanel?.type === 'bilancr' ? detailPanel.racine : null;
+
   if (!items?.length) return <div style={{ color: '#A0AEC0', padding: '24px' }}>Aucune donnée Passif</div>;
 
   return (
@@ -78,24 +87,46 @@ export function PassifView({ items }) {
             );
 
             // Ligne de données
-            return (
-              <tr key={i} style={{ borderBottom: '1px solid #F0F4F8' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#F8FAFB'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}
-              >
-                <td style={{ padding: '5px 10px', color: '#1A202C' }}>
-                  <span style={{ fontSize: '10px', color: '#CBD5E0', marginRight: '8px', fontFamily: 'monospace' }}>{item.code}</span>
-                  {item.label}
-                  {item.subLabel && item.subAmount !== null && (
-                    <span style={{ fontSize: '11px', color: '#A0AEC0', marginLeft: '10px' }}>
-                      {item.subLabel} {fmtEur(item.subAmount)}
-                    </span>
-                  )}
-                </td>
-                <td style={{ padding: '5px 10px', textAlign: 'right', color: '#1A202C', fontWeight: 500, fontFamily: 'monospace' }}>{fmtEur(item.netN)}</td>
-                <td style={{ padding: '5px 10px', textAlign: 'right', color: '#718096', fontFamily: 'monospace' }}>{fmtEur(item.netN1)}</td>
-              </tr>
-            );
+            {
+              const drillable = isDrillableLine(item);
+              const selected = drillable && item.code === selectedRacine;
+              const onClick = () => {
+                if (!drillable) return;
+                if (selected) closeDetail();
+                else openBilanCRDetail(buildBilanCRDrill(item, 'passif'));
+              };
+              return (
+                <tr key={i}
+                  onClick={onClick}
+                  onKeyDown={drillable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+                  role={drillable ? 'button' : undefined}
+                  tabIndex={drillable ? 0 : undefined}
+                  aria-selected={drillable ? selected : undefined}
+                  style={{
+                    borderBottom: '1px solid #F0F4F8',
+                    background: selected ? '#E3F2F5' : '',
+                    cursor: drillable ? 'pointer' : 'default',
+                  }}
+                  onMouseEnter={e => { if (!selected) e.currentTarget.style.background = drillable ? '#E3F2F5' : '#F8FAFB'; }}
+                  onMouseLeave={e => { if (!selected) e.currentTarget.style.background = ''; }}
+                >
+                  <td style={{ padding: '5px 10px', color: '#1A202C' }}>
+                    <span style={{ fontSize: '10px', color: '#CBD5E0', marginRight: '8px', fontFamily: 'monospace' }}>{item.code}</span>
+                    {item.label}
+                    {item.subLabel && item.subAmount !== null && (
+                      <span style={{ fontSize: '11px', color: '#A0AEC0', marginLeft: '10px' }}>
+                        {item.subLabel} {fmtEur(item.subAmount)}
+                      </span>
+                    )}
+                    {drillable && (
+                      <span aria-hidden="true" style={{ color: selected ? '#FF8200' : '#CBD5E0', fontSize: '15px', marginLeft: '8px' }}>›</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', color: '#1A202C', fontWeight: 500, fontFamily: 'monospace' }}>{fmtEur(item.netN)}</td>
+                  <td style={{ padding: '5px 10px', textAlign: 'right', color: '#718096', fontFamily: 'monospace' }}>{fmtEur(item.netN1)}</td>
+                </tr>
+              );
+            }
           })}
         </tbody>
       </table>

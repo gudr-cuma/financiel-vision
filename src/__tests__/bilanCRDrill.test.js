@@ -81,3 +81,20 @@ describe('getEntriesForBilanAccount — option type', () => {
     expect(rows[0].soldeCumule).toBe(1000);
   });
 });
+
+import { isDrillableLine } from '../components/bilanCR/drillRow';
+
+describe('isDrillableLine', () => {
+  it('ligne à code numérique : cliquable', () => {
+    expect(isDrillableLine({ type: 'line', code: '201' })).toBe(true);
+    expect(isDrillableLine({ type: 'subline', code: '706' })).toBe(true);
+  });
+  it('code pointé (ventilation emprunt) : non cliquable', () => {
+    expect(isDrillableLine({ type: 'subline', code: '164.1' })).toBe(false);
+  });
+  it('total / section / sans code : non cliquable', () => {
+    expect(isDrillableLine({ type: 'total', code: null })).toBe(false);
+    expect(isDrillableLine({ type: 'section' })).toBe(false);
+    expect(isDrillableLine({ type: 'line', code: null })).toBe(false);
+  });
+});

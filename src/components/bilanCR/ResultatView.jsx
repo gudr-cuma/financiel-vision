@@ -1,3 +1,7 @@
+import useStore from '../../store/useStore';
+import { buildBilanCRDrill } from '../../engine/drillDown';
+import { isDrillableLine } from './drillRow';
+
 function fmtEur(v) {
   if (v === null || v === undefined) return '';
   if (v === 0) return '—';
@@ -31,6 +35,11 @@ const TH = ({ children, right }) => (
 );
 
 export function ResultatView({ items }) {
+  const detailPanel = useStore(s => s.detailPanel);
+  const openBilanCRDetail = useStore(s => s.openBilanCRDetail);
+  const closeDetail = useStore(s => s.closeDetail);
+  const selectedRacine = detailPanel?.type === 'bilancr' ? detailPanel.racine : null;
+
   if (!items?.length) return <div style={{ color: '#A0AEC0', padding: '24px' }}>Aucune donnée Résultat</div>;
 
   return (
@@ -81,28 +90,73 @@ export function ResultatView({ items }) {
               );
             }
 
-            if (item.type === 'subline') return (
-              <tr key={i} style={{ borderBottom: '1px solid #F0F4F8', background: '#FAFAFA' }}>
-                <td style={{ padding: '4px 10px 4px 28px', fontSize: '12px', color: '#718096', fontStyle: 'italic' }}>
-                  {item.code && <span style={{ fontSize: '10px', color: '#CBD5E0', marginRight: '8px', fontFamily: 'monospace' }}>{item.code}</span>}
-                  {item.label}
-                </td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontSize: '12px', color: '#718096', fontFamily: 'monospace' }}>{fmtEur(item.totalN)}</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontSize: '12px', color: '#A0AEC0', fontFamily: 'monospace' }}>{fmtEur(item.totalN1)}</td>
-                <td style={{ padding: '4px 10px', textAlign: 'right', fontSize: '12px' }}>{fmtVar(item.variation)}</td>
-              </tr>
-            );
+            if (item.type === 'subline') {
+              const drillable = isDrillableLine(item);
+              const selected = drillable && item.code === selectedRacine;
+              const onClick = () => {
+                if (!drillable) return;
+                if (selected) closeDetail();
+                else openBilanCRDetail(buildBilanCRDrill(item, 'resultat'));
+              };
+              return (
+                <tr key={i}
+                  onClick={onClick}
+                  onKeyDown={drillable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+                  role={drillable ? 'button' : undefined}
+                  tabIndex={drillable ? 0 : undefined}
+                  aria-selected={drillable ? selected : undefined}
+                  style={{
+                    borderBottom: '1px solid #F0F4F8',
+                    background: selected ? '#E3F2F5' : '#FAFAFA',
+                    cursor: drillable ? 'pointer' : 'default',
+                  }}
+                  onMouseEnter={e => { if (!selected) e.currentTarget.style.background = drillable ? '#E3F2F5' : '#FAFAFA'; }}
+                  onMouseLeave={e => { if (!selected) e.currentTarget.style.background = '#FAFAFA'; }}
+                >
+                  <td style={{ padding: '4px 10px 4px 28px', fontSize: '12px', color: '#718096', fontStyle: 'italic' }}>
+                    {item.code && <span style={{ fontSize: '10px', color: '#CBD5E0', marginRight: '8px', fontFamily: 'monospace' }}>{item.code}</span>}
+                    {item.label}
+                    {drillable && (
+                      <span aria-hidden="true" style={{ color: selected ? '#FF8200' : '#CBD5E0', fontSize: '15px', marginLeft: '8px' }}>›</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '4px 10px', textAlign: 'right', fontSize: '12px', color: '#718096', fontFamily: 'monospace' }}>{fmtEur(item.totalN)}</td>
+                  <td style={{ padding: '4px 10px', textAlign: 'right', fontSize: '12px', color: '#A0AEC0', fontFamily: 'monospace' }}>{fmtEur(item.totalN1)}</td>
+                  <td style={{ padding: '4px 10px', textAlign: 'right', fontSize: '12px' }}>{fmtVar(item.variation)}</td>
+                </tr>
+              );
+            }
 
             // Ligne principale
             const isNeg = item.totalN !== null && item.totalN < 0;
+            const drillable = isDrillableLine(item);
+            const selected = drillable && item.code === selectedRacine;
+            const onClick = () => {
+              if (!drillable) return;
+              if (selected) closeDetail();
+              else openBilanCRDetail(buildBilanCRDrill(item, 'resultat'));
+            };
             return (
-              <tr key={i} style={{ borderBottom: '1px solid #F0F4F8' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#F8FAFB'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}
+              <tr key={i}
+                onClick={onClick}
+                onKeyDown={drillable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+                role={drillable ? 'button' : undefined}
+                tabIndex={drillable ? 0 : undefined}
+                aria-selected={drillable ? selected : undefined}
+                style={{
+                  borderBottom: '1px solid #F0F4F8',
+                  background: selected ? '#E3F2F5' : '',
+                  cursor: drillable ? 'pointer' : 'default',
+                }}
+                onMouseEnter={e => { if (!selected) e.currentTarget.style.background = drillable ? '#E3F2F5' : '#F8FAFB'; }}
+                onMouseLeave={e => { if (!selected) e.currentTarget.style.background = ''; }}
               >
                 <td style={{ padding: '5px 10px', color: '#1A202C' }}>
                   {item.code && <span style={{ fontSize: '10px', color: '#CBD5E0', marginRight: '8px', fontFamily: 'monospace' }}>{item.code}</span>}
                   {item.label}
+                  {drillable && (
+                    <span aria-hidden="true" style={{ color: selected ? '#FF8200' : '#CBD5E0', fontSize: '15px', marginLeft: '8px' }}>›</span>
+                  )}
                 </td>
                 <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 500, fontFamily: 'monospace', color: isNeg ? '#E53935' : '#1A202C' }}>{fmtEur(item.totalN)}</td>
                 <td style={{ padding: '5px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#718096' }}>{fmtEur(item.totalN1)}</td>
